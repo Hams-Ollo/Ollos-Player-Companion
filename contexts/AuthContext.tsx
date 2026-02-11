@@ -1,14 +1,9 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  onAuthStateChanged, 
-  signOut,
-  signInAnonymously
-} from 'firebase/auth';
+// Fix: Use namespaced imports for Firebase v8 compatibility to resolve "no exported member" errors
+import firebase from 'firebase/app';
+import 'firebase/auth';
 
 // Firebase configuration using provided environment variables
 const firebaseConfig = {
@@ -20,10 +15,18 @@ const firebaseConfig = {
   appId: process.env.VITE_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
+// Initialize Firebase safely using the namespaced API
+let auth: any;
+try {
+  // Fix: Use namespaced initialization to resolve missing functional exports
+  const app = firebase.apps.length === 0 ? firebase.initializeApp(firebaseConfig) : firebase.app();
+  auth = app.auth();
+} catch (e) {
+  console.error("Firebase initialization failed. Check your environment variables.", e);
+}
+
+// Fix: Use namespaced provider to resolve "no exported member 'GoogleAuthProvider'"
+const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -40,8 +43,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Listen for real authentication state changes
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
+    // Fix: Use namespaced onAuthStateChanged to resolve "no exported member"
+    const unsubscribe = auth.onAuthStateChanged((firebaseUser: any) => {
       if (firebaseUser) {
         const profile: UserProfile = {
           uid: firebaseUser.uid,
@@ -62,21 +70,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signInWithGoogle = async () => {
+    if (!auth) return;
     try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
+      // Fix: Use namespaced signInWithPopup
+      await auth.signInWithPopup(googleProvider);
+    } catch (error: any) {
       console.error("Google Sign-In Error:", error);
-      alert("Failed to sign in with Google. Please try again.");
+      alert(`Sign-in failed: ${error.message}`);
     }
   };
 
   const signInAsGuest = async () => {
+    if (!auth) {
+      // Fallback if auth is completely missing
+      const mockUser = { uid: 'guest-local', displayName: 'Guest (Local)', email: null, photoURL: null };
+      setUser(mockUser);
+      setLoading(false);
+      return;
+    }
     try {
-      // Use Firebase Anonymous Auth for guest mode
-      await signInAnonymously(auth);
+      // Fix: Use namespaced signInAnonymously
+      await auth.signInAnonymously();
     } catch (error) {
       console.error("Guest Sign-In Error:", error);
-      // Fallback to purely local mock if Firebase anonymous fails
       const mockUser = { 
         uid: 'guest-' + Math.random().toString(36).substr(2, 5), 
         displayName: 'Guest Adventurer', 
@@ -84,14 +100,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         photoURL: null 
       };
       setUser(mockUser);
-      localStorage.setItem('vesper_user', JSON.stringify(mockUser));
       setLoading(false);
     }
   };
 
   const logout = async () => {
+    if (!auth) {
+      setUser(null);
+      return;
+    }
     try {
-      await signOut(auth);
+      // Fix: Use namespaced signOut
+      await auth.signOut();
     } catch (error) {
       console.error("Logout Error:", error);
     }
