@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CharacterData, Campaign } from './types';
 import { VESPER_DATA } from './constants';
+import { recalculateCharacterStats } from './utils';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -21,16 +22,17 @@ const AppContent: React.FC = () => {
       try {
         const parsed = JSON.parse(savedChars);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setCharacters(parsed);
+          // Sanitize existing data
+          setCharacters(parsed.map((c: CharacterData) => recalculateCharacterStats(c)));
         } else {
-          setCharacters([VESPER_DATA]);
+          setCharacters([recalculateCharacterStats(VESPER_DATA)]);
         }
       } catch (e) {
         console.error("Corrupted character data found. Resetting to default.", e);
-        setCharacters([VESPER_DATA]);
+        setCharacters([recalculateCharacterStats(VESPER_DATA)]);
       }
     } else {
-      setCharacters([VESPER_DATA]);
+      setCharacters([recalculateCharacterStats(VESPER_DATA)]);
     }
     
     const savedCamps = localStorage.getItem('vesper_campaigns');
@@ -55,7 +57,15 @@ const AppContent: React.FC = () => {
     localStorage.setItem('vesper_campaigns', JSON.stringify(campaigns));
   }, [campaigns]);
 
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-500">Loading Hall...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-zinc-500 space-y-4">
+        <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
+        <p className="font-display text-sm tracking-widest uppercase animate-pulse">Loading Hall...</p>
+      </div>
+    );
+  }
+
   if (!user) return <LoginScreen />;
 
   const activeChar = characters.find(c => c.id === activeCharacterId);
@@ -69,7 +79,7 @@ const AppContent: React.FC = () => {
             setCharacters(prev => prev.map(c => c.id === activeChar.id ? { ...c, portraitUrl: url } : c));
           }}
           onUpdateData={(newData) => {
-            setCharacters(prev => prev.map(c => c.id === activeChar.id ? { ...c, ...newData } : c));
+            setCharacters(prev => prev.map(c => c.id === activeChar.id ? recalculateCharacterStats({ ...c, ...newData }) : c));
           }}
           onExit={() => setActiveCharacterId(null)}
         />
@@ -82,7 +92,7 @@ const AppContent: React.FC = () => {
       <CharacterSelection 
         characters={characters}
         campaigns={campaigns}
-        onUpdateCampaigns={setCharacters as any} // Fixing campaign sync
+        onUpdateCampaigns={(newCamps) => setCampaigns(newCamps as any)}
         onSelect={(id) => setActiveCharacterId(id)}
         onCreate={(newChar) => {
           setCharacters(prev => [...prev, newChar]);

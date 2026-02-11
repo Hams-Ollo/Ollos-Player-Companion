@@ -1,0 +1,8 @@
+{
+  "name": "The Players Companion",
+  "description": "A card-based D&D character sheet, featuring intuitive stacks for stats, combat, skills, features, and inventory.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

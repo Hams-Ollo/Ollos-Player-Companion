@@ -1,52 +1,40 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-/**
- * Initializes the Gemini AI client using the environment's API key.
- */
 const getAI = () => {
-  // Always use process.env.API_KEY directly in the constructor as per guidelines
+  if (!process.env.API_KEY) {
+    throw new Error("Gemini API Key missing. Please check your environment variables.");
+  }
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 /**
- * Generates text content with optional configuration (like JSON schemas).
- */
-export const generateWithContext = async (prompt: string, config: any = {}) => {
-  const ai = getAI();
-  try {
-    // Using simple text input for contents and correctly accessing .text getter
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        temperature: 0.7,
-        ...config
-      },
-    });
-    return response.text;
-  } catch (error) {
-    console.error("Gemini Generation Error:", error);
-    throw error;
-  }
-};
-
-/**
- * Creates a stateful chat session with system instructions.
+ * Creates a chat session with a specific system instruction.
  */
 export const createChatWithContext = async (history: any[], systemInstruction: string) => {
   const ai = getAI();
-  try {
-    // Placing history as a top-level property in chats.create as per SDK standards
-    return ai.chats.create({
-      model: 'gemini-3-flash-preview',
-      history,
-      config: {
-        systemInstruction,
-      },
-    });
-  } catch (error) {
-    console.error("Gemini Chat Initialization Error:", error);
-    throw error;
-  }
+  // Fix: Move 'history' from 'config' to the root level of ai.chats.create parameters.
+  return ai.chats.create({
+    model: 'gemini-3-flash-preview',
+    history: history,
+    config: {
+      systemInstruction,
+    }
+  });
+};
+
+/**
+ * Simple text generation with optional JSON response schema.
+ */
+export const generateWithContext = async (prompt: string, config: any = {}) => {
+  const ai = getAI();
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: prompt,
+    config: {
+      systemInstruction: "You are a specialized D&D 5e assistant. Provide accurate rules, engaging flavor text, and well-structured responses.",
+      ...config,
+    },
+  });
+  return response.text;
 };
