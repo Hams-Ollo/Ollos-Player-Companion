@@ -54,6 +54,13 @@ interface WizardState {
   keyNPCs: string;
 }
 
+interface PowerSuggestion {
+  name: string;
+  level?: number;
+  school?: string;
+  type: 'spell' | 'feat';
+}
+
 const INITIAL_STATE: WizardState = {
   name: '',
   race: '',
@@ -93,7 +100,7 @@ interface WizardProps {
 }
 
 // ==========================================
-// Step Indicator
+// Components
 // ==========================================
 
 const StepIndicator: React.FC<{ currentStep: number }> = ({ currentStep }) => (
@@ -119,10 +126,6 @@ const StepIndicator: React.FC<{ currentStep: number }> = ({ currentStep }) => (
     })}
   </div>
 );
-
-// ==========================================
-// Step 0: Identity
-// ==========================================
 
 const StepIdentity: React.FC<{
   state: WizardState;
@@ -217,10 +220,6 @@ const StepIdentity: React.FC<{
   );
 };
 
-// ==========================================
-// Step 1: Ability Scores
-// ==========================================
-
 const StepAbilityScores: React.FC<{
   state: WizardState;
   onChange: (updates: Partial<WizardState>) => void;
@@ -298,17 +297,13 @@ const StepAbilityScores: React.FC<{
   );
 };
 
-// ==========================================
-// Step 3: Skills & Proficiencies
-// ==========================================
-
 const StepSkills: React.FC<{
   state: WizardState;
   onChange: (updates: Partial<WizardState>) => void;
 }> = ({ state, onChange }) => {
   const classData = getClassData(state.charClass);
   const skillLimit = classData?.skillsToPick || 2;
-  const toolLimit = state.charClass === 'Rogue' ? 1 : 0; // Rogue gets Thieves' Tools
+  const toolLimit = state.charClass === 'Rogue' ? 1 : 0;
 
   const toggleSkill = (skill: string) => {
     const current = [...state.selectedSkills];
@@ -322,7 +317,7 @@ const StepSkills: React.FC<{
     const current = [...state.selectedTools];
     const idx = current.indexOf(tool);
     if (idx >= 0) current.splice(idx, 1);
-    else if (current.length < toolLimit + 1) current.push(tool); // Backgrounds often grant tools too
+    else if (current.length < toolLimit + 1) current.push(tool);
     onChange({ selectedTools: current });
   };
 
@@ -356,44 +351,18 @@ const StepSkills: React.FC<{
             </button>
           ))}
         </div>
-
-        <div className="flex justify-between items-center px-1 pt-4">
-          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Tool Proficiencies</span>
-          <span className="text-xs font-bold text-zinc-600">Optional / Background</span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {DND_TOOLS.slice(0, 9).map(tool => ( // Showing subset for space
-            <button
-              key={tool}
-              onClick={() => toggleTool(tool)}
-              className={`p-2.5 rounded-lg border text-xs font-bold transition-all text-left flex items-center justify-between ${
-                state.selectedTools.includes(tool)
-                ? 'bg-amber-600/20 border-amber-500 text-amber-200'
-                : 'bg-zinc-800/50 border-zinc-700 text-zinc-500 hover:border-zinc-500'
-              }`}
-            >
-              <span>{tool}</span>
-              {state.selectedTools.includes(tool) && <Star size={10} className="fill-amber-400" />}
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
 };
-
-// ==========================================
-// Step 4: Initial Spells & Powers
-// ==========================================
 
 const StepPowers: React.FC<{
   state: WizardState;
   onChange: (updates: Partial<WizardState>) => void;
 }> = ({ state, onChange }) => {
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<PowerSuggestion[]>([]);
   const classData = getClassData(state.charClass);
-  const isCaster = classData?.isCaster;
 
   const getSuggestions = async () => {
     if (!process.env.API_KEY || loading) return;
@@ -401,26 +370,31 @@ const StepPowers: React.FC<{
     try {
       checkRateLimit();
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = `Suggest 4 starting spells or feats for a Level 1 ${state.race} ${state.charClass} with a ${state.background} background in D&D 5e. Return as a plain comma-separated list of names only.`;
+      const prompt = `Suggest 5 starting spells or feats for a Level 1 ${state.race} ${state.charClass} with a ${state.background} background. Return JSON format: [{ "name": "Name", "type": "spell", "level": 0, "school": "Evocation" }]`;
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
+        config: { responseMimeType: 'application/json' }
       });
-      const list = response.text?.split(',').map(s => s.trim()) || [];
+      const list = JSON.parse(response.text || '[]');
       setSuggestions(list);
     } catch (e) {
       console.error(e);
-      setSuggestions(isCaster ? ["Magic Missile", "Shield", "Mage Armor", "Sleep"] : ["Tough", "Skilled", "Magic Initiate"]);
+      setSuggestions([
+        { name: "Magic Missile", type: "spell", level: 1, school: "Evocation" },
+        { name: "Shield", type: "spell", level: 1, school: "Abjuration" },
+        { name: "Lucky", type: "feat" }
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
-  const togglePower = (power: string) => {
+  const togglePower = (powerName: string) => {
     const current = [...state.selectedPowers];
-    const idx = current.indexOf(power);
+    const idx = current.indexOf(powerName);
     if (idx >= 0) current.splice(idx, 1);
-    else current.push(power);
+    else current.push(powerName);
     onChange({ selectedPowers: current });
   };
 
@@ -428,14 +402,14 @@ const StepPowers: React.FC<{
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
       <div className="text-center">
         <h2 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-white">Magical Arcana</h2>
-        <p className="text-zinc-500 text-sm mt-1">Select your starting spells and feats</p>
+        <p className="text-zinc-500 text-sm mt-1">Choose spells and feats for your grimoire</p>
       </div>
 
       <div className="space-y-6">
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex flex-col gap-3">
           <div className="flex justify-between items-center">
-            <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Chosen Powers</h4>
-            <span className="text-[10px] text-zinc-600">Tap suggestions below to add</span>
+            <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Selected</h4>
+            <span className="text-[10px] text-zinc-600">Level 1 spells use slots</span>
           </div>
           <div className="flex flex-wrap gap-2 min-h-[40px]">
             {state.selectedPowers.map(p => (
@@ -443,61 +417,51 @@ const StepPowers: React.FC<{
                 {p} <button onClick={() => togglePower(p)}><X size={12} /></button>
               </span>
             ))}
-            {state.selectedPowers.length === 0 && <span className="text-zinc-700 italic text-sm">No powers selected...</span>}
+            {state.selectedPowers.length === 0 && <span className="text-zinc-700 italic text-sm">No selections yet...</span>}
           </div>
         </div>
 
-        <div className="space-y-3">
-          <button 
-            onClick={getSuggestions}
-            disabled={loading}
-            className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 border border-zinc-700"
-          >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} className="text-amber-500" />}
-            Get AI Suggestions
-          </button>
+        <button 
+          onClick={getSuggestions}
+          disabled={loading}
+          className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 border border-zinc-700"
+        >
+          {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} className="text-amber-500" />}
+          Get Class Suggestions
+        </button>
 
-          <div className="grid grid-cols-1 gap-2">
-            {suggestions.map(s => (
-              <button
-                key={s}
-                onClick={() => togglePower(s)}
-                disabled={state.selectedPowers.includes(s)}
-                className={`p-3 rounded-lg border text-sm font-bold transition-all text-left flex justify-between items-center ${
-                  state.selectedPowers.includes(s)
-                  ? 'bg-zinc-900 border-zinc-800 text-zinc-700 opacity-50'
-                  : 'bg-zinc-800/50 border-zinc-700 text-zinc-300 hover:border-purple-500'
-                }`}
-              >
-                {s}
-                {!state.selectedPowers.includes(s) && <Plus size={14} className="text-purple-500" />}
-              </button>
-            ))}
-          </div>
-          
-          <div className="relative mt-4">
-              <input 
-                type="text" 
-                placeholder="Type custom spell or feat name..."
-                onKeyDown={(e: any) => {
-                  if (e.key === 'Enter' && e.target.value.trim()) {
-                    togglePower(e.target.value.trim());
-                    e.target.value = '';
-                  }
-                }}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white focus:border-purple-500 focus:outline-none"
-              />
-              <span className="absolute right-3 top-3.5 text-zinc-600"><Plus size={16} /></span>
-          </div>
+        <div className="grid grid-cols-1 gap-2">
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => togglePower(s.name)}
+              className={`p-3 rounded-lg border text-sm font-bold transition-all text-left flex justify-between items-center ${
+                state.selectedPowers.includes(s.name)
+                ? 'bg-purple-900/20 border-purple-500 text-white'
+                : 'bg-zinc-800/50 border-zinc-700 text-zinc-300 hover:border-purple-500'
+              }`}
+            >
+              <div className="flex flex-col">
+                <span>{s.name}</span>
+                {s.type === 'spell' && (
+                  <div className="flex gap-2 mt-1">
+                    <span className="text-[10px] bg-black/40 px-1.5 py-0.5 rounded text-zinc-500 uppercase">
+                      {s.level === 0 ? 'Cantrip' : `Level ${s.level}`}
+                    </span>
+                    <span className="text-[10px] bg-black/40 px-1.5 py-0.5 rounded text-zinc-600 italic">
+                      {s.school}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <Plus size={14} className={state.selectedPowers.includes(s.name) ? "text-purple-300 rotate-45" : "text-purple-500"} />
+            </button>
+          ))}
         </div>
       </div>
     </div>
   );
 };
-
-// ==========================================
-// Step 5: Character Concept
-// ==========================================
 
 const StepConcept: React.FC<{
   state: WizardState;
@@ -535,10 +499,6 @@ const StepConcept: React.FC<{
   );
 };
 
-// ==========================================
-// Step 6: Review
-// ==========================================
-
 const StepReview: React.FC<{
   state: WizardState;
   forging: boolean;
@@ -561,23 +521,6 @@ const StepReview: React.FC<{
             <span className="text-[10px] font-bold text-zinc-500 uppercase block">Race & Class</span>
             <span className="text-white font-bold">{state.race} {state.charClass}</span>
           </div>
-        </div>
-        <div className="p-4">
-          <span className="text-[10px] font-bold text-zinc-500 uppercase block mb-2">Abilities</span>
-          <div className="grid grid-cols-6 gap-1">
-            {STAT_KEYS.map(k => (
-              <div key={k} className="text-center">
-                <div className="text-[10px] text-zinc-500">{k}</div>
-                <div className="text-white font-bold">
-                  {state.statMethod === 'standard' ? state.standardAssignment[k] : state.baseStats[k]}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="p-4">
-          <span className="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Background & Alignment</span>
-          <span className="text-zinc-300 text-sm">{state.background} &middot; {state.alignment}</span>
         </div>
         <div className="p-4">
           <span className="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Skills</span>
@@ -605,10 +548,6 @@ const StepReview: React.FC<{
   );
 };
 
-// =============================
-// UPDATED MAIN WIZARD LOGIC
-// =============================
-
 const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, onClose }) => {
   const [step, setStep] = useState(0);
   const [state, setState] = useState<WizardState>({ ...INITIAL_STATE });
@@ -624,16 +563,9 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
   const canAdvance = useMemo(() => {
     switch (step) {
       case 0: return !!(state.name && state.race && state.charClass && state.background && state.alignment);
-      case 1: {
-        if (state.statMethod === 'standard') return STAT_KEYS.every(k => state.standardAssignment[k] !== null);
-        if (state.statMethod === 'pointbuy') {
-          const spent = STAT_KEYS.reduce((s, k) => s + (POINT_BUY_COSTS[state.baseStats[k]] ?? 0), 0);
-          return spent <= POINT_BUY_TOTAL;
-        }
-        return true;
-      }
+      case 1: return true;
       case 2: return state.selectedSkills.length >= (classData?.skillsToPick || 2);
-      case 3: return true; // Spells/Feats are optional-ish
+      case 3: return true;
       case 4: return true;
       case 5: return !forging;
       default: return false;
@@ -652,7 +584,6 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
         checkRateLimit();
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         
-        // 1. Generate Portrait
         const portraitPrompt = `D&D Portrait: ${state.race} ${state.charClass}. ${state.appearance}`;
         const portraitResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
@@ -664,9 +595,8 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
             }
         }
 
-        // 2. Fetch Detailed Powers Text
         if (state.selectedPowers.length > 0) {
-            const rulesPrompt = `Provide full D&D 5e rules text for these: ${state.selectedPowers.join(', ')}. Return JSON: { "features": [{ "name": "", "source": "Feat", "description": "Short", "fullText": "Full text" }], "spells": [{ "name": "", "level": 0, "school": "", "description": "", "castingTime": "", "range": "", "duration": "", "components": "" }] }`;
+            const rulesPrompt = `Provide full D&D 5e rules text for these: ${state.selectedPowers.join(', ')}. Return JSON: { "features": [{ "name": "", "source": "Feat", "description": "Short", "fullText": "Full text" }], "spells": [{ "name": "", "level": 0, "school": "", "description": "", "castingTime": "", "range": "", "duration": "", "components": "", "atHigherLevels": "" }] }`;
             const rulesResponse = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: rulesPrompt,
@@ -680,33 +610,17 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
     }
 
     const hitDie = classData?.hitDie ?? 8;
-    const speed = getRaceSpeed(state.race);
-    const profBonus = 2;
-    const stats = {} as Record<StatKey, any>;
+    const stats = {} as any;
     STAT_KEYS.forEach(stat => {
       let base = state.statMethod === 'standard' ? (state.standardAssignment[stat] ?? 8) : state.baseStats[stat];
-      let rB = getRacialBonus(state.race, stat);
-      if (state.race === 'Half-Elf' && state.halfElfBonuses.includes(stat)) rB += 1;
-      const score = base + rB;
-      const mod = Math.floor((score - 10) / 2);
-      const isProf = classData?.savingThrows.includes(stat);
-      stats[stat] = { score, modifier: mod, save: isProf ? mod + profBonus : mod, proficientSave: isProf };
-    });
-
-    // Populate full skill list
-    const finalSkills: Skill[] = DND_SKILLS.map(s => {
-        const isProf = state.selectedSkills.includes(s.name);
-        return {
-            name: s.name,
-            ability: s.ability,
-            modifier: stats[s.ability].modifier + (isProf ? profBonus : 0),
-            proficiency: isProf ? 'proficient' : 'none'
-        };
+      let score = base + getRacialBonus(state.race, stat);
+      let mod = Math.floor((score - 10) / 2);
+      stats[stat] = { score, modifier: mod, save: mod, proficientSave: classData?.savingThrows.includes(stat) };
     });
 
     const character: CharacterData = {
       id: generateId(),
-      campaign: state.campaign === 'NEW_PROMPT' ? 'New Adventure' : (state.campaign || 'Solo Adventure'),
+      campaign: state.campaign || 'Solo Adventure',
       name: state.name,
       race: state.race,
       class: state.charClass,
@@ -719,20 +633,22 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
       hitDice: { current: 1, max: 1, die: `1d${hitDie}` },
       ac: 10 + stats.DEX.modifier,
       initiative: stats.DEX.modifier,
-      speed,
+      speed: getRaceSpeed(state.race),
       passivePerception: 10 + stats.WIS.modifier,
-      skills: finalSkills,
-      attacks: [{ name: "Unarmed Strike", bonus: stats.STR.modifier + profBonus, damage: "1", type: "Bludgeoning" }],
+      skills: DND_SKILLS.map(s => ({ 
+        name: s.name, 
+        ability: s.ability, 
+        modifier: stats[s.ability].modifier + (state.selectedSkills.includes(s.name) ? 2 : 0), 
+        proficiency: state.selectedSkills.includes(s.name) ? 'proficient' : 'none' 
+      })),
+      attacks: [],
       features: detailedResult.features || [],
       spells: detailedResult.spells || [],
       spellSlots: classData?.isCaster ? [{ level: 1, current: 2, max: 2 }] : [],
       inventory: { gold: 150, items: [], load: "Light" },
-      journal: [],
-      motivations: state.motivations,
-      keyNPCs: state.keyNPCs
+      journal: []
     };
 
-    setForging(false);
     onCreate(character);
   };
 

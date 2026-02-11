@@ -42,6 +42,7 @@ export interface Spell {
   components: string;
   duration: string;
   description: string;
+  atHigherLevels?: string;
 }
 
 export interface Item {
