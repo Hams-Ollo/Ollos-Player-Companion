@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Feature, Item } from '../types';
+import { Feature, Item, Spell } from '../types';
 import { X, Book, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -7,7 +8,8 @@ import { checkRateLimit } from '../utils';
 import { generateWithContext } from '../lib/gemini';
 
 interface ItemDetailModalProps {
-  item: Item | Feature;
+  // Fix: Added Spell to the union type to resolve assignment errors from Dashboard.tsx
+  item: Item | Feature | Spell;
   onClose: () => void;
 }
 
@@ -15,9 +17,12 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose }) => {
   const [details, setDetails] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
-  // Check if it's a feature or item to show existing info first
-  const initialText = 'fullText' in item ? item.fullText : (item as Item).notes || '';
+  // Fix: Check if it's a feature, spell, or item to show existing info first
   const isFeature = 'fullText' in item;
+  const isSpell = 'level' in item;
+  const initialText = isFeature ? (item as Feature).fullText : 
+                      isSpell ? (item as Spell).description : 
+                      (item as Item).notes || '';
 
   useEffect(() => {
     if (initialText && initialText.length > 50) {
@@ -33,7 +38,9 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose }) => {
     try {
         checkRateLimit(); // Enforce rate limit
 
-        const prompt = `Using the reference documents, provide a detailed, rules-accurate description for the D&D 5e ${isFeature ? 'feature' : 'item'}: "${item.name}". Include mechanics, stats (if item), and flavor text. Cite the source book and page number. Format with Markdown. Use tables for stats if applicable.`;
+        // Fix: Determine the correct category for the prompt based on type checks
+        const category = isFeature ? 'feature' : isSpell ? 'spell' : 'item';
+        const prompt = `Using the reference documents, provide a detailed, rules-accurate description for the D&D 5e ${category}: "${item.name}". Include mechanics, stats (if item), and flavor text. Cite the source book and page number. Format with Markdown. Use tables for stats if applicable.`;
         
         const responseText = await generateWithContext(prompt);
         

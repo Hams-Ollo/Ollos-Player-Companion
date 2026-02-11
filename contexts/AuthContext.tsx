@@ -1,14 +1,12 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { auth, googleProvider } from '../lib/firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => void;
   signInAsGuest: () => void;
-  logout: () => Promise<void>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,60 +16,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!auth) {
-      // If Firebase keys are missing, we don't try to load a user
-      setLoading(false);
-      return;
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
-      if (firebaseUser) {
-        setUser({
-          uid: firebaseUser.uid,
-          displayName: firebaseUser.displayName,
-          email: firebaseUser.email,
-          photoURL: firebaseUser.photoURL,
-          isAnonymous: false,
-        });
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    const saved = localStorage.getItem('vesper_user');
+    if (saved) setUser(JSON.parse(saved));
+    setLoading(false);
   }, []);
 
-  const signInWithGoogle = async () => {
-    if (!auth || !googleProvider) {
-      alert("Firebase is not configured. Please add VITE_FIREBASE_API_KEY to your .env file.");
-      return;
-    }
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Login failed", error);
-      alert("Login failed. Please try again.");
-    }
+  const signInWithGoogle = () => {
+    const mockUser = { uid: 'google-123', displayName: 'Valeros Bold', email: 'val@bold.com', photoURL: null };
+    setUser(mockUser);
+    localStorage.setItem('vesper_user', JSON.stringify(mockUser));
   };
 
   const signInAsGuest = () => {
-    // Simulates a guest user
-    setUser({
-      uid: 'guest',
-      displayName: 'Traveler',
-      email: null,
-      photoURL: null,
-      isAnonymous: true
-    });
-    setLoading(false);
+    const mockUser = { uid: 'guest-' + Math.random().toString(36).substr(2, 5), displayName: 'Stranger', email: null, photoURL: null };
+    setUser(mockUser);
+    localStorage.setItem('vesper_user', JSON.stringify(mockUser));
   };
 
-  const logout = async () => {
-    if (auth) {
-      await signOut(auth);
-    }
+  const logout = () => {
     setUser(null);
+    localStorage.removeItem('vesper_user');
   };
 
   return (
@@ -83,8 +47,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 };

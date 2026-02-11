@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CharacterData, StackType, RollResult, Item, Feature } from '../types';
+import { CharacterData, StackType, RollResult, Item, Feature, Spell } from '../types';
 import CardStack from './CardStack';
 import DetailOverlay from './DetailOverlay';
 import VitalsDetail from './details/VitalsDetail';
@@ -8,6 +8,7 @@ import SkillsDetail from './details/SkillsDetail';
 import FeaturesDetail from './details/FeaturesDetail';
 import InventoryDetail from './details/InventoryDetail';
 import JournalDetail from './details/JournalDetail';
+import SpellsDetail from './details/SpellsDetail';
 import DiceRollModal from './DiceRollModal';
 import PortraitGenerator from './PortraitGenerator';
 import AskDMModal from './AskDMModal';
@@ -16,7 +17,7 @@ import ShopModal from './ShopModal';
 import LevelUpModal from './LevelUpModal';
 import ItemDetailModal from './ItemDetailModal';
 import RestModal from './RestModal';
-import { Heart, Sword, Brain, Sparkles, Backpack, Edit2, MessageSquare, Settings, LogOut, Book, ShoppingBag } from 'lucide-react';
+import { Heart, Sword, Brain, Sparkles, Backpack, Edit2, MessageSquare, Settings, LogOut, Book, ShoppingBag, Wand2 } from 'lucide-react';
 
 interface DashboardProps {
   data: CharacterData;
@@ -34,10 +35,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
   const [showShop, setShowShop] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [showRest, setShowRest] = useState(false);
-  const [selectedItemForDetail, setSelectedItemForDetail] = useState<Item | Feature | null>(null);
+  const [selectedItemForDetail, setSelectedItemForDetail] = useState<Item | Feature | Spell | null>(null);
 
   const handleRoll = (label: string, modifier: number, die: string) => {
-    // Parse dice string: supports "XdY", "XdY+Z", "XdY-Z", or plain number "N"
     const diceMatch = die.match(/^(\d+)?d(\d+)([+-]\d+)?$/i);
     const rolls: number[] = [];
     let total = 0;
@@ -57,7 +57,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
       total += modifier + embeddedMod;
       modifier += embeddedMod;
     } else {
-      // Plain number (e.g. "1" for unarmed strike)
       const flat = parseInt(die) || 0;
       rolls.push(flat);
       total = flat + modifier;
@@ -72,6 +71,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
         modifier
     });
   };
+
+  const totalSlots = data.spellSlots.reduce((sum, s) => sum + s.max, 0);
+  const currentSlots = data.spellSlots.reduce((sum, s) => sum + s.current, 0);
 
   return (
     <div className="min-h-screen bg-[#111] pb-8 relative overflow-hidden">
@@ -211,9 +213,30 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                 </CardStack>
             </div>
 
-            {/* Row 3: Features & Inventory */}
+            {/* Row 3: Spells & Features */}
             <div className="grid grid-cols-2 gap-4 lg:gap-6 h-32 lg:h-40">
                  <CardStack 
+                    type="spells" 
+                    title="Spells" 
+                    color="cyan" 
+                    onClick={() => setActiveStack('spells')}
+                    icon={<Wand2 size={20} />}
+                >
+                    <div className="flex flex-col justify-center h-full gap-1">
+                        <div className="flex items-center gap-2">
+                             <div className={`w-2 h-2 rounded-full ${currentSlots > 0 ? 'bg-cyan-400 animate-pulse' : 'bg-zinc-700'}`}></div>
+                             <span className="text-sm font-bold text-cyan-100">{currentSlots} / {totalSlots} Slots</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <div className="w-2 h-2 rounded-full bg-purple-600"></div>
+                             <span className="text-xs text-zinc-400 truncate">
+                                {data.spells.length > 0 ? `${data.spells[0].name}` : "No spells known"}
+                             </span>
+                        </div>
+                    </div>
+                </CardStack>
+
+                <CardStack 
                     type="features" 
                     title="Traits" 
                     color="purple" 
@@ -228,7 +251,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                         ) : <span className="text-[10px] text-zinc-600 italic">No features</span>}
                     </div>
                 </CardStack>
+            </div>
 
+            {/* Row 4: Inventory & Journal */}
+            <div className="grid grid-cols-2 gap-4 lg:gap-6 h-28 lg:h-32">
                 <CardStack 
                     type="inventory" 
                     title="Bag" 
@@ -249,32 +275,25 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                         </div>
                      </div>
                 </CardStack>
-            </div>
 
-             {/* Row 4: Journal */}
-             <div className="h-24 lg:h-28">
-                 <CardStack 
+                <CardStack 
                     type="journal" 
-                    title="Adventure Journal" 
-                    color="cyan" 
+                    title="Journal" 
+                    color="orange" 
                     onClick={() => setActiveStack('journal')}
                     icon={<Book size={20} />}
                 >
                     <div className="p-1">
                         {data.journal && data.journal.length > 0 ? (
-                            <div className="text-xs text-zinc-400 line-clamp-2 italic">
+                            <div className="text-[10px] text-zinc-400 line-clamp-2 italic">
                                 "{data.journal[data.journal.length - 1].content}"
                             </div>
                         ) : (
-                            <div className="text-xs text-zinc-600 italic">No entries yet...</div>
+                            <div className="text-[10px] text-zinc-600 italic">No entries yet...</div>
                         )}
-                        <div className="mt-2 text-[10px] text-cyan-500 font-bold uppercase tracking-wider">
-                            {data.journal?.length || 0} Entries
-                        </div>
                     </div>
                 </CardStack>
             </div>
-
          </div>
        </div>
 
@@ -315,6 +334,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
        </DetailOverlay>
 
         <DetailOverlay 
+          isOpen={activeStack === 'spells'} 
+          onClose={() => setActiveStack(null)} 
+          type="spells" 
+          title="Spells & Cantrips"
+          color="cyan"
+        >
+          <SpellsDetail 
+            data={data} 
+            onUpdate={onUpdateData} 
+            onInspect={setSelectedItemForDetail} 
+          />
+       </DetailOverlay>
+
+        <DetailOverlay 
           isOpen={activeStack === 'features'} 
           onClose={() => setActiveStack(null)} 
           type="features" 
@@ -344,7 +377,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
           onClose={() => setActiveStack(null)} 
           type="journal" 
           title="Adventure Journal"
-          color="cyan"
+          color="orange"
         >
           <JournalDetail data={data} onUpdate={onUpdateData} />
        </DetailOverlay>

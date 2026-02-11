@@ -1,22 +1,20 @@
 {
-  "name": "vesper's-card-sheet",
+  "name": "the-players-companion",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "upload-pdfs": "node scripts/upload-pdfs.js"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "react-dom": "^19.2.4",
     "lucide-react": "^0.563.0",
+    "react-dom": "^19.2.4",
     "react": "^19.2.4",
     "@google/genai": "^1.40.0",
-    "react-markdown": "^9.0.1",
-    "remark-gfm": "^4.0.0",
-    "firebase": "^10.8.0"
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

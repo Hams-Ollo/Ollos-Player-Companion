@@ -1,17 +1,19 @@
 export type StatKey = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA';
 
-export interface AbilityScore {
+export interface Stat {
   score: number;
   modifier: number;
   save: number;
   proficientSave: boolean;
 }
 
+export type ProficiencyLevel = 'none' | 'proficient' | 'expertise';
+
 export interface Skill {
   name: string;
   ability: StatKey;
   modifier: number;
-  proficiency: 'none' | 'proficient' | 'expertise';
+  proficiency: ProficiencyLevel;
 }
 
 export interface Attack {
@@ -25,33 +27,30 @@ export interface Attack {
 
 export interface Feature {
   name: string;
-  source: 'Race' | 'Class' | 'Background' | 'Feat';
+  source: string;
   description: string;
   fullText: string;
-}
-
-export interface Item {
-  name: string;
-  quantity: number;
-  notes?: string;
-  cost?: number; // In gp
-  weight?: number; // In lbs
-  type?: 'Weapon' | 'Armor' | 'Gear' | 'Consumable' | 'Magic Item';
-  equipped?: boolean;
-  slot?: 'Main Hand' | 'Off Hand' | 'Body' | 'Accessory';
-  armorClass?: number; // If armor
 }
 
 export interface Spell {
   name: string;
   level: number;
-  school?: string;
-  castingTime?: string;
-  range?: string;
-  components?: string;
-  duration?: string;
+  school: string;
+  castingTime: string;
+  range: string;
+  components: string;
+  duration: string;
   description: string;
-  prepared?: boolean;
+}
+
+export interface Item {
+  name: string;
+  quantity: number;
+  type?: 'Weapon' | 'Armor' | 'Gear' | 'Consumable' | 'Magic Item';
+  cost?: number;
+  weight?: number;
+  notes?: string;
+  equipped?: boolean;
 }
 
 export interface JournalEntry {
@@ -59,21 +58,20 @@ export interface JournalEntry {
   timestamp: number;
   type: 'note' | 'npc' | 'location' | 'summary';
   content: string;
-  tags?: string[];
 }
 
 export interface CharacterData {
-  id: string; // Unique ID
-  campaign?: string; // Campaign Name
+  id: string;
   name: string;
-  nickname: string;
+  nickname?: string;
   race: string;
   class: string;
   background?: string;
   alignment?: string;
   level: number;
+  campaign?: string;
   portraitUrl: string;
-  stats: Record<StatKey, AbilityScore>;
+  stats: Record<StatKey, Stat>;
   hp: { current: number; max: number };
   hitDice: { current: number; max: number; die: string };
   ac: number;
@@ -83,24 +81,24 @@ export interface CharacterData {
   skills: Skill[];
   attacks: Attack[];
   features: Feature[];
-  spells: Spell[]; 
-  spellSlots: { current: number; max: number; level: number }[];
+  spells: Spell[];
+  spellSlots: { level: number; current: number; max: number }[];
   inventory: {
     gold: number;
     items: Item[];
-    load: 'Light' | 'Medium' | 'Heavy';
+    load: string;
   };
   journal: JournalEntry[];
 }
 
-export type StackType = 'vitals' | 'combat' | 'skills' | 'features' | 'inventory' | 'journal';
-
-export interface RollResult {
-  label: string;
-  total: number;
-  die: string;
-  rolls: number[];
-  modifier: number;
+export interface Campaign {
+  id: string;
+  name: string;
+  dmId: string;
+  description: string;
+  joinCode: string;
+  members: { uid: string; name: string }[];
+  createdAt: number;
 }
 
 export interface UserProfile {
@@ -108,15 +106,14 @@ export interface UserProfile {
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
-  isAnonymous: boolean;
 }
 
-export interface Campaign {
-  id: string;
-  name: string;
-  dmId: string; // User ID of the DM
-  description: string;
-  joinCode: string;
-  members: { uid: string; characterId?: string; name: string }[];
-  createdAt: number;
+export type StackType = 'vitals' | 'combat' | 'skills' | 'features' | 'inventory' | 'journal' | 'spells';
+
+export interface RollResult {
+  label: string;
+  total: number;
+  die: string;
+  rolls: number[];
+  modifier: number;
 }
