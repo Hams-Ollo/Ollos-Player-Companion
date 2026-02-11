@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { X, ChevronRight, ChevronLeft, Dices, User, BookOpen, Sparkles, Loader2, Wand2, Plus, Minus, Scroll, Mic, ShieldCheck, Zap, Star } from 'lucide-react';
-import { CharacterData, StatKey, Skill, Campaign, ProficiencyLevel } from '../types';
+import { X, ChevronRight, ChevronLeft, Dices, User, BookOpen, Sparkles, Loader2, Plus, Minus, ShieldCheck, Zap, Star } from 'lucide-react';
+import { CharacterData, StatKey, Campaign } from '../types';
 import TranscriptionButton from './TranscriptionButton';
 import {
   generateId,
@@ -10,7 +10,6 @@ import {
   DND_BACKGROUNDS,
   DND_ALIGNMENTS,
   DND_SKILLS,
-  DND_TOOLS,
   getClassData,
   getRaceSpeed,
   getRacialBonus,
@@ -19,6 +18,12 @@ import {
   POINT_BUY_TOTAL,
   POINT_BUY_MIN,
   POINT_BUY_MAX,
+  CLASS_CANTRIPS,
+  CLASS_SPELLS_1ST,
+  getCantripsKnownCount,
+  getSpellsKnownCount,
+  getSpellSlotsForLevel,
+  getRaceTraits,
 } from '../constants';
 import { GoogleGenAI } from "@google/genai";
 import { checkRateLimit } from '../utils';
@@ -52,13 +57,6 @@ interface WizardState {
   backstory: string;
   motivations: string;
   keyNPCs: string;
-}
-
-interface PowerSuggestion {
-  name: string;
-  level?: number;
-  school?: string;
-  type: 'spell' | 'feat';
 }
 
 const INITIAL_STATE: WizardState = {
@@ -143,8 +141,9 @@ const StepIdentity: React.FC<{
 
       <div className="space-y-4">
         <div>
-          <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Character Name</label>
+          <label htmlFor="wizard-name" className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Character Name</label>
           <input 
+            id="wizard-name"
             type="text" 
             value={state.name}
             onChange={e => onChange({ name: e.target.value })}
@@ -155,8 +154,9 @@ const StepIdentity: React.FC<{
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Race</label>
+            <label htmlFor="wizard-race" className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Race</label>
             <select 
+              id="wizard-race"
               value={state.race}
               onChange={e => onChange({ race: e.target.value })}
               className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-amber-500"
@@ -166,8 +166,9 @@ const StepIdentity: React.FC<{
             </select>
           </div>
           <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Class</label>
+            <label htmlFor="wizard-class" className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Class</label>
             <select 
+              id="wizard-class"
               value={state.charClass}
               onChange={e => onChange({ charClass: e.target.value })}
               className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-amber-500"
@@ -180,8 +181,9 @@ const StepIdentity: React.FC<{
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Background</label>
+            <label htmlFor="wizard-background" className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Background</label>
             <select 
+              id="wizard-background"
               value={state.background}
               onChange={e => onChange({ background: e.target.value })}
               className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-amber-500"
@@ -191,8 +193,9 @@ const StepIdentity: React.FC<{
             </select>
           </div>
           <div>
-            <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Alignment</label>
+            <label htmlFor="wizard-alignment" className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Alignment</label>
             <select 
+              id="wizard-alignment"
               value={state.alignment}
               onChange={e => onChange({ alignment: e.target.value })}
               className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-amber-500"
@@ -204,8 +207,9 @@ const StepIdentity: React.FC<{
         </div>
 
         <div>
-          <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Campaign</label>
+          <label htmlFor="wizard-campaign" className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Campaign</label>
           <select 
+            id="wizard-campaign"
             value={state.campaign}
             onChange={e => onChange({ campaign: e.target.value })}
             className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-amber-500"
@@ -254,9 +258,10 @@ const StepAbilityScores: React.FC<{
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {STAT_KEYS.map(key => (
           <div key={key} className="bg-zinc-800 p-4 rounded-xl border border-zinc-700">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase block text-center mb-1">{key}</label>
+            <label htmlFor={`stat-${key}`} className="text-[10px] font-bold text-zinc-500 uppercase block text-center mb-1">{key}</label>
             {state.statMethod === 'standard' ? (
               <select
+                id={`stat-${key}`}
                 value={state.standardAssignment[key] ?? ''}
                 onChange={e => handleStandardAssignment(key, e.target.value ? parseInt(e.target.value) : null)}
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-sm text-white focus:outline-none"
@@ -271,6 +276,7 @@ const StepAbilityScores: React.FC<{
             ) : (
               <div className="flex items-center justify-between gap-2">
                 <button 
+                  aria-label={`Decrease ${key}`}
                   onClick={() => handleStatChange(key, Math.max(POINT_BUY_MIN, state.baseStats[key] - 1))}
                   className="p-1 text-zinc-500 hover:text-white"
                 >
@@ -278,6 +284,7 @@ const StepAbilityScores: React.FC<{
                 </button>
                 <span className="text-xl font-bold text-white">{state.baseStats[key]}</span>
                 <button 
+                  aria-label={`Increase ${key}`}
                   onClick={() => handleStatChange(key, Math.min(POINT_BUY_MAX, state.baseStats[key] + 1))}
                   className="p-1 text-zinc-500 hover:text-white"
                 >
@@ -330,13 +337,17 @@ const StepSkills: React.FC<{
 
       <div className="space-y-4">
         <div className="flex justify-between items-center px-1">
-          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Skill Selection</span>
+          <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
+            {classData?.name} Skill Proficiencies
+          </span>
           <span className={`text-xs font-bold ${state.selectedSkills.length === skillLimit ? 'text-green-500' : 'text-amber-500'}`}>
             {state.selectedSkills.length} / {skillLimit}
           </span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {DND_SKILLS.map(skill => (
+          {DND_SKILLS
+            .filter(skill => classData?.skillChoices.includes(skill.name))
+            .map(skill => (
             <button
               key={skill.name}
               onClick={() => toggleSkill(skill.name)}
@@ -351,6 +362,9 @@ const StepSkills: React.FC<{
             </button>
           ))}
         </div>
+        {classData?.name === 'Bard' && (
+          <p className="text-[10px] text-amber-400/70 italic px-1">Bards can choose from any skill.</p>
+        )}
       </div>
     </div>
   );
@@ -360,104 +374,140 @@ const StepPowers: React.FC<{
   state: WizardState;
   onChange: (updates: Partial<WizardState>) => void;
 }> = ({ state, onChange }) => {
-  const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<PowerSuggestion[]>([]);
   const classData = getClassData(state.charClass);
+  const isCaster = classData?.isCaster ?? false;
+  const cantrips = CLASS_CANTRIPS[state.charClass] || [];
+  const spells1st = CLASS_SPELLS_1ST[state.charClass] || [];
+  const cantripsNeeded = getCantripsKnownCount(state.charClass, 1);
+  const spellsNeeded = getSpellsKnownCount(state.charClass, 1);
+  const raceTraits = getRaceTraits(state.race);
+  const racialSpellNames = (raceTraits?.racialSpells || []).filter(s => s.minCharLevel <= 1).map(s => s.name);
 
-  const getSuggestions = async () => {
-    if (!process.env.API_KEY || loading) return;
-    setLoading(true);
-    try {
-      checkRateLimit();
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = `Suggest 5 starting spells or feats for a Level 1 ${state.race} ${state.charClass} with a ${state.background} background. Return JSON format: [{ "name": "Name", "type": "spell", "level": 0, "school": "Evocation" }]`;
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: { responseMimeType: 'application/json' }
-      });
-      const list = JSON.parse(response.text || '[]');
-      setSuggestions(list);
-    } catch (e) {
-      console.error(e);
-      setSuggestions([
-        { name: "Magic Missile", type: "spell", level: 1, school: "Evocation" },
-        { name: "Shield", type: "spell", level: 1, school: "Abjuration" },
-        { name: "Lucky", type: "feat" }
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Split selectedPowers into cantrips and spells for counting
+  const selectedCantrips = state.selectedPowers.filter(p => cantrips.includes(p) || racialSpellNames.includes(p));
+  const selectedSpells = state.selectedPowers.filter(p => spells1st.includes(p));
 
   const togglePower = (powerName: string) => {
     const current = [...state.selectedPowers];
     const idx = current.indexOf(powerName);
-    if (idx >= 0) current.splice(idx, 1);
-    else current.push(powerName);
+    if (idx >= 0) { current.splice(idx, 1); }
+    else {
+      // Enforce limits: check if it's a cantrip or spell
+      const isCantrip = cantrips.includes(powerName);
+      if (isCantrip && selectedCantrips.length >= cantripsNeeded) return;
+      if (!isCantrip && spells1st.includes(powerName) && spellsNeeded > 0 && selectedSpells.length >= spellsNeeded) return;
+      current.push(powerName);
+    }
     onChange({ selectedPowers: current });
   };
+
+  if (!isCaster && racialSpellNames.length === 0) {
+    return (
+      <div className="p-4 sm:p-6 md:p-8 space-y-6">
+        <div className="text-center">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-white">Martial Focus</h2>
+          <p className="text-zinc-500 text-sm mt-1">{state.charClass}s rely on steel and skill, not spells.</p>
+        </div>
+        <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-6 text-center space-y-3">
+          <Zap size={32} className="mx-auto text-zinc-600" />
+          <p className="text-zinc-400 text-sm">No spells to select at Level 1. You may gain spellcasting through your subclass at Level {classData?.subclassLevel || 3} (e.g., Eldritch Knight, Arcane Trickster).</p>
+          {racialSpellNames.length === 0 && <p className="text-zinc-500 text-xs">Press Next to continue.</p>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
       <div className="text-center">
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-white">Magical Arcana</h2>
-        <p className="text-zinc-500 text-sm mt-1">Choose spells and feats for your grimoire</p>
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-white">Spells & Cantrips</h2>
+        <p className="text-zinc-500 text-sm mt-1">Choose from the {state.charClass} spell list</p>
       </div>
 
       <div className="space-y-6">
+        {/* Selected summary */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Selected</h4>
-            <span className="text-[10px] text-zinc-600">Level 1 spells use slots</span>
           </div>
-          <div className="flex flex-wrap gap-2 min-h-[40px]">
+          <div className="flex flex-wrap gap-2 min-h-[32px]">
             {state.selectedPowers.map(p => (
-              <span key={p} className="bg-purple-900/30 text-purple-200 border border-purple-500/30 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2">
-                {p} <button onClick={() => togglePower(p)}><X size={12} /></button>
+              <span key={p} className={`${cantrips.includes(p) ? 'bg-cyan-900/30 text-cyan-200 border-cyan-500/30' : 'bg-purple-900/30 text-purple-200 border-purple-500/30'} border px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2`}>
+                {p} <button aria-label={`Remove ${p}`} onClick={() => togglePower(p)}><X size={12} /></button>
               </span>
             ))}
-            {state.selectedPowers.length === 0 && <span className="text-zinc-700 italic text-sm">No selections yet...</span>}
+            {state.selectedPowers.length === 0 && <span className="text-zinc-700 italic text-sm">Tap spells below to add...</span>}
           </div>
         </div>
 
-        <button 
-          onClick={getSuggestions}
-          disabled={loading}
-          className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 border border-zinc-700"
-        >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} className="text-amber-500" />}
-          Get Class Suggestions
-        </button>
+        {/* Cantrips */}
+        {cantripsNeeded > 0 && cantrips.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+              <span className="text-xs font-bold text-cyan-500 uppercase tracking-widest">Cantrips</span>
+              <span className={`text-xs font-bold ${selectedCantrips.filter(c => cantrips.includes(c)).length >= cantripsNeeded ? 'text-green-500' : 'text-amber-500'}`}>
+                {selectedCantrips.filter(c => cantrips.includes(c)).length} / {cantripsNeeded}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {cantrips.map(name => (
+                <button key={name} onClick={() => togglePower(name)}
+                  className={`p-2 rounded-lg border text-xs font-bold transition-all text-left ${
+                    state.selectedPowers.includes(name)
+                    ? 'bg-cyan-600/20 border-cyan-500 text-cyan-200'
+                    : 'bg-zinc-800/50 border-zinc-700 text-zinc-400 hover:border-cyan-600'
+                  }`}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 gap-2">
-          {suggestions.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => togglePower(s.name)}
-              className={`p-3 rounded-lg border text-sm font-bold transition-all text-left flex justify-between items-center ${
-                state.selectedPowers.includes(s.name)
-                ? 'bg-purple-900/20 border-purple-500 text-white'
-                : 'bg-zinc-800/50 border-zinc-700 text-zinc-300 hover:border-purple-500'
-              }`}
-            >
-              <div className="flex flex-col">
-                <span>{s.name}</span>
-                {s.type === 'spell' && (
-                  <div className="flex gap-2 mt-1">
-                    <span className="text-[10px] bg-black/40 px-1.5 py-0.5 rounded text-zinc-500 uppercase">
-                      {s.level === 0 ? 'Cantrip' : `Level ${s.level}`}
-                    </span>
-                    <span className="text-[10px] bg-black/40 px-1.5 py-0.5 rounded text-zinc-600 italic">
-                      {s.school}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <Plus size={14} className={state.selectedPowers.includes(s.name) ? "text-purple-300 rotate-45" : "text-purple-500"} />
-            </button>
-          ))}
-        </div>
+        {/* 1st Level Spells */}
+        {spellsNeeded > 0 && spells1st.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+              <span className="text-xs font-bold text-purple-500 uppercase tracking-widest">1st-Level Spells</span>
+              <span className={`text-xs font-bold ${selectedSpells.length >= spellsNeeded ? 'text-green-500' : 'text-amber-500'}`}>
+                {selectedSpells.length} / {spellsNeeded}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {spells1st.map(name => (
+                <button key={name} onClick={() => togglePower(name)}
+                  className={`p-2 rounded-lg border text-xs font-bold transition-all text-left ${
+                    state.selectedPowers.includes(name)
+                    ? 'bg-purple-600/20 border-purple-500 text-purple-200'
+                    : 'bg-zinc-800/50 border-zinc-700 text-zinc-400 hover:border-purple-600'
+                  }`}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Racial Spells */}
+        {racialSpellNames.length > 0 && (
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-amber-500 uppercase tracking-widest px-1">Racial Spells ({state.race})</span>
+            <div className="grid grid-cols-2 gap-2">
+              {racialSpellNames.map(name => (
+                <div key={name} className="p-2 rounded-lg border border-amber-700/40 bg-amber-900/10 text-xs font-bold text-amber-300">
+                  {name} <span className="text-amber-600 font-normal">(automatic)</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Prepared caster note */}
+        {(state.charClass === 'Cleric' || state.charClass === 'Druid' || state.charClass === 'Wizard') && (
+          <p className="text-[10px] text-zinc-500 italic px-1">
+            As a prepared caster, you can change your prepared spells after each long rest. Choose your starting spells above.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -644,7 +694,7 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
       attacks: [],
       features: detailedResult.features || [],
       spells: detailedResult.spells || [],
-      spellSlots: classData?.isCaster ? [{ level: 1, current: 2, max: 2 }] : [],
+      spellSlots: getSpellSlotsForLevel(state.charClass, 1).map(s => ({ level: s.level, current: s.max, max: s.max })),
       inventory: { gold: 150, items: [], load: "Light" },
       journal: []
     };

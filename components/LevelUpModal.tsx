@@ -222,6 +222,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
                             {Array.from({ length: choice.count }).map((_, i) => (
                                 <div key={i} className="relative">
                                     <select
+                                        aria-label={`${choice.label} ${choice.count > 1 ? i + 1 : ''}`}
                                         className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none appearance-none cursor-pointer pr-10"
                                         onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
                                         value={selections[choice.id]?.[i] || ""}
