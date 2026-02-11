@@ -704,98 +704,106 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
     setForgeError(null);
 
     let portraitUrl = 'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=800&auto=format&fit=crop';
-    let detailedResult = { features: [], spells: [] };
+    let detailedResult: { features: any[]; spells: any[] } = { features: [], spells: [] };
 
     try {
-        if (!process.env.API_KEY) throw new Error("API Key missing");
+      // --- AI enrichment (portrait + rules text) ---
+      try {
+        if (!process.env.API_KEY) throw new Error("API Key missing — skipping AI enrichment");
         checkRateLimit();
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        
+
         const portraitPrompt = `High fantasy D&D Character Portrait: ${state.race} ${state.charClass}. Appearance: ${state.appearance || 'Mysterious adventurer'}. Cinematic lighting.`;
-        const portraitResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: { parts: [{ text: portraitPrompt }] },
-        });
+        const portraitResponse = await Promise.race([
+          ai.models.generateContent({ model: 'gemini-2.5-flash-image', contents: { parts: [{ text: portraitPrompt }] } }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Portrait generation timed out')), 60000))
+        ]);
         if (portraitResponse.candidates?.[0]?.content?.parts) {
-            for (const part of portraitResponse.candidates[0].content.parts) {
-                if (part.inlineData) { portraitUrl = `data:image/png;base64,${part.inlineData.data}`; break; }
-            }
+          for (const part of portraitResponse.candidates[0].content.parts) {
+            if (part.inlineData) { portraitUrl = `data:image/png;base64,${part.inlineData.data}`; break; }
+          }
         }
 
         if (state.selectedPowers.length > 0) {
-            const rulesPrompt = `Provide full D&D 5e rules text for these abilities: ${state.selectedPowers.join(', ')}. 
-            Return a JSON object with two arrays: "features" and "spells". 
-            Ensure cantrips have level 0. 
-            Format: { "features": [{ "name": "...", "source": "...", "description": "...", "fullText": "..." }], "spells": [{ "name": "...", "level": 0, "school": "...", "description": "...", "castingTime": "...", "range": "...", "duration": "...", "components": "..." }] }`;
-            
-            const rulesResponse = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: rulesPrompt,
-                config: { responseMimeType: 'application/json' }
-            });
-            
-            try {
-                const parsed = JSON.parse(rulesResponse.text || '{}');
-                detailedResult = {
-                    features: Array.isArray(parsed.features) ? parsed.features : [],
-                    spells: Array.isArray(parsed.spells) ? parsed.spells : []
-                };
-            } catch (pErr) {
-                console.warn("Could not parse AI rules JSON", pErr);
-            }
+          const rulesPrompt = `Provide full D&D 5e rules text for these abilities: ${state.selectedPowers.join(', ')}.
+          Return a JSON object with two arrays: "features" and "spells".
+          Ensure cantrips have level 0.
+          Format: { "features": [{ "name": "...", "source": "...", "description": "...", "fullText": "..." }], "spells": [{ "name": "...", "level": 0, "school": "...", "description": "...", "castingTime": "...", "range": "...", "duration": "...", "components": "..." }] }`;
+
+          const rulesResponse = await Promise.race([
+            ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: rulesPrompt, config: { responseMimeType: 'application/json' } }),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Rules lookup timed out')), 30000))
+          ]);
+
+          try {
+            const parsed = JSON.parse(rulesResponse.text || '{}');
+            detailedResult = {
+              features: Array.isArray(parsed.features) ? parsed.features : [],
+              spells: Array.isArray(parsed.spells) ? parsed.spells : []
+            };
+          } catch (pErr) {
+            console.warn("Could not parse AI rules JSON", pErr);
+          }
         }
+      } catch (aiErr: any) {
+        console.error("AI enrichment failed (character will still be created):", aiErr);
+        setForgeError(aiErr.message);
+      }
 
-    } catch (err: any) { 
-        console.error("Forge Error:", err);
-        setForgeError(err.message); 
-    }
+      // --- Build character (always runs even if AI fails) ---
+      const hitDie = classData?.hitDie ?? 8;
+      const stats: Record<StatKey, Stat> = {} as any;
+      STAT_KEYS.forEach(stat => {
+        let base = state.statMethod === 'standard' ? (state.standardAssignment[stat] ?? 8) : state.baseStats[stat];
+        let score = base + getRacialBonus(state.race, stat);
+        let mod = Math.floor((score - 10) / 2);
+        stats[stat] = {
+          score,
+          modifier: mod,
+          save: mod,
+          proficientSave: classData?.savingThrows.includes(stat) ?? false
+        };
+      });
 
-    const hitDie = classData?.hitDie ?? 8;
-    const stats: Record<StatKey, Stat> = {} as any;
-    STAT_KEYS.forEach(stat => {
-      let base = state.statMethod === 'standard' ? (state.standardAssignment[stat] ?? 8) : state.baseStats[stat];
-      let score = base + getRacialBonus(state.race, stat);
-      let mod = Math.floor((score - 10) / 2);
-      stats[stat] = { 
-        score, 
-        modifier: mod, 
-        save: mod, 
-        proficientSave: classData?.savingThrows.includes(stat) ?? false 
+      const character: CharacterData = {
+        id: generateId(),
+        campaign: state.campaign || 'Solo Adventure',
+        name: state.name || 'Unnamed Adventurer',
+        race: state.race,
+        class: state.charClass,
+        background: state.background,
+        alignment: state.alignment,
+        level: 1,
+        portraitUrl,
+        stats,
+        hp: { current: hitDie + stats.CON.modifier, max: hitDie + stats.CON.modifier },
+        hitDice: { current: 1, max: 1, die: `1d${hitDie}` },
+        ac: 10 + stats.DEX.modifier,
+        initiative: stats.DEX.modifier,
+        speed: getRaceSpeed(state.race),
+        passivePerception: 10 + stats.WIS.modifier,
+        skills: DND_SKILLS.map(s => ({
+          name: s.name,
+          ability: s.ability,
+          modifier: stats[s.ability].modifier + (state.selectedSkills.includes(s.name) ? 2 : 0),
+          proficiency: state.selectedSkills.includes(s.name) ? 'proficient' : 'none'
+        })),
+        attacks: [],
+        features: detailedResult.features || [],
+        spells: detailedResult.spells || [],
+        spellSlots: getSpellSlotsForLevel(state.charClass, 1).map(s => ({ level: s.level, current: s.max, max: s.max })),
+        inventory: { gold: 150, items: [], load: "Light" },
+        journal: [{ id: 'creation', timestamp: Date.now(), type: 'note', content: `Created ${state.name}, the ${state.race} ${state.charClass}. Background: ${state.background}.` }]
       };
-    });
 
-    const character: CharacterData = {
-      id: generateId(),
-      campaign: state.campaign || 'Solo Adventure',
-      name: state.name || 'Unnamed Adventurer',
-      race: state.race,
-      class: state.charClass,
-      background: state.background,
-      alignment: state.alignment,
-      level: 1,
-      portraitUrl,
-      stats,
-      hp: { current: hitDie + stats.CON.modifier, max: hitDie + stats.CON.modifier },
-      hitDice: { current: 1, max: 1, die: `1d${hitDie}` },
-      ac: 10 + stats.DEX.modifier,
-      initiative: stats.DEX.modifier,
-      speed: getRaceSpeed(state.race),
-      passivePerception: 10 + stats.WIS.modifier,
-      skills: DND_SKILLS.map(s => ({ 
-        name: s.name, 
-        ability: s.ability, 
-        modifier: stats[s.ability].modifier + (state.selectedSkills.includes(s.name) ? 2 : 0), 
-        proficiency: state.selectedSkills.includes(s.name) ? 'proficient' : 'none' 
-      })),
-      attacks: [],
-      features: detailedResult.features || [],
-      spells: detailedResult.spells || [],
-      spellSlots: getSpellSlotsForLevel(state.charClass, 1).map(s => ({ level: s.level, current: s.max, max: s.max })),
-      inventory: { gold: 150, items: [], load: "Light" },
-      journal: [{ id: 'creation', timestamp: Date.now(), type: 'note', content: `Created ${state.name}, the ${state.race} ${state.charClass}. Background: ${state.background}.` }]
-    };
+      onCreate(recalculateCharacterStats(character));
 
-    onCreate(recalculateCharacterStats(character));
+    } catch (err: any) {
+      console.error("Fatal forge error:", err);
+      setForgeError(err.message || "An unexpected error occurred during character creation.");
+    } finally {
+      setForging(false);
+    }
   };
 
   return (

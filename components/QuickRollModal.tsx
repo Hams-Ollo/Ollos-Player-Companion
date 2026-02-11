@@ -127,21 +127,24 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
             required: ["name", "stats", "background", "alignment", "skills", "features", "spells", "appearance", "backstory"]
         };
 
-        const dataResponse = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Generate a detailed Level 1 D&D 5e character. 
-                      Race: ${race}. Class: ${charClass}. Vibe: ${vibe || 'Traditional'}.
-                      Instructions:
-                      1. Ability scores must be valid Standard Array (15, 14, 13, 12, 10, 8) distributed correctly for the class, BEFORE racial bonuses.
-                      2. Apply these racial bonuses to the scores: ${race}.
-                      3. Pick relevant Level 1 features and starting spells for ${charClass}.
-                      4. Include a physical description and backstory.`,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: characterSchema,
-                temperature: 0.8
-            }
-        });
+        const dataResponse = await Promise.race([
+            ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: `Generate a detailed Level 1 D&D 5e character. 
+                          Race: ${race}. Class: ${charClass}. Vibe: ${vibe || 'Traditional'}.
+                          Instructions:
+                          1. Ability scores must be valid Standard Array (15, 14, 13, 12, 10, 8) distributed correctly for the class, BEFORE racial bonuses.
+                          2. Apply these racial bonuses to the scores: ${race}.
+                          3. Pick relevant Level 1 features and starting spells for ${charClass}.
+                          4. Include a physical description and backstory.`,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: characterSchema,
+                    temperature: 0.8
+                }
+            }),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Character generation timed out after 60s. Please try again.')), 60000))
+        ]);
 
         let charResult;
         try {
@@ -162,10 +165,13 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
         let portraitUrl = "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=800&auto=format&fit=crop";
         try {
             const portraitPrompt = `A stunning character portrait of a ${race} ${charClass}. ${charResult.appearance || ''}. High-fantasy digital art, cinematic lighting, 1:1 aspect ratio.`;
-            const portraitResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
-                contents: { parts: [{ text: portraitPrompt }] },
-            });
+            const portraitResponse = await Promise.race([
+                ai.models.generateContent({
+                    model: 'gemini-2.5-flash-image',
+                    contents: { parts: [{ text: portraitPrompt }] },
+                }),
+                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Portrait timed out')), 60000))
+            ]);
             
             if (portraitResponse.candidates?.[0]?.content?.parts) {
                 for (const part of portraitResponse.candidates[0].content.parts) {
@@ -245,6 +251,7 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
     } catch (err: any) {
         console.error("Quick Roll Ritual Failure:", err);
         setError(err.message || "The ritual was interrupted. The Weave is unstable.");
+    } finally {
         setIsForging(false);
     }
   };

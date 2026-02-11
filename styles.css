@@ -1,1 +1,7 @@
 @import "tailwindcss";
+
+@theme {
+  --color-obsidian: #050505;
+  --font-display: 'Cinzel', serif;
+  --font-sans: 'Inter', sans-serif;
+}
