@@ -95,7 +95,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ data, onUpdate, onClose }) => {
              <Coins size={14} className="text-amber-400" />
              <span className="font-mono font-bold text-amber-100">{data.inventory.gold.toFixed(2)} gp</span>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white"><X size={24} /></button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white" aria-label="Close"><X size={24} /></button>
         </div>
 
         {/* Mode Toggle */}

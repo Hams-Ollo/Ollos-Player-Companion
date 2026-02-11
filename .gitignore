@@ -16,6 +16,9 @@ dist-ssr
 .env
 .env.*
 
+# D&D Reference PDFs (uploaded to Gemini File API, not needed in repo)
+reference-docs/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

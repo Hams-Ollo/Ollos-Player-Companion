@@ -123,7 +123,7 @@ const CampaignManager: React.FC<CampaignManagerProps> = ({ user, campaigns, onUp
                                     </button>
                                 </div>
                                 <div className="h-8 w-px bg-zinc-800"></div>
-                                <button className="p-2 bg-zinc-800 rounded-full text-zinc-400 group-hover:bg-zinc-700 group-hover:text-white transition-colors">
+                                <button className="p-2 bg-zinc-800 rounded-full text-zinc-400 group-hover:bg-zinc-700 group-hover:text-white transition-colors" aria-label="View campaign">
                                     <ChevronRight size={18} />
                                 </button>
                             </div>

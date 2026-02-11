@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Feature, Item } from '../types';
 import { X, Book, Loader2 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { checkRateLimit } from '../utils';
+import { generateWithContext } from '../lib/gemini';
 
 interface ItemDetailModalProps {
   item: Item | Feature;
@@ -33,15 +33,11 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose }) => {
     try {
         checkRateLimit(); // Enforce rate limit
 
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const prompt = `Provide a detailed, rules-accurate description for the D&D 5e ${isFeature ? 'feature' : 'item'}: "${item.name}". Include mechanics, stats (if item), and flavor text. Format with Markdown. Use tables for stats if applicable.`;
+        const prompt = `Using the reference documents, provide a detailed, rules-accurate description for the D&D 5e ${isFeature ? 'feature' : 'item'}: "${item.name}". Include mechanics, stats (if item), and flavor text. Cite the source book and page number. Format with Markdown. Use tables for stats if applicable.`;
         
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt
-        });
+        const responseText = await generateWithContext(prompt);
         
-        setDetails(response.text || "No details found.");
+        setDetails(responseText || "No details found.");
     } catch (e: any) {
         console.error(e);
         setDetails(initialText || e.message || "Failed to retrieve ancient knowledge.");
@@ -85,7 +81,7 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose }) => {
             <Book className="text-amber-500" size={20} />
             {item.name}
           </h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors"><X size={24} /></button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors" aria-label="Close"><X size={24} /></button>
         </div>
 
         <div className="p-6 overflow-y-auto">

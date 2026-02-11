@@ -58,7 +58,7 @@ const RestModal: React.FC<RestModalProps> = ({ data, onUpdate, onClose }) => {
             <Moon className="text-indigo-400" size={20} />
             Take a Rest
           </h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white"><X size={24} /></button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white" aria-label="Close"><X size={24} /></button>
         </div>
 
         {/* Tabs */}

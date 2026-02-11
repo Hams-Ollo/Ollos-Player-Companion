@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { X, Send, Bot, User, Loader2 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { checkRateLimit } from '../utils';
+import { createChatWithContext } from '../lib/gemini';
 
 interface AskDMModalProps {
   onClose: () => void;
@@ -36,19 +36,13 @@ const AskDMModal: React.FC<AskDMModalProps> = ({ onClose }) => {
     try {
       checkRateLimit(); // Enforce rate limit
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const model = 'gemini-3-flash-preview'; 
-
-      const chat = ai.chats.create({
-        model: model,
-        config: {
-            systemInstruction: "You are an expert Dungeon Master for Dungeons & Dragons 5th Edition. You have comprehensive knowledge of the Player's Handbook, Dungeon Master's Guide, Xanathar's, and Tasha's. Answer the player's questions about rules concisely but thoroughly. If asking about a specific spell or ability, cite the rule mechanics clearly.\n\nFORMATTING RULES:\n- Use **Markdown** for all responses.\n- Use **Bold** for key terms, dice rolls (e.g., **1d6**), and mechanic names.\n- Use `Tables` when listing Item stats (Name, Cost, Weight, Damage) or Level progression.\n- Use Bullet points for lists of properties or options.\n- You are helpful, authoritative, and immersive.",
-        },
-        history: messages.map(m => ({
+      const chat = await createChatWithContext(
+        messages.map(m => ({
             role: m.role,
             parts: [{ text: m.text }]
-        }))
-      });
+        })),
+        "You are an expert Dungeon Master for Dungeons & Dragons 5th Edition. Answer the player's questions about rules concisely but thoroughly. If asking about a specific spell or ability, cite the rule mechanics clearly. Reference page numbers from the source books when possible.\n\nFORMATTING RULES:\n- Use **Markdown** for all responses.\n- Use **Bold** for key terms, dice rolls (e.g., **1d6**), and mechanic names.\n- Use `Tables` when listing Item stats (Name, Cost, Weight, Damage) or Level progression.\n- Use Bullet points for lists of properties or options.\n- You are helpful, authoritative, and immersive."
+      );
 
       const result = await chat.sendMessage({ message: userMsg });
       

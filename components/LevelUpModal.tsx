@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { CharacterData, Feature, Spell, StatKey } from '../types';
 import { X, ArrowUpCircle, Sparkles, Loader2, Check, BookOpen, Crown, Zap, Activity, ChevronDown } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 import { checkRateLimit, recalculateCharacterStats } from '../utils';
+import { generateWithContext } from '../lib/gemini';
 
 interface LevelUpModalProps {
   data: CharacterData;
@@ -43,12 +43,11 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
     setLoadingText("Consulting the Weave for guidance...");
 
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const prompt = `
             My D&D 5e character is a Level ${data.level} ${data.race} ${data.class}. 
             They are leveling up to Level ${nextLevel}.
             
-            Return a JSON object describing the level up gains. 
+            Using the official class progression table from the reference documents, return a JSON object describing the level up gains. 
             Format:
             {
               "hpAverage": number (class average + CON mod ${data.stats.CON.modifier}),
@@ -69,15 +68,14 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
             - Path 2: "Select a Feat (Optional if ASI taken)", type: "feat", count: 1, with a list of "suggestions" (e.g., Great Weapon Master, Sentinel, Fey Touched, etc.).
             - If a choice is conditional on an archetype selection, label it clearly like "Select Spells (If Arcane Trickster)".
             - If no choices are needed, choices should be empty array.
+            - Cite the PHB page number for each new feature if possible.
         `;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: { responseMimeType: 'application/json' }
+        const responseText = await generateWithContext(prompt, {
+            responseMimeType: 'application/json',
         });
         
-        const result = JSON.parse(response.text || '{}');
+        const result = JSON.parse(responseText || '{}');
         setPlan(result);
         setStep('deciding');
 
@@ -154,8 +152,6 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
             }
         });
 
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        
         // Filter out ASI selections and conditional selections that weren't filled
         const nonAsiChoices = plan.choices.filter(c => c.type !== 'asi');
         const featsToFetch = plan.newFeatures.map(f => f.name);
@@ -171,23 +167,21 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
         // Only ask AI if there are text-based things to fetch
         if (featsToFetch.length > 0 || choicesToFetch.length > 0) {
             const prompt = `
-                Provide detailed D&D 5e rules text for the following features/spells/feats:
+                Provide detailed D&D 5e rules text for the following features/spells/feats, using the reference documents as your source:
                 ${JSON.stringify([...featsToFetch, ...choicesToFetch])}
                 
                 Return JSON:
                 {
-                    "features": [{ "name": "", "source": "Class/Race/Feat", "description": "Short", "fullText": "Long rules" }],
+                    "features": [{ "name": "", "source": "Class/Race/Feat", "description": "Short", "fullText": "Long rules text from the book" }],
                     "spells": [{ "name": "", "level": 1, "school": "", "description": "", "castingTime": "", "range": "", "duration": "", "components": "" }]
                 }
             `;
 
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: prompt,
-                config: { responseMimeType: 'application/json' }
+            const responseText = await generateWithContext(prompt, {
+                responseMimeType: 'application/json',
             });
 
-            result = JSON.parse(response.text || '{}');
+            result = JSON.parse(responseText || '{}');
         }
         
         // Merge Data
@@ -235,7 +229,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
             <ArrowUpCircle className="text-green-500" size={20} />
             Level Up Wizard
           </h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white"><X size={24} /></button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white" aria-label="Close"><X size={24} /></button>
         </div>
 
         <div className="p-6 overflow-y-auto">
@@ -312,6 +306,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
                                                     className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none appearance-none cursor-pointer"
                                                     onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
                                                     value={selections[choice.id]?.[i] || ""}
+                                                    aria-label={`Ability score improvement ${i + 1}`}
                                                 >
                                                     <option value="">Select Stat...</option>
                                                     {STAT_KEYS.map(stat => (
@@ -329,6 +324,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
                                                         className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none appearance-none cursor-pointer pr-10"
                                                         onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
                                                         value={selections[choice.id]?.[i] || ""}
+                                                        aria-label={`${choice.label} option ${i + 1}`}
                                                     >
                                                         <option value="">Select option {i + 1}...</option>
                                                         {choice.suggestions.map(s => <option key={s} value={s}>{s}</option>)}

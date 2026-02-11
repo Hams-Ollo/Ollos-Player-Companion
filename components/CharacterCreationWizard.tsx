@@ -442,6 +442,7 @@ const StepAbilityScores: React.FC<{
                     onClick={() => handlePointBuyChange(stat, -1)}
                     disabled={baseStats[stat] <= POINT_BUY_MIN}
                     className="w-8 h-8 flex items-center justify-center bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    aria-label={`Decrease ${stat}`}
                   >
                     <Minus size={14} />
                   </button>
@@ -450,6 +451,7 @@ const StepAbilityScores: React.FC<{
                     onClick={() => handlePointBuyChange(stat, 1)}
                     disabled={baseStats[stat] >= POINT_BUY_MAX || pointsRemaining <= 0}
                     className="w-8 h-8 flex items-center justify-center bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    aria-label={`Increase ${stat}`}
                   >
                     <Plus size={14} />
                   </button>
@@ -464,6 +466,7 @@ const StepAbilityScores: React.FC<{
                   className="w-20 bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-amber-500 text-center"
                   value={baseStats[stat]}
                   onChange={e => handleManualChange(stat, e.target.value)}
+                  aria-label={`${stat} score`}
                 />
               )}
 
@@ -708,7 +711,7 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
           <h3 className="text-lg sm:text-xl font-display font-bold text-amber-500 flex items-center gap-2">
             <Dices size={20} /> Forge New Character
           </h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white p-1"><X size={24} /></button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white p-1" aria-label="Close"><X size={24} /></button>
         </div>
 
         <StepIndicator currentStep={step} />

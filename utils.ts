@@ -1,28 +1,87 @@
 import { CharacterData, Item, Attack } from './types';
 
-// Rate Limiter Configuration
-const STORAGE_KEY = 'dnd_rate_limit_timestamps';
-const WINDOW_MS = 60000; // 1 minute window
-const MAX_REQUESTS = 10; // Max requests per window
+// ==========================================
+// Rate Limiter — Multi-layer Client-side Protection
+// ==========================================
+// Obfuscated storage keys to discourage casual tampering
+const _RL_MINUTE_KEY = '_app_rl_m';
+const _RL_DAILY_KEY = '_app_rl_d';
+const _RL_SESSION_KEY = '_app_rl_s';
+
+// Limits
+const MINUTE_WINDOW_MS = 60000;
+const MAX_PER_MINUTE = 10;
+const MAX_PER_DAY = 300;
+
+function getToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function safeJsonParse<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback;
+  try { return JSON.parse(raw); } catch { return fallback; }
+}
 
 export const checkRateLimit = (): void => {
   const now = Date.now();
-  let timestamps: number[] = [];
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    timestamps = stored ? JSON.parse(stored) : [];
-  } catch (e) {
-    console.warn("Failed to parse rate limit storage", e);
-    timestamps = [];
-  }
-  timestamps = timestamps.filter(t => now - t < WINDOW_MS);
-  if (timestamps.length >= MAX_REQUESTS) {
+  const today = getToday();
+
+  // --- Layer 1: Per-minute sliding window ---
+  let timestamps: number[] = safeJsonParse(localStorage.getItem(_RL_MINUTE_KEY), []);
+  timestamps = timestamps.filter(t => now - t < MINUTE_WINDOW_MS);
+
+  if (timestamps.length >= MAX_PER_MINUTE) {
     const oldest = timestamps[0];
-    const waitTime = Math.ceil((WINDOW_MS - (now - oldest)) / 1000);
+    const waitTime = Math.ceil((MINUTE_WINDOW_MS - (now - oldest)) / 1000);
     throw new Error(`Rate limit reached. Please wait ${waitTime} seconds before trying again.`);
   }
+
+  // --- Layer 2: Daily cap ---
+  let daily: { date: string; count: number } = safeJsonParse(
+    localStorage.getItem(_RL_DAILY_KEY),
+    { date: today, count: 0 }
+  );
+
+  if (daily.date !== today) {
+    daily = { date: today, count: 0 };
+  }
+
+  if (daily.count >= MAX_PER_DAY) {
+    throw new Error('Daily request limit reached. Limits reset at midnight. Please try again tomorrow.');
+  }
+
+  // --- Layer 3: Session tamper detection ---
+  const sessionCount: number = safeJsonParse(sessionStorage.getItem(_RL_SESSION_KEY), 0);
+  if (sessionCount > daily.count + 5) {
+    throw new Error('Rate limit error. Please reload the page.');
+  }
+
+  // --- All checks passed — record the request ---
   timestamps.push(now);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(timestamps));
+  daily.count += 1;
+
+  localStorage.setItem(_RL_MINUTE_KEY, JSON.stringify(timestamps));
+  localStorage.setItem(_RL_DAILY_KEY, JSON.stringify(daily));
+  sessionStorage.setItem(_RL_SESSION_KEY, JSON.stringify(sessionCount + 1));
+};
+
+/**
+ * Returns current rate limit status for UI display.
+ */
+export const getRateLimitStatus = (): { minuteUsed: number; dailyUsed: number; dailyMax: number } => {
+  const now = Date.now();
+  const today = getToday();
+  const timestamps: number[] = safeJsonParse(localStorage.getItem(_RL_MINUTE_KEY), []);
+  const minuteUsed = timestamps.filter(t => now - t < MINUTE_WINDOW_MS).length;
+  const daily: { date: string; count: number } = safeJsonParse(
+    localStorage.getItem(_RL_DAILY_KEY),
+    { date: today, count: 0 }
+  );
+  return {
+    minuteUsed,
+    dailyUsed: daily.date === today ? daily.count : 0,
+    dailyMax: MAX_PER_DAY,
+  };
 };
 
 // ==========================================

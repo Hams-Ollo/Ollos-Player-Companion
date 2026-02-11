@@ -5,6 +5,7 @@ import LoginScreen from './components/LoginScreen';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { VESPER_DATA } from './constants';
 import { CharacterData, Campaign } from './types';
+import { initializeCache } from './lib/gemini';
 
 const AppContent: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
@@ -12,6 +13,11 @@ const AppContent: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCharacterId, setActiveCharacterId] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Pre-warm Gemini cache with reference documents on app mount
+  useEffect(() => {
+    initializeCache();
+  }, []);
 
   // Load from local storage on mount (or when user changes)
   useEffect(() => {

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { CharacterData, JournalEntry } from '../../types';
 import { Plus, PenTool, MapPin, User, FileText, Sparkles, Loader2, Trash2 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
 import { checkRateLimit } from '../../utils';
+import { generateWithContext } from '../../lib/gemini';
 
 interface JournalDetailProps {
   data: CharacterData;
@@ -36,10 +36,6 @@ const JournalDetail: React.FC<JournalDetailProps> = ({ data, onUpdate }) => {
 
   const handleSummarize = async () => {
     if (!data.journal || data.journal.length === 0) return;
-    if (!process.env.API_KEY) {
-        alert("API Key missing");
-        return;
-    }
     
     setSummarizing(true);
     setSummary(null);
@@ -47,15 +43,13 @@ const JournalDetail: React.FC<JournalDetailProps> = ({ data, onUpdate }) => {
     try {
         checkRateLimit(); // Enforce rate limit
 
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const notesText = data.journal.map(e => `[${e.type.toUpperCase()}] ${e.content}`).join('\n');
         
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Summarize the following D&D session notes into a coherent narrative chronicle. Format with Markdown.\n\n${notesText}`,
-        });
+        const responseText = await generateWithContext(
+            `Summarize the following D&D session notes into a coherent narrative chronicle. Format with Markdown.\n\n${notesText}`
+        );
 
-        setSummary(response.text);
+        setSummary(responseText || null);
     } catch (e: any) {
         console.error(e);
         alert(e.message || "Failed to summarize");
@@ -143,6 +137,7 @@ const JournalDetail: React.FC<JournalDetailProps> = ({ data, onUpdate }) => {
                 <button 
                   onClick={() => deleteEntry(entry.id)}
                   className="text-zinc-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all self-start"
+                  aria-label="Delete entry"
                 >
                     <Trash2 size={14} />
                 </button>
