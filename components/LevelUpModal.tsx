@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CharacterData, Feature, Spell, StatKey } from '../types';
-import { X, ArrowUpCircle, Sparkles, Loader2, Check, BookOpen, Crown, Zap, Activity } from 'lucide-react';
+import { X, ArrowUpCircle, Sparkles, Loader2, Check, BookOpen, Crown, Zap, Activity, ChevronDown } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { checkRateLimit, recalculateCharacterStats } from '../utils';
 
@@ -65,6 +65,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
             }
             CRITICAL INSTRUCTIONS:
             - If this level grants an Ability Score Improvement (ASI), return a choice with type 'asi', count 2 (representing 2 points to distribute), and label "Ability Score Improvement".
+            - If a choice is conditional on an archetype selection (e.g. Rogue Archetype choices at level 3), label it clearly like "Select Spells (If Arcane Trickster)".
             - If no choices are needed, choices should be empty array.
             - Include specific suggestions for spells/feats based on a standard build.
         `;
@@ -92,8 +93,12 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
     
     // Validate selections
     for (const choice of plan.choices) {
-        const userSelected = selections[choice.id] || [];
-        if (userSelected.length < choice.count) {
+        // Smarter validation: if the choice label contains "(If " we assume it's conditional 
+        // and allow the user to skip it if it doesn't apply to their selection.
+        const isConditional = choice.label.toLowerCase().includes('(if ');
+        const userSelected = (selections[choice.id] || []).filter(s => s && s.trim() !== "");
+        
+        if (!isConditional && userSelected.length < choice.count) {
             alert(`Please complete selection: ${choice.label}`);
             return;
         }
@@ -131,10 +136,10 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
 
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         
-        // Filter out ASI selections from the prompt request since we handle them locally
+        // Filter out ASI selections and conditional selections that weren't filled
         const nonAsiChoices = plan.choices.filter(c => c.type !== 'asi');
         const featsToFetch = plan.newFeatures.map(f => f.name);
-        const choicesToFetch = nonAsiChoices.flatMap(c => selections[c.id] || []);
+        const choicesToFetch = nonAsiChoices.flatMap(c => (selections[c.id] || []).filter(s => s && s.trim() !== ""));
         
         let result = { features: [], spells: [] };
 
@@ -268,7 +273,12 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
                             <h4 className="text-xs font-bold text-amber-500 uppercase tracking-widest border-b border-amber-900/30 pb-2">Decisions Required</h4>
                             {plan.choices.map((choice) => (
                                 <div key={choice.id} className="space-y-2">
-                                    <label className="text-sm font-bold text-zinc-300 block">{choice.label}</label>
+                                    <div className="flex justify-between items-baseline">
+                                        <label className="text-sm font-bold text-zinc-300 block">{choice.label}</label>
+                                        {choice.label.toLowerCase().includes('(if ') && (
+                                            <span className="text-[10px] text-zinc-500 uppercase font-bold">Optional</span>
+                                        )}
+                                    </div>
                                     
                                     {choice.type === 'asi' ? (
                                         // ASI Specific UI
@@ -289,30 +299,48 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
                                             <p className="col-span-2 text-[10px] text-zinc-500 italic">Select the same stat twice to increase it by +2.</p>
                                         </div>
                                     ) : (
-                                        // Standard Text UI for Spells/Feats
+                                        // Standard Selection UI
                                         Array.from({ length: choice.count }).map((_, i) => (
                                             <div key={i} className="relative">
-                                                <input 
-                                                    type="text"
-                                                    list={`suggestions-${choice.id}`}
-                                                    placeholder={`Select option ${i + 1}...`}
-                                                    className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none"
-                                                    onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
-                                                />
-                                                {choice.suggestions && (
-                                                    <datalist id={`suggestions-${choice.id}`}>
-                                                        {choice.suggestions.map(s => <option key={s} value={s} />)}
-                                                    </datalist>
+                                                {choice.suggestions && choice.suggestions.length > 0 ? (
+                                                    <select
+                                                        className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none appearance-none cursor-pointer pr-10"
+                                                        onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
+                                                        defaultValue=""
+                                                    >
+                                                        <option value="">Select option {i + 1}...</option>
+                                                        {choice.suggestions.map(s => <option key={s} value={s}>{s}</option>)}
+                                                        <option value="custom">-- Custom Entry --</option>
+                                                    </select>
+                                                ) : (
+                                                    <input 
+                                                        type="text"
+                                                        placeholder={`Enter selection ${i + 1}...`}
+                                                        className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none"
+                                                        onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
+                                                    />
                                                 )}
-                                                <div className="absolute right-3 top-3 text-zinc-600 pointer-events-none">
-                                                    {choice.type === 'spell' ? <BookOpen size={16} /> : <Zap size={16} />}
+                                                
+                                                <div className="absolute right-3 top-3.5 text-zinc-600 pointer-events-none">
+                                                    {choice.suggestions && choice.suggestions.length > 0 ? (
+                                                        <ChevronDown size={16} />
+                                                    ) : (
+                                                        choice.type === 'spell' ? <BookOpen size={16} /> : <Zap size={16} />
+                                                    )}
                                                 </div>
+                                                
+                                                {/* If they select custom, they can type it in (simple hack for the UI) */}
+                                                {(selections[choice.id]?.[i] === 'custom') && (
+                                                    <input 
+                                                        type="text"
+                                                        autoFocus
+                                                        placeholder="Type custom value..."
+                                                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none mt-2 animate-in slide-in-from-top-1"
+                                                        onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
+                                                    />
+                                                )}
                                             </div>
                                         ))
-                                    )}
-
-                                    {choice.suggestions && choice.type !== 'asi' && (
-                                        <p className="text-[10px] text-zinc-500">Suggestions: {choice.suggestions.join(', ')}</p>
                                     )}
                                 </div>
                             ))}
