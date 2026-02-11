@@ -1,3 +1,4 @@
+
 export type StatKey = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA';
 
 export interface Stat {
@@ -56,7 +57,7 @@ export interface Item {
 export interface JournalEntry {
   id: string;
   timestamp: number;
-  type: 'note' | 'npc' | 'location' | 'summary';
+  type: 'note' | 'npc' | 'location' | 'summary' | 'bond';
   content: string;
 }
 
@@ -89,6 +90,8 @@ export interface CharacterData {
     load: string;
   };
   journal: JournalEntry[];
+  motivations?: string;
+  keyNPCs?: string;
 }
 
 export interface Campaign {

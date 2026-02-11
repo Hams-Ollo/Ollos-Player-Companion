@@ -1,6 +1,8 @@
+
 import React, { useState, useMemo } from 'react';
-import { X, ChevronRight, ChevronLeft, Dices, User, BookOpen, Sparkles, Loader2, Wand2, Plus, Minus, Scroll } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Dices, User, BookOpen, Sparkles, Loader2, Wand2, Plus, Minus, Scroll, Mic } from 'lucide-react';
 import { CharacterData, StatKey, Skill, Campaign } from '../types';
+import TranscriptionButton from './TranscriptionButton';
 import {
   generateId,
   getAllRaceOptions,
@@ -128,17 +130,20 @@ const StepIdentity: React.FC<{
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 relative">
             <label htmlFor="wizard-name" className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Name</label>
-            <input
-            id="wizard-name"
-            autoFocus
-            type="text"
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 md:p-4 text-white text-sm md:text-base focus:outline-none focus:border-amber-500 mt-1"
-            value={state.name}
-            onChange={e => onChange({ name: e.target.value })}
-            placeholder="e.g. Valeros the Bold"
-            />
+            <div className="flex gap-2 items-center mt-1">
+              <input
+              id="wizard-name"
+              autoFocus
+              type="text"
+              className="flex-grow bg-zinc-950 border border-zinc-800 rounded-lg p-3 md:p-4 text-white text-sm md:text-base focus:outline-none focus:border-amber-500"
+              value={state.name}
+              onChange={e => onChange({ name: e.target.value })}
+              placeholder="e.g. Valeros the Bold"
+              />
+              <TranscriptionButton onTranscription={(text) => onChange({ name: state.name + (state.name ? ' ' : '') + text })} />
+            </div>
         </div>
 
         <div>
@@ -500,24 +505,58 @@ const StepConcept: React.FC<{
       <p className="text-zinc-500 text-sm mt-1">Flesh out your character — these power AI portrait & DM features</p>
     </div>
 
-    <div>
-      <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Appearance</label>
-      <textarea
-        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-amber-500 mt-1 resize-none h-20"
-        value={state.appearance}
-        onChange={e => onChange({ appearance: e.target.value })}
-        placeholder="Silver hair in a loose braid, pale violet eyes, dark leather armor with spider-silk embroidery..."
-      />
-    </div>
+    <div className="space-y-4">
+      <div>
+        <div className="flex justify-between items-center mb-1">
+          <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Appearance</label>
+          <TranscriptionButton onTranscription={(text) => onChange({ appearance: state.appearance + (state.appearance ? ' ' : '') + text })} />
+        </div>
+        <textarea
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-amber-500 mt-1 resize-none h-20"
+          value={state.appearance}
+          onChange={e => onChange({ appearance: e.target.value })}
+          placeholder="Silver hair in a loose braid, pale violet eyes, dark leather armor with spider-silk embroidery..."
+        />
+      </div>
 
-    <div>
-      <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Backstory</label>
-      <textarea
-        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-amber-500 mt-1 resize-none h-28"
-        value={state.backstory}
-        onChange={e => onChange({ backstory: e.target.value })}
-        placeholder="Raised in the Underdark..."
-      />
+      <div>
+        <div className="flex justify-between items-center mb-1">
+          <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Backstory</label>
+          <TranscriptionButton onTranscription={(text) => onChange({ backstory: state.backstory + (state.backstory ? ' ' : '') + text })} />
+        </div>
+        <textarea
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-amber-500 mt-1 resize-none h-28"
+          value={state.backstory}
+          onChange={e => onChange({ backstory: e.target.value })}
+          placeholder="Raised in the Underdark..."
+        />
+      </div>
+
+      <div>
+        <div className="flex justify-between items-center mb-1">
+          <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Motivations & Bonds</label>
+          <TranscriptionButton onTranscription={(text) => onChange({ motivations: state.motivations + (state.motivations ? ' ' : '') + text })} />
+        </div>
+        <textarea
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-amber-500 mt-1 resize-none h-20"
+          value={state.motivations}
+          onChange={e => onChange({ motivations: e.target.value })}
+          placeholder="Driven to find the artifact that destroyed my village..."
+        />
+      </div>
+
+      <div>
+        <div className="flex justify-between items-center mb-1">
+          <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Key NPCs</label>
+          <TranscriptionButton onTranscription={(text) => onChange({ keyNPCs: state.keyNPCs + (state.keyNPCs ? ' ' : '') + text })} />
+        </div>
+        <textarea
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-amber-500 mt-1 resize-none h-20"
+          value={state.keyNPCs}
+          onChange={e => onChange({ keyNPCs: e.target.value })}
+          placeholder="Balthazar the Wise (Mentor), Elara (Rival)..."
+        />
+      </div>
     </div>
 
     <div className="p-3 bg-zinc-800/50 rounded-lg text-xs text-zinc-500 italic">
@@ -697,7 +736,9 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
       spells: [],
       spellSlots: [],
       inventory: { gold: 150, items: [], load: "Light" },
-      journal: []
+      journal: [],
+      motivations: state.motivations,
+      keyNPCs: state.keyNPCs
     };
 
     setForging(false);
