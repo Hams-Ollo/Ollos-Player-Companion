@@ -1,4 +1,3 @@
-
 import { CharacterData, StatKey, Attack, ProficiencyLevel, Skill, Stat } from './types';
 import { DND_SKILLS, getSpellSlotsForLevel } from './constants';
 
@@ -22,12 +21,12 @@ export const recalculateCharacterStats = (data: CharacterData): CharacterData =>
   const level = Math.max(1, Number(data.level) || 1);
   const profBonus = Math.ceil(level / 4) + 1;
   
-  // 2. Stats & Saves
+  // 2. Stats & Saves - Ensure stats object exists
   const stats: Record<StatKey, Stat> = {} as any;
   const statKeys: StatKey[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
   
   statKeys.forEach(k => {
-    const sourceStat = data.stats?.[k] || { score: 10, proficientSave: false };
+    const sourceStat = (data.stats && data.stats[k]) ? data.stats[k] : { score: 10, proficientSave: false };
     const score = Number(sourceStat.score) || 10;
     const mod = calculateModifier(score);
     stats[k] = {
@@ -38,8 +37,8 @@ export const recalculateCharacterStats = (data: CharacterData): CharacterData =>
     };
   });
 
-  // 3. Skills
-  const skills: Skill[] = (data.skills || []).map(skill => {
+  // 3. Skills - Ensure skills array exists
+  const skills: Skill[] = (Array.isArray(data.skills) ? data.skills : []).map(skill => {
     const standardSkill = DND_SKILLS.find(s => s.name.toLowerCase() === skill.name.toLowerCase());
     const ability = standardSkill ? standardSkill.ability : (skill.ability || 'STR');
     const baseMod = stats[ability]?.modifier || 0;

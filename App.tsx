@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import LoginScreen from './components/LoginScreen';
 import CharacterSelection from './components/CharacterSelection';
@@ -21,9 +20,17 @@ const AppContent: React.FC = () => {
     if (savedChars) {
       try {
         const parsed = JSON.parse(savedChars);
+        // Robust check: Ensure parsed is an array and contains valid character objects
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Sanitize and recalculate to ensure latest logic applies
-          setCharacters(parsed.map(c => recalculateCharacterStats(c)));
+          const sanitized = parsed
+            .filter(c => c && typeof c === 'object' && c.id)
+            .map(c => recalculateCharacterStats(c));
+          
+          if (sanitized.length > 0) {
+            setCharacters(sanitized);
+          } else {
+            setCharacters([recalculateCharacterStats(VESPER_DATA)]);
+          }
         } else {
           setCharacters([recalculateCharacterStats(VESPER_DATA)]);
         }
