@@ -6,8 +6,11 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 # Install dependencies first (cache layer)
+# Use npm install (not npm ci) to resolve correct platform-specific
+# native bindings (e.g. @rollup/rollup-linux-x64-musl) since the
+# lockfile may have been generated on a different OS (Windows/macOS).
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install --prefer-offline
 
 # Copy source code
 COPY . .
