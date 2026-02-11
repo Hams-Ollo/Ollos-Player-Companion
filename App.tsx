@@ -22,8 +22,8 @@ const AppContent: React.FC = () => {
       try {
         const parsed = JSON.parse(savedChars);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Sanitize existing data
-          setCharacters(parsed.map((c: CharacterData) => recalculateCharacterStats(c)));
+          // Sanitize and recalculate to ensure latest logic applies
+          setCharacters(parsed.map(c => recalculateCharacterStats(c)));
         } else {
           setCharacters([recalculateCharacterStats(VESPER_DATA)]);
         }
@@ -38,7 +38,10 @@ const AppContent: React.FC = () => {
     const savedCamps = localStorage.getItem('vesper_campaigns');
     if (savedCamps) {
       try {
-        setCampaigns(JSON.parse(savedCamps));
+        const parsed = JSON.parse(savedCamps);
+        if (Array.isArray(parsed)) {
+          setCampaigns(parsed);
+        }
       } catch (e) {
         console.error("Failed to load campaigns", e);
       }
@@ -52,7 +55,7 @@ const AppContent: React.FC = () => {
     }
   }, [characters]);
 
-  // Persist campaigns
+  // Persist campaigns on every change
   useEffect(() => {
     localStorage.setItem('vesper_campaigns', JSON.stringify(campaigns));
   }, [campaigns]);
@@ -60,8 +63,8 @@ const AppContent: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-zinc-500 space-y-4">
-        <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
-        <p className="font-display text-sm tracking-widest uppercase animate-pulse">Loading Hall...</p>
+        <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
+        <p className="font-display text-xs tracking-widest uppercase animate-pulse">Loading Hall...</p>
       </div>
     );
   }
@@ -96,7 +99,7 @@ const AppContent: React.FC = () => {
         onSelect={(id) => setActiveCharacterId(id)}
         onCreate={(newChar) => {
           setCharacters(prev => [...prev, newChar]);
-          setActiveCharacterId(newChar.id); // Auto-navigate to new hero
+          setActiveCharacterId(newChar.id);
         }}
         onDelete={(id) => setCharacters(prev => prev.filter(c => c.id !== id))}
       />

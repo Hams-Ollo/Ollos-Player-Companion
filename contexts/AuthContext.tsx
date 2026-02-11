@@ -1,14 +1,13 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { 
   getAuth, 
   onAuthStateChanged, 
   signInWithPopup, 
   GoogleAuthProvider, 
   signInAnonymously, 
-  signOut,
-  User
+  signOut
 } from 'firebase/auth';
 import { UserProfile } from '../types';
 
@@ -21,7 +20,20 @@ const firebaseConfig = {
   appId: process.env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+// Singleton pattern for Firebase initialization
+const getFirebaseApp = () => {
+  const existingApps = getApps();
+  if (existingApps.length > 0) return existingApps[0];
+  
+  // Basic validation to prevent crashing on boot if keys are missing
+  if (!firebaseConfig.apiKey || firebaseConfig.apiKey === 'undefined') {
+    console.warn("Firebase API Key is missing. Auth features will not function.");
+  }
+  
+  return initializeApp(firebaseConfig);
+};
+
+const app = getFirebaseApp();
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
@@ -44,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (firebaseUser) {
         setUser({
           uid: firebaseUser.uid,
-          displayName: firebaseUser.displayName || (firebaseUser.isAnonymous ? 'Guest Adventurer' : 'Unknown'),
+          displayName: firebaseUser.displayName || (firebaseUser.isAnonymous ? 'Guest Adventurer' : 'Adventurer'),
           email: firebaseUser.email,
           photoURL: firebaseUser.photoURL,
         });

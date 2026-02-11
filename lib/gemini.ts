@@ -2,10 +2,11 @@
 import { GoogleGenAI } from "@google/genai";
 
 const getAI = () => {
-  if (!process.env.API_KEY) {
-    throw new Error("Gemini API Key missing. Please check your environment variables.");
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'undefined') {
+    throw new Error("Gemini API Key is missing. Ensure GEMINI_API_KEY is set in your .env file.");
   }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return new GoogleGenAI({ apiKey });
 };
 
 /**
@@ -13,7 +14,6 @@ const getAI = () => {
  */
 export const createChatWithContext = async (history: any[], systemInstruction: string) => {
   const ai = getAI();
-  // Fix: Move 'history' from 'config' to the root level of ai.chats.create parameters.
   return ai.chats.create({
     model: 'gemini-3-flash-preview',
     history: history,
