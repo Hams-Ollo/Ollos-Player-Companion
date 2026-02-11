@@ -29,12 +29,9 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
   const classes = DND_CLASSES.map(c => c.name);
 
   const cleanJson = (text: string) => {
-    // More aggressive JSON cleaning
     let cleaned = text;
-    // Remove markdown code blocks
     cleaned = cleaned.replace(/```json\s?([\s\S]*?)```/g, '$1');
     cleaned = cleaned.replace(/```\s?([\s\S]*?)```/g, '$1');
-    // Remove any text before the first '{' and after the last '}'
     const start = cleaned.indexOf('{');
     const end = cleaned.lastIndexOf('}');
     if (start !== -1 && end !== -1) {
@@ -155,7 +152,6 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
             throw new Error("The scroll was illegible. The AI returned a malformed response.");
         }
 
-        // Validate essential fields to prevent crashes in the mapping phase
         if (!charResult.stats || !charResult.name) {
             throw new Error("The spirit was incomplete. Vital stats were missing.");
         }
@@ -192,7 +188,7 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
         
         const statKeys: StatKey[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
         statKeys.forEach(k => {
-            const score = charResult.stats[k] || 10;
+            const score = Number(charResult.stats[k]) || 10;
             const mod = Math.floor((score - 10) / 2);
             stats[k] = { 
                 score, 
@@ -204,7 +200,7 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
 
         const finalCharacter: CharacterData = {
             id: generateId(),
-            name: charResult.name,
+            name: charResult.name || 'Unnamed Adventurer',
             race: race,
             class: charClass,
             level: 1,
@@ -221,8 +217,8 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
             speed: getRaceSpeed(race),
             passivePerception: 10 + stats.WIS.modifier,
             skills: (charResult.skills || []).map((s: any) => ({
-                name: s.name,
-                ability: 'DEX', // Recalculate will fix based on constants
+                name: s.name || 'Unknown',
+                ability: 'DEX', 
                 modifier: 0,
                 proficiency: (s.proficiency as ProficiencyLevel) || 'none'
             })),
@@ -242,11 +238,9 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
         const readyChar = recalculateCharacterStats(finalCharacter);
         setRitualMessage("Success! Your hero awaits.");
         
-        // Brief delay for the user to see the success message
-        setTimeout(() => {
-            onCreate(readyChar);
-            onClose();
-        }, 1000);
+        // Immediate call to prevent race condition with timeouts
+        onCreate(readyChar);
+        onClose();
 
     } catch (err: any) {
         console.error("Quick Roll Ritual Failure:", err);

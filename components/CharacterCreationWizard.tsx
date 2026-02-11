@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { X, ChevronRight, ChevronLeft, Dices, User, BookOpen, Sparkles, Loader2, Plus, Minus, ShieldCheck, Zap, Star } from 'lucide-react';
 import { CharacterData, StatKey, Campaign } from '../types';
@@ -26,7 +25,7 @@ import {
   getRaceTraits,
 } from '../constants';
 import { GoogleGenAI } from "@google/genai";
-import { checkRateLimit } from '../utils';
+import { checkRateLimit, recalculateCharacterStats } from '../utils';
 
 // ==========================================
 // Types
@@ -383,7 +382,6 @@ const StepPowers: React.FC<{
   const raceTraits = getRaceTraits(state.race);
   const racialSpellNames = (raceTraits?.racialSpells || []).filter(s => s.minCharLevel <= 1).map(s => s.name);
 
-  // Split selectedPowers into cantrips and spells for counting
   const selectedCantrips = state.selectedPowers.filter(p => cantrips.includes(p) || racialSpellNames.includes(p));
   const selectedSpells = state.selectedPowers.filter(p => spells1st.includes(p));
 
@@ -392,7 +390,6 @@ const StepPowers: React.FC<{
     const idx = current.indexOf(powerName);
     if (idx >= 0) { current.splice(idx, 1); }
     else {
-      // Enforce limits: check if it's a cantrip or spell
       const isCantrip = cantrips.includes(powerName);
       if (isCantrip && selectedCantrips.length >= cantripsNeeded) return;
       if (!isCantrip && spells1st.includes(powerName) && spellsNeeded > 0 && selectedSpells.length >= spellsNeeded) return;
@@ -411,7 +408,6 @@ const StepPowers: React.FC<{
         <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-6 text-center space-y-3">
           <Zap size={32} className="mx-auto text-zinc-600" />
           <p className="text-zinc-400 text-sm">No spells to select at Level 1. You may gain spellcasting through your subclass at Level {classData?.subclassLevel || 3} (e.g., Eldritch Knight, Arcane Trickster).</p>
-          {racialSpellNames.length === 0 && <p className="text-zinc-500 text-xs">Press Next to continue.</p>}
         </div>
       </div>
     );
@@ -425,7 +421,6 @@ const StepPowers: React.FC<{
       </div>
 
       <div className="space-y-6">
-        {/* Selected summary */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Selected</h4>
@@ -440,7 +435,6 @@ const StepPowers: React.FC<{
           </div>
         </div>
 
-        {/* Cantrips */}
         {cantripsNeeded > 0 && cantrips.length > 0 && (
           <div className="space-y-2">
             <div className="flex justify-between items-center px-1">
@@ -464,7 +458,6 @@ const StepPowers: React.FC<{
           </div>
         )}
 
-        {/* 1st Level Spells */}
         {spellsNeeded > 0 && spells1st.length > 0 && (
           <div className="space-y-2">
             <div className="flex justify-between items-center px-1">
@@ -488,7 +481,6 @@ const StepPowers: React.FC<{
           </div>
         )}
 
-        {/* Racial Spells */}
         {racialSpellNames.length > 0 && (
           <div className="space-y-2">
             <span className="text-xs font-bold text-amber-500 uppercase tracking-widest px-1">Racial Spells ({state.race})</span>
@@ -500,13 +492,6 @@ const StepPowers: React.FC<{
               ))}
             </div>
           </div>
-        )}
-
-        {/* Prepared caster note */}
-        {(state.charClass === 'Cleric' || state.charClass === 'Druid' || state.charClass === 'Wizard') && (
-          <p className="text-[10px] text-zinc-500 italic px-1">
-            As a prepared caster, you can change your prepared spells after each long rest. Choose your starting spells above.
-          </p>
         )}
       </div>
     </div>
@@ -626,7 +611,7 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
     setForging(true);
     setForgeError(null);
 
-    let portraitUrl = 'https://picsum.photos/400/400?grayscale';
+    let portraitUrl = 'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=800&auto=format&fit=crop';
     let detailedResult = { features: [], spells: [] };
 
     try {
@@ -634,7 +619,7 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
         checkRateLimit();
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         
-        const portraitPrompt = `D&D Portrait: ${state.race} ${state.charClass}. ${state.appearance}`;
+        const portraitPrompt = `High fantasy D&D Character Portrait: ${state.race} ${state.charClass}. Appearance: ${state.appearance || 'Mysterious adventurer'}. Cinematic lighting.`;
         const portraitResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
             contents: { parts: [{ text: portraitPrompt }] },
@@ -646,16 +631,30 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
         }
 
         if (state.selectedPowers.length > 0) {
-            const rulesPrompt = `Provide full D&D 5e rules text for these: ${state.selectedPowers.join(', ')}. Return JSON: { "features": [{ "name": "", "source": "Feat", "description": "Short", "fullText": "Full text" }], "spells": [{ "name": "", "level": 0, "school": "", "description": "", "castingTime": "", "range": "", "duration": "", "components": "", "atHigherLevels": "" }] }`;
+            const rulesPrompt = `Provide full D&D 5e rules text for these abilities: ${state.selectedPowers.join(', ')}. 
+            Return a JSON object with two arrays: "features" and "spells". 
+            Ensure cantrips have level 0. 
+            Format: { "features": [{ "name": "...", "source": "...", "description": "...", "fullText": "..." }], "spells": [{ "name": "...", "level": 0, "school": "...", "description": "...", "castingTime": "...", "range": "...", "duration": "...", "components": "..." }] }`;
+            
             const rulesResponse = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: rulesPrompt,
                 config: { responseMimeType: 'application/json' }
             });
-            detailedResult = JSON.parse(rulesResponse.text || '{}');
+            
+            try {
+                const parsed = JSON.parse(rulesResponse.text || '{}');
+                detailedResult = {
+                    features: Array.isArray(parsed.features) ? parsed.features : [],
+                    spells: Array.isArray(parsed.spells) ? parsed.spells : []
+                };
+            } catch (pErr) {
+                console.warn("Could not parse AI rules JSON", pErr);
+            }
         }
 
     } catch (err: any) { 
+        console.error("Forge Error:", err);
         setForgeError(err.message); 
     }
 
@@ -684,7 +683,7 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
       ac: 10 + stats.DEX.modifier,
       initiative: stats.DEX.modifier,
       speed: getRaceSpeed(state.race),
-      passivePerception: 10 + stats.WIS.modifier,
+      passivePerception: 10 + (stats.WIS?.modifier || 0),
       skills: DND_SKILLS.map(s => ({ 
         name: s.name, 
         ability: s.ability, 
@@ -696,10 +695,10 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
       spells: detailedResult.spells || [],
       spellSlots: getSpellSlotsForLevel(state.charClass, 1).map(s => ({ level: s.level, current: s.max, max: s.max })),
       inventory: { gold: 150, items: [], load: "Light" },
-      journal: []
+      journal: [{ id: 'creation', timestamp: Date.now(), type: 'note', content: `Created ${state.name}, the ${state.race} ${state.charClass}. Background: ${state.background}.` }]
     };
 
-    onCreate(character);
+    onCreate(recalculateCharacterStats(character));
   };
 
   return (

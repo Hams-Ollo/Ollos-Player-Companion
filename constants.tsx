@@ -1,4 +1,3 @@
-
 import { CharacterData, StatKey, Item } from './types';
 
 export const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -270,7 +269,7 @@ export const RACE_TRAITS: Record<string, RaceTraitData> = {
     { name: 'Hellish Resistance', description: 'Resistance to fire damage.' },
     { name: 'Infernal Legacy', description: 'Thaumaturgy at 1st. Hellish Rebuke (2nd-level) 1/long rest at 3rd. Darkness 1/long rest at 5th. CHA spellcasting.' },
   ], languages: ['Common', 'Infernal'], darkvision: 60, size: 'Medium', resistances: ['Fire'],
-    racialSpells: [{ name: 'Thaumaturgy', level: 0, minCharLevel: 1 }, { name: 'Hellish Rebuke', level: 1, minCharLevel: 3 }, { name: 'Darkness', level: 2, minCharLevel: 5 }] },
+    racialSpells: [{ name: 'Dancing Lights', level: 0, minCharLevel: 1 }, { name: 'Hellish Rebuke', level: 1, minCharLevel: 3 }, { name: 'Darkness', level: 2, minCharLevel: 5 }] },
 };
 
 export const getRaceTraits = (race: string): RaceTraitData | undefined => RACE_TRAITS[race];
@@ -479,6 +478,7 @@ export const SPELLS_KNOWN: Record<string, Record<number, number>> = {
   'Ranger':{ 2:2, 3:3, 5:4, 7:5, 9:6, 11:7, 13:8, 15:9, 17:10, 19:11 },
   'Sorcerer':{ 1:2, 2:3, 3:4, 4:5, 5:6, 6:7, 7:8, 8:9, 9:10, 10:11, 11:12, 13:13, 15:14, 17:15 },
   'Warlock':{ 1:2, 2:3, 3:4, 4:5, 5:6, 6:7, 7:8, 8:9, 9:10, 11:11, 13:12, 15:13, 17:14, 19:15 },
+  'Wizard':{ 1:6, 2:8, 3:10, 4:12, 5:14, 6:16, 7:18, 8:20, 9:22, 10:24, 11:26, 12:28, 13:30, 14:32, 15:34, 16:36, 17:38, 18:40, 19:42, 20:44 },
 };
 
 // ==========================================

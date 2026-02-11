@@ -1,5 +1,5 @@
 
-import { CharacterData, StatKey, Attack, ProficiencyLevel } from './types';
+import { CharacterData, StatKey, Attack, ProficiencyLevel, Skill, Stat } from './types';
 import { DND_SKILLS, getSpellSlotsForLevel } from './constants';
 
 let lastCall = 0;
@@ -14,28 +14,32 @@ export const calculateModifier = (score: number) => Math.floor((score - 10) / 2)
 /**
  * Recomputes all derived stats for a character sheet.
  * Use this after stat changes, level ups, or AI generation.
+ * This function also acts as a "Sanitizer" to ensure data integrity.
  */
 export const recalculateCharacterStats = (data: CharacterData): CharacterData => {
   if (!data) return data;
   
-  const level = data.level || 1;
+  // SANITY CHECK: Ensure basic structure exists
+  const level = Number(data.level) || 1;
   const profBonus = Math.ceil(level / 4) + 1;
   
   // 1. Update individual Stat Modifiers and Saving Throws
-  const stats = { ...data.stats };
+  const stats: Record<StatKey, Stat> = data.stats || {} as any;
   const statKeys: StatKey[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
   
   statKeys.forEach(k => {
     if (!stats[k]) {
         stats[k] = { score: 10, modifier: 0, save: 0, proficientSave: false };
     }
-    stats[k].modifier = calculateModifier(stats[k].score);
-    stats[k].save = stats[k].modifier + (stats[k].proficientSave ? profBonus : 0);
+    const score = Number(stats[k].score) || 10;
+    const mod = calculateModifier(score);
+    stats[k].score = score;
+    stats[k].modifier = mod;
+    stats[k].save = mod + (stats[k].proficientSave ? profBonus : 0);
   });
 
   // 2. Update Skill Modifiers and Abilities
-  const skills = (data.skills || []).map(skill => {
-    // Find the standard ability for this skill if missing or incorrect
+  const skills: Skill[] = (data.skills || []).map(skill => {
     const standardSkill = DND_SKILLS.find(s => s.name.toLowerCase() === skill.name.toLowerCase());
     const ability = standardSkill ? standardSkill.ability : (skill.ability || 'STR');
     const baseMod = stats[ability]?.modifier || 0;
@@ -45,17 +49,21 @@ export const recalculateCharacterStats = (data: CharacterData): CharacterData =>
     if (skill.proficiency === 'expertise') totalMod += (profBonus * 2);
 
     return {
-      ...skill,
+      name: skill.name || 'Unnamed Skill',
       ability,
+      proficiency: skill.proficiency || 'none',
       modifier: totalMod
     };
   });
 
-  // 3. Update AC based on equipped gear
+  // 3. Inventory & AC
+  const inventory = data.inventory || { gold: 0, items: [], load: 'Light' };
+  inventory.gold = Number(inventory.gold) || 0;
+  inventory.items = Array.isArray(inventory.items) ? inventory.items : [];
+
   let ac = 10 + stats.DEX.modifier;
-  const items = data.inventory?.items || [];
-  const armor = items.find(i => i.type === 'Armor' && i.equipped && i.name !== 'Shield');
-  const shield = items.find(i => i.name === 'Shield' && i.equipped);
+  const armor = inventory.items.find(i => i.type === 'Armor' && i.equipped && i.name !== 'Shield');
+  const shield = inventory.items.find(i => i.name === 'Shield' && i.equipped);
   
   if (armor) {
     if (armor.name.includes("Leather")) ac = 11 + stats.DEX.modifier;
@@ -67,7 +75,7 @@ export const recalculateCharacterStats = (data: CharacterData): CharacterData =>
   if (shield) ac += 2;
 
   // 4. Update Attacks based on equipped weapons
-  const attacks: Attack[] = items
+  const attacks: Attack[] = inventory.items
     .filter(i => i.type === 'Weapon' && i.equipped)
     .map(w => {
         const isFinesse = w.notes?.toLowerCase().includes('finesse');
@@ -96,9 +104,9 @@ export const recalculateCharacterStats = (data: CharacterData): CharacterData =>
       });
   }
 
-  // 5. Update Spell Slots if missing (e.g. for Level 1 quick roll)
-  let spellSlots = data.spellSlots || [];
-  if (spellSlots.length === 0) {
+  // 5. Update Spell Slots
+  let spellSlots = Array.isArray(data.spellSlots) ? data.spellSlots : [];
+  if (spellSlots.length === 0 && data.class) {
       spellSlots = getSpellSlotsForLevel(data.class, level).map(s => ({
           level: s.level,
           max: s.max,
@@ -106,23 +114,28 @@ export const recalculateCharacterStats = (data: CharacterData): CharacterData =>
       }));
   }
 
-  // 6. Update Passive Perception
+  // 6. Final Vitals
   const perceptionSkill = skills.find(s => s.name === 'Perception');
   const passivePerception = 10 + (perceptionSkill?.modifier || stats.WIS?.modifier || 0);
-
-  // 7. Update HP based on stats if current/max is 0 or malformed
-  const currentHp = data.hp?.current || 1;
-  const maxHp = data.hp?.max || 1;
+  
+  const currentHp = Number(data.hp?.current) || 10;
+  const maxHp = Number(data.hp?.max) || 10;
 
   return {
     ...data,
+    level,
     stats,
     skills,
     ac,
     attacks,
     spellSlots,
+    inventory,
     passivePerception,
     hp: { current: currentHp, max: maxHp },
-    initiative: stats.DEX?.modifier || 0
+    hitDice: data.hitDice || { current: 1, max: 1, die: '1d8' },
+    initiative: stats.DEX?.modifier || 0,
+    journal: Array.isArray(data.journal) ? data.journal : [],
+    features: Array.isArray(data.features) ? data.features : [],
+    spells: Array.isArray(data.spells) ? data.spells : [],
   };
 };

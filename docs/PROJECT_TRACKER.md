@@ -29,6 +29,7 @@
 | ✅ | Task | Point Buy stat assignment | @Hams-Ollo | |
 | ✅ | Task | Manual stat entry | @Hams-Ollo | |
 | ✅ | Feature | Data-driven spell selection | @Hams-Ollo | PHB cantrip + 1st-level lists per class |
+| ✅ | Task | Wizard Spellbook Support | @Hams-Ollo | Wizards correctly start with 6 spells at Lvl 1 |
 | ✅ | Feature | Racial traits & bonuses | @Hams-Ollo | All PHB races + subraces |
 | ✅ | Feature | Class feature progression | @Hams-Ollo | 12 classes, levels 1–20 |
 | ✅ | Feature | Spell slot progression tables | @Hams-Ollo | Full/half/pact caster |
@@ -139,13 +140,13 @@
 
 | Epic | Done | In Progress | Not Started | Total |
 |------|------|-------------|-------------|-------|
-| 1. Core Character Management | 11 | 0 | 4 | 15 |
+| 1. Core Character Management | 12 | 0 | 4 | 16 |
 | 2. Dashboard & Gameplay | 7 | 0 | 6 | 13 |
 | 3. AI Integration | 8 | 0 | 2 | 10 |
 | 4. Auth & Multiplayer | 3 | 0 | 3 | 6 |
 | 5. Developer Experience | 7 | 0 | 5 | 12 |
 | 6. Polish & Extras | 0 | 0 | 6 | 6 |
-| **Total** | **36** | **0** | **26** | **62** |
+| **Total** | **37** | **0** | **26** | **63** |
 
 ---
 

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { CharacterData, StackType, RollResult, Item, Feature, Spell, RollMode, DiceGroup } from '../types';
 import CardStack from './CardStack';
@@ -42,7 +41,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
 
   const handleRoll = (label: string, baseModifier: number, expression: string) => {
     // Regex to find all dice groups and flat modifiers
-    // e.g. "1d20+5", "2d6 + 1d4 + 2"
     const parts = expression.replace(/\s+/g, '').split(/(?=[+-])/);
     const diceGroups: DiceGroup[] = [];
     let total = 0;
@@ -58,7 +56,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
         const sides = parseInt(diceMatch[2]);
         const rolls: number[] = [];
 
-        // Special handling for d20 Advantage/Disadvantage
         if (sides === 20 && numDice === 1 && rollMode !== 'normal') {
           const r1 = Math.floor(Math.random() * 20) + 1;
           const r2 = Math.floor(Math.random() * 20) + 1;
@@ -87,7 +84,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
       } else if (modMatch) {
         finalModifier += parseInt(modMatch[1]);
       } else if (!part.includes('d')) {
-        // Fallback for flat numbers without signs if first part
         const val = parseInt(part);
         if (!isNaN(val)) finalModifier += val;
       }
@@ -233,7 +229,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
             </div>
 
             <div className="h-40">
-                <CardStack type="inventory" title="Pouch" color="amber" onClick={() => setActiveStack('inventory')} icon={<ShoppingBag size={18} />}>
+                <CardStack type="inventory" title="Inventory" color="amber" onClick={() => setActiveStack('inventory')} icon={<ShoppingBag size={18} />}>
                     <div className="text-center">
                          <span className="block text-xl font-mono font-black text-amber-400">{data.inventory.gold.toFixed(0)} GP</span>
                          <p className="text-[9px] text-zinc-600 uppercase font-black mt-1">Currency</p>
@@ -242,7 +238,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
             </div>
 
             <div className="h-40">
-                <CardStack type="journal" title="Legacy" color="purple" onClick={() => setActiveStack('journal')} icon={<Book size={18} />}>
+                <CardStack type="journal" title="Journal" color="purple" onClick={() => setActiveStack('journal')} icon={<Book size={18} />}>
                     <div className="text-center opacity-50 px-2 overflow-hidden">
                         <p className="text-[10px] italic leading-tight line-clamp-3">
                            {data.journal[0]?.content || "Your legend begins here..."}
