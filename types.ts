@@ -75,7 +75,7 @@ export interface CharacterData {
   portraitUrl: string;
   stats: Record<StatKey, AbilityScore>;
   hp: { current: number; max: number };
-  hitDice: { current: number; max: number; die: string }; // Added
+  hitDice: { current: number; max: number; die: string };
   ac: number;
   initiative: number;
   speed: number;
@@ -84,7 +84,7 @@ export interface CharacterData {
   attacks: Attack[];
   features: Feature[];
   spells: Spell[]; 
-  spellSlots: { current: number; max: number; level: number }[]; // Added
+  spellSlots: { current: number; max: number; level: number }[];
   inventory: {
     gold: number;
     items: Item[];
@@ -101,4 +101,22 @@ export interface RollResult {
   die: string;
   rolls: number[];
   modifier: number;
+}
+
+export interface UserProfile {
+  uid: string;
+  displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
+  isAnonymous: boolean;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  dmId: string; // User ID of the DM
+  description: string;
+  joinCode: string;
+  members: { uid: string; characterId?: string; name: string }[];
+  createdAt: number;
 }

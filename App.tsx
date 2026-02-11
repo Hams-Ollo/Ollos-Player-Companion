@@ -1,36 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import CharacterSelection from './components/CharacterSelection';
+import LoginScreen from './components/LoginScreen';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { VESPER_DATA } from './constants';
 import { CharacterData } from './types';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
   const [characters, setCharacters] = useState<CharacterData[]>([]);
   const [activeCharacterId, setActiveCharacterId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  // Load from local storage on mount
+  // Load from local storage on mount (or when user changes)
   useEffect(() => {
-    const saved = localStorage.getItem('dnd-characters');
-    if (saved) {
-      try {
-        setCharacters(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse characters", e);
-        setCharacters([VESPER_DATA]);
-      }
+    if (authLoading) return;
+    
+    if (user) {
+        // User is logged in: Load their specific data
+        // In a real app, this would be: await firestore.collection('users').doc(user.uid).get()
+        const storageKey = `dnd-characters-${user.uid}`;
+        const saved = localStorage.getItem(storageKey);
+        
+        if (saved) {
+            try {
+                setCharacters(JSON.parse(saved));
+            } catch (e) {
+                console.error("Failed to parse characters", e);
+                setCharacters([]);
+            }
+        } else {
+            // New user (or just cleared cache) -> Give them Vesper template if empty
+            // Only if it's the guest account for demo purposes
+            if (user.isAnonymous) {
+                 setCharacters([VESPER_DATA]);
+            } else {
+                 setCharacters([]);
+            }
+        }
     } else {
-      setCharacters([VESPER_DATA]);
+        setCharacters([]);
     }
-    setLoading(false);
-  }, []);
+    setDataLoading(false);
+  }, [user, authLoading]);
 
   // Save to local storage whenever characters change
   useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('dnd-characters', JSON.stringify(characters));
+    if (!authLoading && !dataLoading && user) {
+      const storageKey = `dnd-characters-${user.uid}`;
+      localStorage.setItem(storageKey, JSON.stringify(characters));
     }
-  }, [characters, loading]);
+  }, [characters, authLoading, dataLoading, user]);
 
   const handleCreate = (newChar: CharacterData) => {
     setCharacters(prev => [...prev, newChar]);
@@ -59,9 +79,15 @@ const App: React.FC = () => {
     handleUpdateActiveCharacter({ portraitUrl: url });
   };
 
-  const activeCharacter = characters.find(c => c.id === activeCharacterId);
+  if (authLoading || (user && dataLoading)) {
+      return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-500">Loading...</div>;
+  }
 
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-500">Loading...</div>;
+  if (!user) {
+      return <LoginScreen />;
+  }
+
+  const activeCharacter = characters.find(c => c.id === activeCharacterId);
 
   if (activeCharacter) {
     return (
@@ -82,6 +108,14 @@ const App: React.FC = () => {
       onDelete={handleDelete}
     />
   );
+};
+
+const App: React.FC = () => {
+    return (
+        <AuthProvider>
+            <AppContent />
+        </AuthProvider>
+    );
 };
 
 export default App;
