@@ -161,7 +161,7 @@ export const VESPER_DATA: CharacterData = {
   race: "Drow Elf",
   class: "Rogue",
   level: 1,
-  portraitUrl: "https://picsum.photos/id/1062/400/400",
+  portraitUrl: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=800&auto=format&fit=crop",
   stats: {
     STR: { score: 8, modifier: -1, save: -1, proficientSave: false },
     DEX: { score: 18, modifier: +4, save: +6, proficientSave: true },
@@ -236,7 +236,7 @@ export const VESPER_DATA: CharacterData = {
   spells: [],
   spellSlots: [],
   inventory: {
-    gold: 15,
+    gold: 150,
     items: [
       { name: "Leather Armor", quantity: 1, notes: "AC 11, Light Armor", cost: 10, type: "Armor", equipped: true },
       { name: "Thieves' Tools", quantity: 1, cost: 25, type: "Gear" },
@@ -288,15 +288,17 @@ export const createNewCharacter = (name: string, race: string, charClass: string
     CHA: { score: 10, modifier: 0, save: 0, proficientSave: proficientSaves.includes('CHA') },
   };
 
+  const id = generateId();
+
   return {
-    id: generateId(),
+    id: id,
     campaign: "New Campaign",
     name: name || "Unknown Hero",
     nickname: "",
     race: race || "Human",
     class: charClass || "Fighter",
     level: 1,
-    portraitUrl: "https://picsum.photos/400/400?grayscale",
+    portraitUrl: `https://picsum.photos/seed/${id}/400/600`,
     stats: baseStats,
     hp: { current: hitDie, max: hitDie },
     hitDice: { current: 1, max: 1, die: `1d${hitDie}` },
@@ -312,7 +314,7 @@ export const createNewCharacter = (name: string, race: string, charClass: string
     spells: [],
     spellSlots: [],
     inventory: {
-      gold: 15, // Standard starting gold for background/class avg
+      gold: 150, // Standard starting gold
       items: [],
       load: "Light"
     },
