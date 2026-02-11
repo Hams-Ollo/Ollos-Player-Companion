@@ -45,7 +45,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const prompt = `
-            My D&D 5e character is a Level ${data.level} ${data.race} ${data.class} (Subclass: check if implied by level). 
+            My D&D 5e character is a Level ${data.level} ${data.race} ${data.class}. 
             They are leveling up to Level ${nextLevel}.
             
             Return a JSON object describing the level up gains. 
@@ -63,11 +63,12 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
                  }
               ]
             }
-            CRITICAL INSTRUCTIONS:
-            - If this level grants an Ability Score Improvement (ASI), return a choice with type 'asi', count 2 (representing 2 points to distribute), and label "Ability Score Improvement".
-            - If a choice is conditional on an archetype selection (e.g. Rogue Archetype choices at level 3), label it clearly like "Select Spells (If Arcane Trickster)".
+            CRITICAL INSTRUCTIONS FOR FEATS & ASI:
+            - If this level grants an Ability Score Improvement (ASI), you MUST provide TWO mutually exclusive choice paths in the "choices" array.
+            - Path 1: "Ability Score Improvement (Optional if Feat taken)", type: "asi", count: 2.
+            - Path 2: "Select a Feat (Optional if ASI taken)", type: "feat", count: 1, with a list of "suggestions" (e.g., Great Weapon Master, Sentinel, Fey Touched, etc.).
+            - If a choice is conditional on an archetype selection, label it clearly like "Select Spells (If Arcane Trickster)".
             - If no choices are needed, choices should be empty array.
-            - Include specific suggestions for spells/feats based on a standard build.
         `;
 
         const response = await ai.models.generateContent({
@@ -92,14 +93,31 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
     if (!plan) return;
     
     // Validate selections
-    for (const choice of plan.choices) {
-        // Smarter validation: if the choice label contains "(If " we assume it's conditional 
-        // and allow the user to skip it if it doesn't apply to their selection.
-        const isConditional = choice.label.toLowerCase().includes('(if ');
-        const userSelected = (selections[choice.id] || []).filter(s => s && s.trim() !== "");
-        
-        if (!isConditional && userSelected.length < choice.count) {
+    // We allow skipping if label contains "(if ", "optional", or "instead of"
+    const skipKeywords = ['(if ', 'optional', 'instead of'];
+    
+    // Complex validation: if both ASI and Feat are present and optional, at least one must be filled.
+    const optionalChoices = plan.choices.filter(c => skipKeywords.some(k => c.label.toLowerCase().includes(k)));
+    const mandatoryChoices = plan.choices.filter(c => !skipKeywords.some(k => c.label.toLowerCase().includes(k)));
+
+    for (const choice of mandatoryChoices) {
+        const userSelected = (selections[choice.id] || []).filter(s => s && s.trim() !== "" && s !== 'custom');
+        if (userSelected.length < choice.count) {
             alert(`Please complete selection: ${choice.label}`);
+            return;
+        }
+    }
+
+    // Special check: If there are choices containing "ASI" and "Feat" and both are optional, ensure one is picked.
+    const hasAsiOption = plan.choices.find(c => c.label.includes('ASI') || c.label.includes('Ability Score'));
+    const hasFeatOption = plan.choices.find(c => c.label.includes('Feat'));
+    
+    if (hasAsiOption && hasFeatOption) {
+        const asiFilled = (selections[hasAsiOption.id] || []).filter(s => s && s.trim() !== "").length === hasAsiOption.count;
+        const featFilled = (selections[hasFeatOption.id] || []).filter(s => s && s.trim() !== "" && s !== 'custom').length === hasFeatOption.count;
+        
+        if (!asiFilled && !featFilled) {
+            alert("This level grants an Ability Score Improvement or a Feat. Please choose one of the two paths.");
             return;
         }
     }
@@ -113,24 +131,26 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
         
         plan.choices.forEach(choice => {
             if (choice.type === 'asi') {
-                const choices = selections[choice.id] || [];
-                choices.forEach(stat => {
-                    if (updatedStats[stat as StatKey]) {
-                        const newScore = updatedStats[stat as StatKey].score + 1;
-                        const newMod = Math.floor((newScore - 10) / 2);
-                        // Update score and mod. Keep save proficiency same, just update value.
-                        const oldSave = updatedStats[stat as StatKey].save;
-                        const oldMod = updatedStats[stat as StatKey].modifier;
-                        const saveDiff = newMod - oldMod;
-                        
-                        updatedStats[stat as StatKey] = {
-                            ...updatedStats[stat as StatKey],
-                            score: newScore,
-                            modifier: newMod,
-                            save: oldSave + saveDiff
-                        };
-                    }
-                });
+                const userChoices = selections[choice.id] || [];
+                // Only apply if fully filled
+                if (userChoices.filter(s => s && s.trim() !== "").length === choice.count) {
+                    userChoices.forEach(stat => {
+                        if (updatedStats[stat as StatKey]) {
+                            const newScore = updatedStats[stat as StatKey].score + 1;
+                            const newMod = Math.floor((newScore - 10) / 2);
+                            const oldSave = updatedStats[stat as StatKey].save;
+                            const oldMod = updatedStats[stat as StatKey].modifier;
+                            const saveDiff = newMod - oldMod;
+                            
+                            updatedStats[stat as StatKey] = {
+                                ...updatedStats[stat as StatKey],
+                                score: newScore,
+                                modifier: newMod,
+                                save: oldSave + saveDiff
+                            };
+                        }
+                    });
+                }
             }
         });
 
@@ -139,7 +159,12 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
         // Filter out ASI selections and conditional selections that weren't filled
         const nonAsiChoices = plan.choices.filter(c => c.type !== 'asi');
         const featsToFetch = plan.newFeatures.map(f => f.name);
-        const choicesToFetch = nonAsiChoices.flatMap(c => (selections[c.id] || []).filter(s => s && s.trim() !== ""));
+        
+        // Flatten all selections, excluding "custom" markers and empty strings
+        const choicesToFetch = nonAsiChoices.flatMap(c => {
+            const sels = selections[c.id] || [];
+            return sels.filter(s => s && s.trim() !== "" && s !== 'custom');
+        });
         
         let result = { features: [], spells: [] };
 
@@ -181,7 +206,6 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
             spells: updatedSpells
         };
 
-        // Recalculate derived stats (AC, Attacks, etc.) which might have changed due to Stats or Proficiency
         const finalChar = recalculateCharacterStats(tempChar);
 
         onUpdate(finalChar);
@@ -275,38 +299,36 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
                                 <div key={choice.id} className="space-y-2">
                                     <div className="flex justify-between items-baseline">
                                         <label className="text-sm font-bold text-zinc-300 block">{choice.label}</label>
-                                        {choice.label.toLowerCase().includes('(if ') && (
-                                            <span className="text-[10px] text-zinc-500 uppercase font-bold">Optional</span>
+                                        {(choice.label.toLowerCase().includes('(if ') || choice.label.toLowerCase().includes('optional')) && (
+                                            <span className="text-[10px] text-zinc-500 uppercase font-bold">Optional Choice</span>
                                         )}
                                     </div>
                                     
                                     {choice.type === 'asi' ? (
-                                        // ASI Specific UI
                                         <div className="grid grid-cols-2 gap-3">
                                             {Array.from({ length: choice.count }).map((_, i) => (
                                                 <select
                                                     key={i}
                                                     className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none appearance-none cursor-pointer"
                                                     onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
-                                                    defaultValue=""
+                                                    value={selections[choice.id]?.[i] || ""}
                                                 >
-                                                    <option value="" disabled>Select Stat...</option>
+                                                    <option value="">Select Stat...</option>
                                                     {STAT_KEYS.map(stat => (
                                                         <option key={stat} value={stat}>{stat} (Current: {data.stats[stat].score})</option>
                                                     ))}
                                                 </select>
                                             ))}
-                                            <p className="col-span-2 text-[10px] text-zinc-500 italic">Select the same stat twice to increase it by +2.</p>
+                                            <p className="col-span-2 text-[10px] text-zinc-500 italic">Increases stats by 1. Select the same stat twice for +2.</p>
                                         </div>
                                     ) : (
-                                        // Standard Selection UI
                                         Array.from({ length: choice.count }).map((_, i) => (
                                             <div key={i} className="relative">
                                                 {choice.suggestions && choice.suggestions.length > 0 ? (
                                                     <select
                                                         className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none appearance-none cursor-pointer pr-10"
                                                         onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
-                                                        defaultValue=""
+                                                        value={selections[choice.id]?.[i] || ""}
                                                     >
                                                         <option value="">Select option {i + 1}...</option>
                                                         {choice.suggestions.map(s => <option key={s} value={s}>{s}</option>)}
@@ -318,6 +340,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
                                                         placeholder={`Enter selection ${i + 1}...`}
                                                         className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none"
                                                         onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
+                                                        value={selections[choice.id]?.[i] || ""}
                                                     />
                                                 )}
                                                 
@@ -329,12 +352,11 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
                                                     )}
                                                 </div>
                                                 
-                                                {/* If they select custom, they can type it in (simple hack for the UI) */}
                                                 {(selections[choice.id]?.[i] === 'custom') && (
                                                     <input 
                                                         type="text"
                                                         autoFocus
-                                                        placeholder="Type custom value..."
+                                                        placeholder="Type custom name..."
                                                         className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-white focus:border-amber-500 focus:outline-none mt-2 animate-in slide-in-from-top-1"
                                                         onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
                                                     />
