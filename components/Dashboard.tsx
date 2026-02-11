@@ -17,6 +17,7 @@ import ShopModal from './ShopModal';
 import LevelUpModal from './LevelUpModal';
 import ItemDetailModal from './ItemDetailModal';
 import RestModal from './RestModal';
+import ErrorBoundary from './ErrorBoundary';
 import { Heart, Sword, Brain, Sparkles, Backpack, Edit2, MessageSquare, Settings, LogOut, Book, ShoppingBag, Wand2 } from 'lucide-react';
 
 interface DashboardProps {
@@ -305,12 +306,14 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
           title="Vitals & Stats"
           color="red"
         >
-          <VitalsDetail 
-            data={data} 
-            onUpdate={onUpdateData} 
-            onLevelUp={() => setShowLevelUp(true)} 
-            onRest={() => setShowRest(true)} 
-          />
+          <ErrorBoundary fallbackTitle="Vitals failed to load">
+            <VitalsDetail 
+              data={data} 
+              onUpdate={onUpdateData} 
+              onLevelUp={() => setShowLevelUp(true)} 
+              onRest={() => setShowRest(true)} 
+            />
+          </ErrorBoundary>
        </DetailOverlay>
 
        <DetailOverlay 
@@ -320,7 +323,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
           title="Actions & Combat"
           color="orange"
         >
-          <CombatDetail data={data} onRoll={handleRoll} />
+          <ErrorBoundary fallbackTitle="Combat failed to load">
+            <CombatDetail data={data} onRoll={handleRoll} />
+          </ErrorBoundary>
        </DetailOverlay>
        
        <DetailOverlay 
@@ -330,7 +335,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
           title="Skills & Checks"
           color="blue"
         >
-          <SkillsDetail data={data} onRoll={handleRoll} />
+          <ErrorBoundary fallbackTitle="Skills failed to load">
+            <SkillsDetail data={data} onRoll={handleRoll} />
+          </ErrorBoundary>
        </DetailOverlay>
 
         <DetailOverlay 
@@ -340,11 +347,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
           title="Spells & Cantrips"
           color="cyan"
         >
-          <SpellsDetail 
-            data={data} 
-            onUpdate={onUpdateData} 
-            onInspect={setSelectedItemForDetail} 
-          />
+          <ErrorBoundary fallbackTitle="Spells failed to load">
+            <SpellsDetail 
+              data={data} 
+              onUpdate={onUpdateData} 
+              onInspect={setSelectedItemForDetail} 
+            />
+          </ErrorBoundary>
        </DetailOverlay>
 
         <DetailOverlay 
@@ -354,7 +363,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
           title="Features & Traits"
           color="purple"
         >
-          <FeaturesDetail data={data} onInspect={setSelectedItemForDetail} />
+          <ErrorBoundary fallbackTitle="Features failed to load">
+            <FeaturesDetail data={data} onInspect={setSelectedItemForDetail} />
+          </ErrorBoundary>
        </DetailOverlay>
 
         <DetailOverlay 
@@ -364,12 +375,14 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
           title="Inventory"
           color="amber"
         >
-          <InventoryDetail 
-            data={data} 
-            onShop={() => setShowShop(true)} 
-            onInspect={setSelectedItemForDetail}
-            onUpdate={onUpdateData}
-          />
+          <ErrorBoundary fallbackTitle="Inventory failed to load">
+            <InventoryDetail 
+              data={data} 
+              onShop={() => setShowShop(true)} 
+              onInspect={setSelectedItemForDetail}
+              onUpdate={onUpdateData}
+            />
+          </ErrorBoundary>
        </DetailOverlay>
 
        <DetailOverlay 
@@ -379,22 +392,28 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
           title="Adventure Journal"
           color="orange"
         >
-          <JournalDetail data={data} onUpdate={onUpdateData} />
+          <ErrorBoundary fallbackTitle="Journal failed to load">
+            <JournalDetail data={data} onUpdate={onUpdateData} />
+          </ErrorBoundary>
        </DetailOverlay>
 
        <DiceRollModal result={rollResult} onClose={() => setRollResult(null)} />
        
        {showPortraitGen && (
-         <PortraitGenerator 
-            currentPortrait={data.portraitUrl}
-            onUpdate={onUpdatePortrait}
-            onClose={() => setShowPortraitGen(false)}
-            characterDescription={`${data.race} ${data.class} named ${data.name}.`}
-         />
+         <ErrorBoundary fallbackTitle="Portrait generator error" onReset={() => setShowPortraitGen(false)}>
+           <PortraitGenerator 
+              currentPortrait={data.portraitUrl}
+              onUpdate={onUpdatePortrait}
+              onClose={() => setShowPortraitGen(false)}
+              characterDescription={`${data.race} ${data.class} named ${data.name}.`}
+           />
+         </ErrorBoundary>
        )}
 
        {showAskDM && (
-         <AskDMModal onClose={() => setShowAskDM(false)} />
+         <ErrorBoundary fallbackTitle="AI DM error" onReset={() => setShowAskDM(false)}>
+           <AskDMModal onClose={() => setShowAskDM(false)} />
+         </ErrorBoundary>
        )}
 
        {showSettings && (
@@ -414,11 +433,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
        )}
 
        {showLevelUp && (
-         <LevelUpModal
-            data={data}
-            onUpdate={onUpdateData}
-            onClose={() => setShowLevelUp(false)}
-         />
+         <ErrorBoundary fallbackTitle="Level up error" onReset={() => setShowLevelUp(false)}>
+           <LevelUpModal
+              data={data}
+              onUpdate={onUpdateData}
+              onClose={() => setShowLevelUp(false)}
+           />
+         </ErrorBoundary>
        )}
 
        {showRest && (
@@ -430,10 +451,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
        )}
 
        {selectedItemForDetail && (
-         <ItemDetailModal 
-            item={selectedItemForDetail}
-            onClose={() => setSelectedItemForDetail(null)}
-         />
+         <ErrorBoundary fallbackTitle="Item detail error" onReset={() => setSelectedItemForDetail(null)}>
+           <ItemDetailModal 
+              item={selectedItemForDetail}
+              onClose={() => setSelectedItemForDetail(null)}
+           />
+         </ErrorBoundary>
        )}
     </div>
   );

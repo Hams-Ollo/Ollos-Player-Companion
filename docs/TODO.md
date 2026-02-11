@@ -23,14 +23,14 @@
 ### 🔴 Critical
 
 - [ ] **Backend API proxy** — Move Gemini API key to a server-side proxy so it's not embedded in the client bundle
-- [ ] **Error boundaries** — Add React error boundaries around AI calls, detail views, and modals to prevent full-app crashes
+- [x] **Error boundaries** — Add React error boundaries around AI calls, detail views, and modals to prevent full-app crashes _(v0.2.0 — 2026-02-11)_
 
 ### 🟠 High
 
 - [ ] **Spellbook management** — Prepare/swap spells on long rest for prepared casters (Cleric, Druid, Wizard, Paladin)
 - [ ] **Firestore cloud sync** — Persist characters to Firebase Firestore so data survives across devices/browsers
-- [ ] **Tailwind build pipeline** — Replace CDN script tag with proper PostCSS/Tailwind build for tree-shaking and purging
-- [ ] **SettingsModal stat cascade** — When editing stats in settings, recalculate initiative, AC, skills, saves automatically
+- [x] **Tailwind build pipeline** — Replace CDN script tag with proper Tailwind v4/Vite build for tree-shaking and purging _(v0.2.0 — 2026-02-11)_
+- [x] **SettingsModal stat cascade** — When editing stats in settings, recalculate initiative, AC, skills, saves automatically _(v0.2.0 — 2026-02-11)_
 
 ### 🟡 Medium
 
@@ -85,6 +85,9 @@
 - [x] **Gemini AI integration** — Portrait generation, DM chat, level-up assist, item lookup _(v0.1.0 — 2026-02-10)_
 - [x] **Campaign manager** — Create/join with shareable codes _(v0.1.0 — 2026-02-10)_
 - [x] **Project documentation** — README, Architecture, API, Contributing docs _(v0.1.1 — 2026-02-11)_
+- [x] **Error boundaries** — React error boundaries on all detail views and AI-powered modals _(v0.2.0 — 2026-02-11)_
+- [x] **SettingsModal stat cascade** — Stat edits now recalculate AC, initiative, skills, saves, attacks _(v0.2.0 — 2026-02-11)_
+- [x] **Tailwind build pipeline** — Replaced CDN with `@tailwindcss/vite` plugin, tree-shaken CSS _(v0.2.0 — 2026-02-11)_
 
 ---
 

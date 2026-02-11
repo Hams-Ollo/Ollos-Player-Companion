@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Save, Settings, Wifi, WifiOff, ShieldCheck, ShieldAlert, Activity } from 'lucide-react';
 import { CharacterData, StatKey } from '../types';
+import { recalculateCharacterStats } from '../utils';
 
 interface SettingsModalProps {
   data: CharacterData;
@@ -21,7 +22,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) 
   const hasApiKey = !!process.env.API_KEY;
 
   const handleSave = () => {
-    onSave(formData);
+    const profBonus = Math.ceil((formData.level || data.level) / 4) + 1;
+    const merged: CharacterData = {
+      ...data,
+      ...formData,
+      skills: data.skills.map(skill => {
+        const abilityMod = formData.stats[skill.ability].modifier;
+        const profMod = skill.proficiency === 'expertise' ? profBonus * 2 : skill.proficiency === 'proficient' ? profBonus : 0;
+        return { ...skill, modifier: abilityMod + profMod };
+      }),
+    };
+    const recalculated = recalculateCharacterStats(merged);
+    onSave(recalculated);
     onClose();
   };
 
@@ -37,7 +49,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) 
                 ...prev.stats[stat],
                 score,
                 modifier,
-                save: modifier // Simplified save logic (doesn't account for proficiency here but keeps it synced)
+                save: modifier + (prev.stats[stat].proficientSave ? Math.ceil((formData.level || data.level) / 4) + 1 : 0)
             }
         }
     }));

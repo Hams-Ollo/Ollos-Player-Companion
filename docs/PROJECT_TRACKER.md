@@ -54,7 +54,7 @@
 | ✅ | Feature | Rest system (short + long) | @Hams-Ollo | Hit dice recovery |
 | ✅ | Feature | In-game equipment shop | @Hams-Ollo | Buy/sell from inventory |
 | ✅ | Feature | Settings modal (stat editor) | @Hams-Ollo | Manual stat overrides |
-| ⬜ | User Story | As a player, I want stat edits to auto-update derived values | — | AC, initiative, skills, saves cascade |
+| ✅ | User Story | As a player, I want stat edits to auto-update derived values | @Hams-Ollo | AC, initiative, skills, saves cascade via recalculateCharacterStats |
 | ⬜ | User Story | As a player, I want to track active conditions | — | Poisoned, Stunned, etc. with effects |
 | ⬜ | Feature | Death saves tracker | — | 3 successes / 3 failures |
 | ⬜ | Feature | Concentration tracker | — | Flag active spell, prompt CON save |
@@ -109,8 +109,8 @@
 | ✅ | Task | Mermaid architecture diagrams | @Hams-Ollo | |
 | ✅ | Task | Accessibility fixes (a11y) | @Hams-Ollo | aria-labels, htmlFor/id on forms |
 | ✅ | Task | Dead code cleanup | @Hams-Ollo | Removed unused imports, interfaces |
-| ⬜ | Task | Tailwind build pipeline | — | Replace CDN with PostCSS build |
-| ⬜ | Task | Error boundaries | — | Wrap AI calls + detail views |
+| ✅ | Task | Tailwind build pipeline | @Hams-Ollo | Replaced CDN with `@tailwindcss/vite` plugin |
+| ✅ | Task | Error boundaries | @Hams-Ollo | ErrorBoundary component on all detail views + AI modals |
 | ⬜ | Task | `tsconfig` strict mode | — | Enable strict TypeScript checking |
 | ⬜ | Task | Unit tests (Vitest) | — | Core utils, constants helpers |
 | ⬜ | Task | E2E tests (Playwright) | — | Character creation flow |
@@ -140,12 +140,12 @@
 | Epic | Done | In Progress | Not Started | Total |
 |------|------|-------------|-------------|-------|
 | 1. Core Character Management | 11 | 0 | 4 | 15 |
-| 2. Dashboard & Gameplay | 6 | 0 | 7 | 13 |
+| 2. Dashboard & Gameplay | 7 | 0 | 6 | 13 |
 | 3. AI Integration | 8 | 0 | 2 | 10 |
 | 4. Auth & Multiplayer | 3 | 0 | 3 | 6 |
-| 5. Developer Experience | 5 | 0 | 7 | 12 |
+| 5. Developer Experience | 7 | 0 | 5 | 12 |
 | 6. Polish & Extras | 0 | 0 | 6 | 6 |
-| **Total** | **33** | **0** | **29** | **62** |
+| **Total** | **36** | **0** | **26** | **62** |
 
 ---
 
