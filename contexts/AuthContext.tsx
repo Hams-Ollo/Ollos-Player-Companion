@@ -12,34 +12,46 @@ import {
   User
 } from 'firebase/auth';
 
-// Firebase configuration using provided environment variables
+// Helper to get env variables with fallbacks
+const getEnv = (key: string) => {
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+    return process.env[key];
+  }
+  return undefined;
+};
+
+// Firebase configuration using environment variables
 const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY,
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.VITE_FIREBASE_APP_ID
+  apiKey: getEnv('VITE_FIREBASE_API_KEY') || getEnv('FIREBASE_API_KEY'),
+  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN') || getEnv('FIREBASE_AUTH_DOMAIN'),
+  projectId: getEnv('VITE_FIREBASE_PROJECT_ID') || getEnv('FIREBASE_PROJECT_ID'),
+  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET') || getEnv('FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID') || getEnv('FIREBASE_MESSAGING_SENDER_ID'),
+  appId: getEnv('VITE_FIREBASE_APP_ID') || getEnv('FIREBASE_APP_ID')
 };
 
 // Initialize Firebase using the Modular API
-let app: FirebaseApp;
 let auth: Auth | null = null;
 const googleProvider = new GoogleAuthProvider();
-// Set standard scopes
 googleProvider.addScope('profile');
 googleProvider.addScope('email');
 
-try {
-  if (firebaseConfig.apiKey && firebaseConfig.apiKey !== 'undefined') {
-    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-    auth = getAuth(app);
-  } else {
-    console.warn("Firebase API Key is missing. Check your environment variables.");
+const initFirebase = () => {
+  try {
+    if (firebaseConfig.apiKey && firebaseConfig.apiKey !== 'undefined') {
+      const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+      auth = getAuth(app);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error("Firebase initialization failed:", e);
+    return false;
   }
-} catch (e) {
-  console.error("Firebase initialization failed:", e);
-}
+};
+
+// Run initial init
+initFirebase();
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -56,6 +68,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Retry init if it failed earlier
+    if (!auth) initFirebase();
+    
     if (!auth) {
       setLoading(false);
       return;
@@ -82,16 +97,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signInWithGoogle = async () => {
+    // Try to re-init if auth is missing
+    if (!auth) initFirebase();
+
     if (!auth) {
-      alert("Auth system not initialized. Check your project environment variables.");
+      alert("Auth system not initialized. Please verify that your environment variables (FIREBASE_API_KEY, etc.) are correctly set in the .env file.");
       return;
     }
+    
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
       
-      // Handle the most common Google Cloud Run / Firebase domain issue
       if (error.code === 'auth/unauthorized-domain') {
         const domain = window.location.hostname;
         alert(`Authentication failed: Domain "${domain}" is not authorized in your Firebase console. \n\nTo fix this: Go to Firebase Console > Authentication > Settings > Authorized Domains and add "${domain}".`);
@@ -106,12 +124,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInAsGuest = async () => {
+    if (!auth) initFirebase();
+
     if (!auth) {
-      const mockUser = { uid: 'guest-offline', displayName: 'Offline Guest', email: null, photoURL: null };
+      // Fallback local session if Firebase is totally unavailable
+      const mockUser = { uid: 'guest-local-' + Date.now(), displayName: 'Local Adventurer', email: null, photoURL: null };
       setUser(mockUser);
       setLoading(false);
       return;
     }
+    
     try {
       await signInAnonymously(auth);
     } catch (error: any) {
@@ -136,6 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signOut(auth);
     } catch (error) {
       console.error("Logout Error:", error);
+      setUser(null); // Force clear state anyway
     }
   };
 
