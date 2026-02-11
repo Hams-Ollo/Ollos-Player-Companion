@@ -1,12 +1,14 @@
 import React from 'react';
-import { CharacterData } from '../../types';
-import { Coins, Package, Backpack } from 'lucide-react';
+import { CharacterData, Item } from '../../types';
+import { Coins, Package, Backpack, ShoppingBag } from 'lucide-react';
 
 interface InventoryDetailProps {
   data: CharacterData;
+  onShop?: () => void;
+  onInspect?: (item: Item) => void;
 }
 
-const InventoryDetail: React.FC<InventoryDetailProps> = ({ data }) => {
+const InventoryDetail: React.FC<InventoryDetailProps> = ({ data, onShop, onInspect }) => {
   return (
     <div className="space-y-6">
       {/* Wealth Header */}
@@ -24,6 +26,16 @@ const InventoryDetail: React.FC<InventoryDetailProps> = ({ data }) => {
           <span className="block text-2xl font-mono font-bold text-amber-400">{data.inventory.gold} <span className="text-sm text-amber-600">gp</span></span>
         </div>
       </div>
+      
+      {onShop && (
+        <button 
+            onClick={onShop}
+            className="w-full py-3 bg-zinc-800 hover:bg-amber-900/30 border border-zinc-700 hover:border-amber-500/50 rounded-xl flex items-center justify-center gap-2 text-zinc-300 hover:text-amber-400 transition-all group"
+        >
+            <ShoppingBag size={18} className="group-hover:scale-110 transition-transform" />
+            <span className="font-bold">Visit Equipment Shop</span>
+        </button>
+      )}
 
       {/* Equipment List */}
       <div>
@@ -37,13 +49,17 @@ const InventoryDetail: React.FC<InventoryDetailProps> = ({ data }) => {
 
         <div className="bg-zinc-800 rounded-xl border border-zinc-700 overflow-hidden divide-y divide-zinc-700/50">
           {data.inventory.items.map((item, idx) => (
-            <div key={idx} className="p-4 flex items-start justify-between hover:bg-zinc-700/30 transition-colors">
+            <div 
+                key={idx} 
+                onClick={() => onInspect && onInspect(item)}
+                className="p-4 flex items-start justify-between hover:bg-zinc-700/30 transition-colors cursor-pointer group"
+            >
               <div className="flex gap-3">
-                 <div className="text-zinc-600 mt-1">
+                 <div className="text-zinc-600 mt-1 group-hover:text-amber-500 transition-colors">
                     <Package size={16} />
                  </div>
                  <div>
-                    <h4 className="text-zinc-200 font-bold">{item.name}</h4>
+                    <h4 className="text-zinc-200 font-bold group-hover:text-white transition-colors">{item.name}</h4>
                     {item.notes && <p className="text-xs text-zinc-500 italic mt-0.5">{item.notes}</p>}
                  </div>
               </div>

@@ -1,7 +1,156 @@
-import { CharacterData, StatKey, Skill } from './types';
+import { CharacterData, StatKey, Skill, Item } from './types';
 
 // Helper to generate a unique ID
-export const generateId = () => Math.random().toString(36).substr(2, 9);
+export const generateId = () => Math.random().toString(36).substring(2, 11);
+
+// ==========================================
+// D&D 5th Edition Reference Data
+// ==========================================
+
+export interface RaceOption {
+  name: string;
+  speed: number;
+  subraces?: string[];
+}
+
+export interface ClassOption {
+  name: string;
+  hitDie: number;
+  primaryAbility: string;
+  savingThrows: [StatKey, StatKey];
+}
+
+export const DND_RACES: RaceOption[] = [
+  { name: 'Dragonborn', speed: 30 },
+  { name: 'Dwarf', speed: 25, subraces: ['Hill Dwarf', 'Mountain Dwarf'] },
+  { name: 'Elf', speed: 30, subraces: ['High Elf', 'Wood Elf', 'Drow Elf'] },
+  { name: 'Gnome', speed: 25, subraces: ['Forest Gnome', 'Rock Gnome'] },
+  { name: 'Half-Elf', speed: 30 },
+  { name: 'Half-Orc', speed: 30 },
+  { name: 'Halfling', speed: 25, subraces: ['Lightfoot Halfling', 'Stout Halfling'] },
+  { name: 'Human', speed: 30 },
+  { name: 'Tiefling', speed: 30 },
+];
+
+export const DND_CLASSES: ClassOption[] = [
+  { name: 'Barbarian', hitDie: 12, primaryAbility: 'STR', savingThrows: ['STR', 'CON'] },
+  { name: 'Bard', hitDie: 8, primaryAbility: 'CHA', savingThrows: ['DEX', 'CHA'] },
+  { name: 'Cleric', hitDie: 8, primaryAbility: 'WIS', savingThrows: ['WIS', 'CHA'] },
+  { name: 'Druid', hitDie: 8, primaryAbility: 'WIS', savingThrows: ['INT', 'WIS'] },
+  { name: 'Fighter', hitDie: 10, primaryAbility: 'STR', savingThrows: ['STR', 'CON'] },
+  { name: 'Monk', hitDie: 8, primaryAbility: 'DEX', savingThrows: ['STR', 'DEX'] },
+  { name: 'Paladin', hitDie: 10, primaryAbility: 'STR', savingThrows: ['WIS', 'CHA'] },
+  { name: 'Ranger', hitDie: 10, primaryAbility: 'DEX', savingThrows: ['STR', 'DEX'] },
+  { name: 'Rogue', hitDie: 8, primaryAbility: 'DEX', savingThrows: ['DEX', 'INT'] },
+  { name: 'Sorcerer', hitDie: 6, primaryAbility: 'CHA', savingThrows: ['CON', 'CHA'] },
+  { name: 'Warlock', hitDie: 8, primaryAbility: 'CHA', savingThrows: ['WIS', 'CHA'] },
+  { name: 'Wizard', hitDie: 6, primaryAbility: 'INT', savingThrows: ['INT', 'WIS'] },
+];
+
+export const DND_BACKGROUNDS: string[] = [
+  'Acolyte',
+  'Charlatan',
+  'Criminal',
+  'Entertainer',
+  'Folk Hero',
+  'Guild Artisan',
+  'Hermit',
+  'Noble',
+  'Outlander',
+  'Sage',
+  'Sailor',
+  'Soldier',
+  'Urchin',
+];
+
+export const DND_ALIGNMENTS: string[] = [
+  'Lawful Good',
+  'Neutral Good',
+  'Chaotic Good',
+  'Lawful Neutral',
+  'True Neutral',
+  'Chaotic Neutral',
+  'Lawful Evil',
+  'Neutral Evil',
+  'Chaotic Evil',
+];
+
+// Basic Shop Inventory (SRD)
+export const SHOP_INVENTORY: Item[] = [
+  { name: "Dagger", cost: 2, weight: 1, type: "Weapon", quantity: 1, notes: "1d4 piercing, Finesse, Light" },
+  { name: "Longsword", cost: 15, weight: 3, type: "Weapon", quantity: 1, notes: "1d8 slashing, Versatile (1d10)" },
+  { name: "Shortbow", cost: 25, weight: 2, type: "Weapon", quantity: 1, notes: "1d6 piercing, Two-handed" },
+  { name: "Greatsword", cost: 50, weight: 6, type: "Weapon", quantity: 1, notes: "2d6 slashing, Heavy, Two-handed" },
+  { name: "Leather Armor", cost: 10, weight: 10, type: "Armor", quantity: 1, notes: "11 + Dex Modifier" },
+  { name: "Chain Mail", cost: 75, weight: 55, type: "Armor", quantity: 1, notes: "AC 16, Str 13, Stealth Disadvantage" },
+  { name: "Shield", cost: 10, weight: 6, type: "Armor", quantity: 1, notes: "+2 AC" },
+  { name: "Potion of Healing", cost: 50, weight: 0.5, type: "Consumable", quantity: 1, notes: "Heals 2d4+2 HP" },
+  { name: "Rations (1 day)", cost: 0.5, weight: 2, type: "Consumable", quantity: 1 },
+  { name: "Rope, Hempen (50ft)", cost: 1, weight: 10, type: "Gear", quantity: 1 },
+  { name: "Torch", cost: 0.01, weight: 1, type: "Gear", quantity: 1, notes: "Burns for 1 hour" },
+  { name: "Backpack", cost: 2, weight: 5, type: "Gear", quantity: 1 },
+  { name: "Bedroll", cost: 1, weight: 7, type: "Gear", quantity: 1 },
+];
+
+export const RACIAL_BONUSES: Record<string, Partial<Record<StatKey, number>>> = {
+  'Dragonborn':          { STR: 2, CHA: 1 },
+  'Hill Dwarf':          { CON: 2, WIS: 1 },
+  'Mountain Dwarf':      { CON: 2, STR: 2 },
+  'High Elf':            { DEX: 2, INT: 1 },
+  'Wood Elf':            { DEX: 2, WIS: 1 },
+  'Drow Elf':            { DEX: 2, CHA: 1 },
+  'Forest Gnome':        { INT: 2, DEX: 1 },
+  'Rock Gnome':          { INT: 2, CON: 1 },
+  'Half-Elf':            { CHA: 2 },
+  'Half-Orc':            { STR: 2, CON: 1 },
+  'Lightfoot Halfling':  { DEX: 2, CHA: 1 },
+  'Stout Halfling':      { DEX: 2, CON: 1 },
+  'Human':               { STR: 1, DEX: 1, CON: 1, INT: 1, WIS: 1, CHA: 1 },
+  'Tiefling':            { CHA: 2, INT: 1 },
+};
+
+export const getRacialBonus = (race: string, stat: StatKey): number => {
+  return RACIAL_BONUSES[race]?.[stat] ?? 0;
+};
+
+export const getRacialBonusDisplay = (race: string): string => {
+  const bonuses = RACIAL_BONUSES[race];
+  if (!bonuses) return 'None';
+  return Object.entries(bonuses)
+    .map(([stat, val]) => `+${val} ${stat}`)
+    .join(', ');
+};
+
+export const POINT_BUY_COSTS: Record<number, number> = {
+  8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9,
+};
+export const POINT_BUY_TOTAL = 27;
+export const POINT_BUY_MIN = 8;
+export const POINT_BUY_MAX = 15;
+
+export const getAllRaceOptions = (): string[] => {
+  const options: string[] = [];
+  DND_RACES.forEach(race => {
+    if (race.subraces && race.subraces.length > 0) {
+      race.subraces.forEach(sub => options.push(sub));
+    } else {
+      options.push(race.name);
+    }
+  });
+  return options;
+};
+
+export const getRaceSpeed = (raceName: string): number => {
+  for (const race of DND_RACES) {
+    if (race.name === raceName) return race.speed;
+    if (race.subraces?.includes(raceName)) return race.speed;
+  }
+  return 30;
+};
+
+export const getClassData = (className: string): ClassOption | undefined => {
+  return DND_CLASSES.find(c => c.name === className);
+};
 
 export const VESPER_DATA: CharacterData = {
   id: "vesper-default",
@@ -85,18 +234,21 @@ export const VESPER_DATA: CharacterData = {
   inventory: {
     gold: 15,
     items: [
-      { name: "Leather Armor", quantity: 1, notes: "AC 11 + Dex" },
-      { name: "Thieves' Tools", quantity: 1 },
-      { name: "Dagger", quantity: 2 },
-      { name: "Shortbow", quantity: 1 },
-      { name: "Arrows", quantity: 20 },
-      { name: "Burglar's Pack", quantity: 1 },
+      { name: "Leather Armor", quantity: 1, notes: "AC 11 + Dex", cost: 10, type: "Armor" },
+      { name: "Thieves' Tools", quantity: 1, cost: 25, type: "Gear" },
+      { name: "Dagger", quantity: 2, cost: 2, type: "Weapon" },
+      { name: "Shortbow", quantity: 1, cost: 25, type: "Weapon" },
+      { name: "Arrows", quantity: 20, cost: 1, type: "Consumable" },
+      { name: "Burglar's Pack", quantity: 1, cost: 16, type: "Gear" },
     ],
     load: "Light"
-  }
+  },
+  journal: [
+    { id: '1', timestamp: Date.now(), type: 'note', content: 'We arrived in the Underdark. The air is stale and cold.' },
+  ]
 };
 
-export const createNewCharacter = (name: string, race: string, charClass: string): CharacterData => {
+export const createNewCharacter = (name: string, race: string, charClass: string, background?: string, alignment?: string): CharacterData => {
   const defaultSkills: Skill[] = [
     { name: "Acrobatics", ability: "DEX", modifier: 0, proficiency: "none" },
     { name: "Animal Handling", ability: "WIS", modifier: 0, proficiency: "none" },
@@ -118,6 +270,20 @@ export const createNewCharacter = (name: string, race: string, charClass: string
     { name: "Survival", ability: "WIS", modifier: 0, proficiency: "none" },
   ];
 
+  const classData = getClassData(charClass);
+  const hitDie = classData?.hitDie ?? 8;
+  const speed = getRaceSpeed(race);
+  const proficientSaves = classData?.savingThrows ?? ['STR', 'CON'];
+
+  const baseStats: Record<StatKey, { score: number; modifier: number; save: number; proficientSave: boolean }> = {
+    STR: { score: 10, modifier: 0, save: 0, proficientSave: proficientSaves.includes('STR') },
+    DEX: { score: 10, modifier: 0, save: 0, proficientSave: proficientSaves.includes('DEX') },
+    CON: { score: 10, modifier: 0, save: 0, proficientSave: proficientSaves.includes('CON') },
+    INT: { score: 10, modifier: 0, save: 0, proficientSave: proficientSaves.includes('INT') },
+    WIS: { score: 10, modifier: 0, save: 0, proficientSave: proficientSaves.includes('WIS') },
+    CHA: { score: 10, modifier: 0, save: 0, proficientSave: proficientSaves.includes('CHA') },
+  };
+
   return {
     id: generateId(),
     campaign: "New Campaign",
@@ -126,19 +292,12 @@ export const createNewCharacter = (name: string, race: string, charClass: string
     race: race || "Human",
     class: charClass || "Fighter",
     level: 1,
-    portraitUrl: "https://picsum.photos/400/400?grayscale", // Default grayscale until generated
-    stats: {
-      STR: { score: 10, modifier: 0, save: 0, proficientSave: false },
-      DEX: { score: 10, modifier: 0, save: 0, proficientSave: false },
-      CON: { score: 10, modifier: 0, save: 0, proficientSave: false },
-      INT: { score: 10, modifier: 0, save: 0, proficientSave: false },
-      WIS: { score: 10, modifier: 0, save: 0, proficientSave: false },
-      CHA: { score: 10, modifier: 0, save: 0, proficientSave: false },
-    },
-    hp: { current: 10, max: 10 },
+    portraitUrl: "https://picsum.photos/400/400?grayscale",
+    stats: baseStats,
+    hp: { current: hitDie, max: hitDie },
     ac: 10,
     initiative: 0,
-    speed: 30,
+    speed: speed,
     passivePerception: 10,
     skills: defaultSkills,
     attacks: [
@@ -146,9 +305,10 @@ export const createNewCharacter = (name: string, race: string, charClass: string
     ],
     features: [],
     inventory: {
-      gold: 0,
+      gold: 15, // Standard starting gold for background/class avg
       items: [],
       load: "Light"
-    }
+    },
+    journal: []
   };
 };

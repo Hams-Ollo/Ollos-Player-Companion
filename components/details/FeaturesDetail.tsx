@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { CharacterData, Feature } from '../../types';
-import { ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { ChevronDown, BookOpen, Info } from 'lucide-react';
 
 interface FeaturesDetailProps {
   data: CharacterData;
+  onInspect?: (feature: Feature) => void;
 }
 
-const FeaturesDetail: React.FC<FeaturesDetailProps> = ({ data }) => {
+const FeaturesDetail: React.FC<FeaturesDetailProps> = ({ data, onInspect }) => {
   const [openFeature, setOpenFeature] = useState<string | null>(null);
 
   const toggleFeature = (name: string) => {
@@ -41,12 +42,21 @@ const FeaturesDetail: React.FC<FeaturesDetailProps> = ({ data }) => {
               <div 
                 className={`overflow-hidden transition-all duration-300 ease-in-out ${openFeature === feature.name ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}
               >
-                <div className="p-4 pt-0 text-sm text-zinc-300 leading-relaxed border-t border-zinc-700/50 bg-black/20">
+                <div className="p-4 pt-0 text-sm text-zinc-300 leading-relaxed border-t border-zinc-700/50 bg-black/20 relative">
+                   <div className="absolute top-2 right-2">
+                       <button 
+                          onClick={(e) => { e.stopPropagation(); onInspect && onInspect(feature); }}
+                          className="p-1.5 bg-zinc-700 hover:bg-purple-600 rounded text-zinc-400 hover:text-white transition-colors"
+                          title="View detailed rules"
+                       >
+                           <Info size={14} />
+                       </button>
+                   </div>
                   <div className="flex items-center gap-2 mb-2 text-purple-300/60 text-xs uppercase tracking-wider">
                      <BookOpen size={12} />
                      <span>Player's Handbook Source</span>
                   </div>
-                  <p className="whitespace-pre-wrap">{feature.fullText}</p>
+                  <p className="whitespace-pre-wrap pr-8">{feature.fullText}</p>
                 </div>
               </div>
             </div>
@@ -58,14 +68,17 @@ const FeaturesDetail: React.FC<FeaturesDetailProps> = ({ data }) => {
 
   const racialFeatures = data.features.filter(f => f.source === 'Race');
   const classFeatures = data.features.filter(f => f.source === 'Class');
+  const otherFeatures = data.features.filter(f => f.source !== 'Race' && f.source !== 'Class');
+
 
   return (
     <div>
       {renderFeatureSection('Class', classFeatures)}
       {renderFeatureSection('Race', racialFeatures)}
+      {renderFeatureSection('Other', otherFeatures)}
       
       <div className="mt-8 p-4 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/30 text-center">
-        <p className="text-zinc-500 text-sm italic">Unlock more features at Level 2</p>
+        <p className="text-zinc-500 text-sm italic">Unlock more features by leveling up</p>
       </div>
     </div>
   );

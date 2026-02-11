@@ -18,6 +18,7 @@ const CardStack: React.FC<CardStackProps> = ({ type, title, color, children, onC
     blue: "border-l-blue-500 shadow-blue-900/10",
     purple: "border-l-purple-500 shadow-purple-900/10",
     amber: "border-l-amber-600 shadow-amber-900/10",
+    cyan: "border-l-cyan-500 shadow-cyan-900/10",
   };
 
   const bgHoverMap: Record<string, string> = {
@@ -26,6 +27,7 @@ const CardStack: React.FC<CardStackProps> = ({ type, title, color, children, onC
     blue: "hover:bg-blue-950/20",
     purple: "hover:bg-purple-950/20",
     amber: "hover:bg-amber-950/20",
+    cyan: "hover:bg-cyan-950/20",
   };
 
   const borderColor = colorMap[color] || "border-l-zinc-500";
@@ -35,7 +37,7 @@ const CardStack: React.FC<CardStackProps> = ({ type, title, color, children, onC
     <div 
       onClick={onClick}
       className={`
-        relative bg-zinc-900/80 rounded-xl p-4 cursor-pointer 
+        relative bg-zinc-900/80 rounded-xl p-4 lg:p-5 cursor-pointer 
         border-l-4 border-y border-r border-y-zinc-800 border-r-zinc-800 
         shadow-lg backdrop-blur-sm transition-all duration-300 transform hover:-translate-y-1 active:scale-[0.98]
         ${borderColor} ${hoverColor}

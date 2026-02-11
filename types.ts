@@ -25,7 +25,7 @@ export interface Attack {
 
 export interface Feature {
   name: string;
-  source: 'Race' | 'Class' | 'Background';
+  source: 'Race' | 'Class' | 'Background' | 'Feat';
   description: string;
   fullText: string;
 }
@@ -34,6 +34,17 @@ export interface Item {
   name: string;
   quantity: number;
   notes?: string;
+  cost?: number; // In gp
+  weight?: number; // In lbs
+  type?: 'Weapon' | 'Armor' | 'Gear' | 'Consumable';
+}
+
+export interface JournalEntry {
+  id: string;
+  timestamp: number;
+  type: 'note' | 'npc' | 'location' | 'summary';
+  content: string;
+  tags?: string[];
 }
 
 export interface CharacterData {
@@ -43,6 +54,8 @@ export interface CharacterData {
   nickname: string;
   race: string;
   class: string;
+  background?: string;
+  alignment?: string;
   level: number;
   portraitUrl: string;
   stats: Record<StatKey, AbilityScore>;
@@ -59,9 +72,10 @@ export interface CharacterData {
     items: Item[];
     load: 'Light' | 'Medium' | 'Heavy';
   };
+  journal: JournalEntry[];
 }
 
-export type StackType = 'vitals' | 'combat' | 'skills' | 'features' | 'inventory';
+export type StackType = 'vitals' | 'combat' | 'skills' | 'features' | 'inventory' | 'journal';
 
 export interface RollResult {
   label: string;

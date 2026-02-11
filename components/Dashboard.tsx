@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CharacterData, StackType, RollResult } from '../types';
+import { CharacterData, StackType, RollResult, Item, Feature } from '../types';
 import CardStack from './CardStack';
 import DetailOverlay from './DetailOverlay';
 import VitalsDetail from './details/VitalsDetail';
@@ -7,11 +7,15 @@ import CombatDetail from './details/CombatDetail';
 import SkillsDetail from './details/SkillsDetail';
 import FeaturesDetail from './details/FeaturesDetail';
 import InventoryDetail from './details/InventoryDetail';
+import JournalDetail from './details/JournalDetail';
 import DiceRollModal from './DiceRollModal';
 import PortraitGenerator from './PortraitGenerator';
 import AskDMModal from './AskDMModal';
 import SettingsModal from './SettingsModal';
-import { Heart, Sword, Brain, Sparkles, Backpack, Edit2, MessageSquare, Settings, LogOut } from 'lucide-react';
+import ShopModal from './ShopModal';
+import LevelUpModal from './LevelUpModal';
+import ItemDetailModal from './ItemDetailModal';
+import { Heart, Sword, Brain, Sparkles, Backpack, Edit2, MessageSquare, Settings, LogOut, Book, ShoppingBag } from 'lucide-react';
 
 interface DashboardProps {
   data: CharacterData;
@@ -26,26 +30,42 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
   const [showPortraitGen, setShowPortraitGen] = useState(false);
   const [showAskDM, setShowAskDM] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showShop, setShowShop] = useState(false);
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [selectedItemForDetail, setSelectedItemForDetail] = useState<Item | Feature | null>(null);
 
   const handleRoll = (label: string, modifier: number, die: string) => {
-    // Simple dice logic
-    const sides = parseInt(die.split('d')[1]);
-    const numDice = parseInt(die.split('d')[0]) || 1;
-    const rolls = [];
+    // Parse dice string: supports "XdY", "XdY+Z", "XdY-Z", or plain number "N"
+    const diceMatch = die.match(/^(\d+)?d(\d+)([+-]\d+)?$/i);
+    const rolls: number[] = [];
     let total = 0;
-    
-    for (let i = 0; i < numDice; i++) {
+    let displayDie = die;
+
+    if (diceMatch) {
+      const numDice = parseInt(diceMatch[1]) || 1;
+      const sides = parseInt(diceMatch[2]);
+      const embeddedMod = diceMatch[3] ? parseInt(diceMatch[3]) : 0;
+      displayDie = `${numDice}d${sides}`;
+
+      for (let i = 0; i < numDice; i++) {
         const roll = Math.floor(Math.random() * sides) + 1;
         rolls.push(roll);
         total += roll;
+      }
+      total += modifier + embeddedMod;
+      modifier += embeddedMod;
+    } else {
+      // Plain number (e.g. "1" for unarmed strike)
+      const flat = parseInt(die) || 0;
+      rolls.push(flat);
+      total = flat + modifier;
+      displayDie = 'flat';
     }
-    
-    total += modifier;
 
     setRollResult({
         label,
         total,
-        die,
+        die: displayDie,
         rolls,
         modifier
     });
@@ -56,9 +76,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
        {/* Background Decoration */}
        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-indigo-950/20 to-transparent pointer-events-none" />
 
-       <div className="max-w-md mx-auto px-4 pt-6 relative z-10">
+       <div className="max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 lg:pt-10 relative z-10">
          {/* Top Banner */}
-         <header className="flex items-center gap-3 mb-8">
+         <header className="flex items-center gap-3 sm:gap-4 lg:gap-6 mb-8 lg:mb-12">
             <button 
                 onClick={onExit}
                 className="p-2 text-zinc-500 hover:text-white transition-colors mr-1"
@@ -67,7 +87,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                 <LogOut size={20} className="transform rotate-180" />
             </button>
             <div className="relative group cursor-pointer shrink-0" onClick={() => setShowPortraitGen(true)}>
-              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-zinc-600 shadow-xl ring-2 ring-black/50 relative">
+              <div className="w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden border-2 border-zinc-600 shadow-xl ring-2 ring-black/50 relative">
                  <img src={data.portraitUrl} alt={data.name} className="w-full h-full object-cover" />
                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Edit2 size={16} className="text-white" />
@@ -78,20 +98,24 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
               </div>
             </div>
             <div className="flex-grow min-w-0">
-              <h1 className="text-2xl font-display font-bold text-white leading-none mb-1 truncate">{data.name}</h1>
-              <p className="text-zinc-400 font-medium text-xs truncate">{data.race} / {data.class}</p>
-              {data.campaign && <p className="text-[10px] text-amber-500/80 uppercase tracking-wider truncate mt-1">{data.campaign}</p>}
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold text-white leading-none mb-1 truncate">{data.name}</h1>
+              <p className="text-zinc-400 font-medium text-xs md:text-sm truncate">{data.race} / {data.class}</p>
+              {data.campaign && <p className="text-[10px] md:text-xs text-amber-500/80 uppercase tracking-wider truncate mt-1">{data.campaign}</p>}
             </div>
             <div className="flex gap-2 shrink-0">
                 <button 
                     onClick={() => setShowAskDM(true)}
                     className="p-2.5 bg-amber-900/20 text-amber-500 border border-amber-500/30 rounded-full hover:bg-amber-900/40 transition-colors"
+                    aria-label="Ask the DM"
+                    title="Ask the DM"
                 >
                     <MessageSquare size={18} />
                 </button>
                 <button 
                     onClick={() => setShowSettings(true)}
                     className="p-2.5 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-full hover:bg-zinc-700 hover:text-white transition-colors"
+                    aria-label="Settings"
+                    title="Settings"
                 >
                     <Settings size={18} />
                 </button>
@@ -99,10 +123,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
          </header>
 
          {/* Stacks Grid */}
-         <div className="space-y-4">
+         <div className="space-y-4 lg:space-y-6">
             
             {/* Row 1: Vitals (Full Width) */}
-            <div className="h-32">
+            <div className="h-32 lg:h-40">
                 <CardStack 
                     type="vitals" 
                     title="Vitals & Stats" 
@@ -112,10 +136,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                 >
                     <div className="flex items-center justify-between h-full px-2">
                         <div className="flex flex-col">
-                            <span className="text-xs text-zinc-500 uppercase font-bold">Health</span>
+                            <span className="text-xs lg:text-sm text-zinc-500 uppercase font-bold">Health</span>
                             <div className="flex items-baseline gap-1">
-                                <span className="text-2xl font-mono text-green-400 font-bold">{data.hp.current}</span>
-                                <span className="text-sm text-zinc-600">/ {data.hp.max}</span>
+                                <span className="text-2xl lg:text-4xl font-mono text-green-400 font-bold">{data.hp.current}</span>
+                                <span className="text-sm lg:text-lg text-zinc-600">/ {data.hp.max}</span>
                             </div>
                             <div className="w-24 h-1.5 bg-zinc-800 rounded-full mt-1 overflow-hidden">
                                 <div className="h-full bg-green-500 w-full"></div>
@@ -125,22 +149,22 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                         <div className="h-10 w-[1px] bg-zinc-800 mx-2"></div>
 
                         <div className="flex flex-col items-center">
-                            <span className="text-xs text-zinc-500 uppercase font-bold">AC</span>
-                            <span className="text-2xl font-display font-bold text-white">{data.ac}</span>
+                            <span className="text-xs lg:text-sm text-zinc-500 uppercase font-bold">AC</span>
+                            <span className="text-2xl lg:text-4xl font-display font-bold text-white">{data.ac}</span>
                         </div>
 
-                        <div className="h-10 w-[1px] bg-zinc-800 mx-2"></div>
+                        <div className="h-10 lg:h-14 w-[1px] bg-zinc-800 mx-2 lg:mx-4"></div>
 
                         <div className="flex flex-col items-center">
-                            <span className="text-xs text-zinc-500 uppercase font-bold">Init</span>
-                            <span className="text-2xl font-display font-bold text-yellow-500">+{data.initiative}</span>
+                            <span className="text-xs lg:text-sm text-zinc-500 uppercase font-bold">Init</span>
+                            <span className="text-2xl lg:text-4xl font-display font-bold text-yellow-500">{data.initiative >= 0 ? '+' : ''}{data.initiative}</span>
                         </div>
                     </div>
                 </CardStack>
             </div>
 
             {/* Row 2: Combat & Skills */}
-            <div className="grid grid-cols-2 gap-4 h-40">
+            <div className="grid grid-cols-2 gap-4 lg:gap-6 h-40 lg:h-48">
                 <CardStack 
                     type="combat" 
                     title="Combat" 
@@ -186,7 +210,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
             </div>
 
             {/* Row 3: Features & Inventory */}
-            <div className="grid grid-cols-2 gap-4 h-32">
+            <div className="grid grid-cols-2 gap-4 lg:gap-6 h-32 lg:h-40">
                  <CardStack 
                     type="features" 
                     title="Traits" 
@@ -224,6 +248,31 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                      </div>
                 </CardStack>
             </div>
+
+             {/* Row 4: Journal */}
+             <div className="h-24 lg:h-28">
+                 <CardStack 
+                    type="journal" 
+                    title="Adventure Journal" 
+                    color="cyan" 
+                    onClick={() => setActiveStack('journal')}
+                    icon={<Book size={20} />}
+                >
+                    <div className="p-1">
+                        {data.journal && data.journal.length > 0 ? (
+                            <div className="text-xs text-zinc-400 line-clamp-2 italic">
+                                "{data.journal[data.journal.length - 1].content}"
+                            </div>
+                        ) : (
+                            <div className="text-xs text-zinc-600 italic">No entries yet...</div>
+                        )}
+                        <div className="mt-2 text-[10px] text-cyan-500 font-bold uppercase tracking-wider">
+                            {data.journal?.length || 0} Entries
+                        </div>
+                    </div>
+                </CardStack>
+            </div>
+
          </div>
        </div>
 
@@ -235,7 +284,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
           title="Vitals & Stats"
           color="red"
         >
-          <VitalsDetail data={data} onUpdate={onUpdateData} />
+          <VitalsDetail data={data} onUpdate={onUpdateData} onLevelUp={() => setShowLevelUp(true)} />
        </DetailOverlay>
 
        <DetailOverlay 
@@ -265,7 +314,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
           title="Features & Traits"
           color="purple"
         >
-          <FeaturesDetail data={data} />
+          <FeaturesDetail data={data} onInspect={setSelectedItemForDetail} />
        </DetailOverlay>
 
         <DetailOverlay 
@@ -275,7 +324,21 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
           title="Inventory"
           color="amber"
         >
-          <InventoryDetail data={data} />
+          <InventoryDetail 
+            data={data} 
+            onShop={() => setShowShop(true)} 
+            onInspect={setSelectedItemForDetail}
+          />
+       </DetailOverlay>
+
+       <DetailOverlay 
+          isOpen={activeStack === 'journal'} 
+          onClose={() => setActiveStack(null)} 
+          type="journal" 
+          title="Adventure Journal"
+          color="cyan"
+        >
+          <JournalDetail data={data} onUpdate={onUpdateData} />
        </DetailOverlay>
 
        <DiceRollModal result={rollResult} onClose={() => setRollResult(null)} />
@@ -298,6 +361,29 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
             data={data} 
             onSave={onUpdateData} 
             onClose={() => setShowSettings(false)} 
+         />
+       )}
+
+       {showShop && (
+         <ShopModal 
+            data={data}
+            onUpdate={onUpdateData}
+            onClose={() => setShowShop(false)}
+         />
+       )}
+
+       {showLevelUp && (
+         <LevelUpModal
+            data={data}
+            onUpdate={onUpdateData}
+            onClose={() => setShowLevelUp(false)}
+         />
+       )}
+
+       {selectedItemForDetail && (
+         <ItemDetailModal 
+            item={selectedItemForDetail}
+            onClose={() => setSelectedItemForDetail(null)}
          />
        )}
     </div>

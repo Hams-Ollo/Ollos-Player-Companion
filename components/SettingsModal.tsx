@@ -44,17 +44,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4 animate-in fade-in">
+      <div className="bg-zinc-900 sm:border border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md md:max-w-lg overflow-hidden flex flex-col shadow-2xl h-[90vh] sm:h-auto sm:max-h-[90vh]">
         <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50">
           <h3 className="text-xl font-display font-bold text-white flex items-center gap-2">
             <Settings className="text-zinc-400" size={20} />
             Sheet Settings
           </h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white"><X size={24} /></button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white" aria-label="Close" title="Close"><X size={24} /></button>
         </div>
 
-        <div className="p-6 space-y-8 overflow-y-auto">
+        <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 overflow-y-auto">
           
           {/* API Status Section */}
           <div className={`p-4 rounded-xl border ${hasApiKey ? 'bg-green-900/10 border-green-900/50' : 'bg-red-900/10 border-red-900/50'}`}>
@@ -75,8 +75,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) 
              <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2">Character Details</h4>
              
              <div className="space-y-2">
-                <label className="text-sm text-zinc-400">Name</label>
+                <label htmlFor="settings-name" className="text-sm text-zinc-400">Name</label>
                 <input 
+                  id="settings-name"
                   type="text" 
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
@@ -85,8 +86,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) 
              </div>
 
               <div className="space-y-2">
-                <label className="text-sm text-zinc-400">Campaign</label>
+                <label htmlFor="settings-campaign" className="text-sm text-zinc-400">Campaign</label>
                 <input 
+                  id="settings-campaign"
                   type="text" 
                   value={formData.campaign}
                   onChange={(e) => setFormData({...formData, campaign: e.target.value})}
@@ -97,8 +99,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) 
 
              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <label className="text-sm text-zinc-400">Race</label>
+                    <label htmlFor="settings-race" className="text-sm text-zinc-400">Race</label>
                     <input 
+                      id="settings-race"
                       type="text" 
                       value={formData.race}
                       onChange={(e) => setFormData({...formData, race: e.target.value})}
@@ -106,8 +109,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) 
                     />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-sm text-zinc-400">Class</label>
+                    <label htmlFor="settings-class" className="text-sm text-zinc-400">Class</label>
                     <input 
+                      id="settings-class"
                       type="text" 
                       value={formData.class}
                       onChange={(e) => setFormData({...formData, class: e.target.value})}
@@ -117,8 +121,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) 
              </div>
 
              <div className="space-y-2">
-                <label className="text-sm text-zinc-400">Level</label>
+                <label htmlFor="settings-level" className="text-sm text-zinc-400">Level</label>
                 <input 
+                  id="settings-level"
                   type="number" 
                   min="1"
                   max="20"
@@ -138,11 +143,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) 
              <div className="grid grid-cols-3 gap-3">
                 {(Object.keys(formData.stats) as StatKey[]).map((stat) => (
                     <div key={stat} className="bg-zinc-800 p-2 rounded-lg border border-zinc-700 flex flex-col items-center">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase">{stat}</label>
+                        <label htmlFor={`settings-stat-${stat}`} className="text-[10px] font-bold text-zinc-500 uppercase">{stat}</label>
                         <input 
+                          id={`settings-stat-${stat}`}
                           type="number" 
                           value={formData.stats[stat].score}
                           onChange={(e) => handleStatChange(stat, e.target.value)}
+                          aria-label={`Enter ${stat} score`}
                           className="w-full bg-transparent text-center font-display font-bold text-xl text-white focus:outline-none mt-1"
                         />
                         <span className="text-xs text-zinc-500">

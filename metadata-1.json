@@ -1,0 +1,7 @@
+{
+  "name": "Vesper's Card Sheet",
+  "description": "A card-based D&D character sheet for Vesper 'The Whisper', featuring intuitive stacks for stats, combat, skills, features, and inventory.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

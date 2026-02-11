@@ -1,13 +1,14 @@
 import React from 'react';
-import { Heart, Shield, Zap, Eye, Wind, Minus, Plus } from 'lucide-react';
+import { Heart, Shield, Zap, Eye, Wind, Minus, Plus, ArrowUpCircle } from 'lucide-react';
 import { CharacterData } from '../../types';
 
 interface VitalsDetailProps {
   data: CharacterData;
   onUpdate: (newData: Partial<CharacterData>) => void;
+  onLevelUp?: () => void;
 }
 
-const VitalsDetail: React.FC<VitalsDetailProps> = ({ data, onUpdate }) => {
+const VitalsDetail: React.FC<VitalsDetailProps> = ({ data, onUpdate, onLevelUp }) => {
   const hpPercent = (data.hp.current / data.hp.max) * 100;
 
   const handleHealthChange = (amount: number) => {
@@ -31,6 +32,28 @@ const VitalsDetail: React.FC<VitalsDetailProps> = ({ data, onUpdate }) => {
 
   return (
     <div className="space-y-4">
+      
+      {/* Level Header */}
+      <div className="flex items-center justify-between bg-zinc-800 rounded-xl p-3 border border-zinc-700">
+         <div className="flex items-center gap-3">
+             <div className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center font-display font-bold text-white border border-zinc-600">
+                 {data.level}
+             </div>
+             <div>
+                 <span className="block text-xs font-bold text-zinc-500 uppercase tracking-widest">Level</span>
+                 <span className="text-zinc-300 text-sm font-medium">{data.class}</span>
+             </div>
+         </div>
+         {onLevelUp && (
+             <button 
+                onClick={onLevelUp}
+                className="px-3 py-1.5 bg-green-900/20 text-green-400 border border-green-600/30 rounded-lg text-xs font-bold hover:bg-green-900/40 transition-colors flex items-center gap-1.5"
+             >
+                 <ArrowUpCircle size={14} /> Level Up
+             </button>
+         )}
+      </div>
+
       {/* HP Card */}
       <div className="bg-zinc-800 rounded-xl p-6 border border-zinc-700 shadow-md">
         <div className="flex items-center justify-between mb-2">
@@ -90,7 +113,7 @@ const VitalsDetail: React.FC<VitalsDetailProps> = ({ data, onUpdate }) => {
             <p className="text-zinc-500 text-sm">Dexterity Modifier</p>
           </div>
         </div>
-        <span className="text-4xl font-display font-bold text-white">+{data.initiative}</span>
+        <span className="text-4xl font-display font-bold text-white">{data.initiative >= 0 ? '+' : ''}{data.initiative}</span>
       </div>
 
       {/* Passive Perception */}

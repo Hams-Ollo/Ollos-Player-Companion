@@ -21,8 +21,9 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ result, onClose }) => {
 
   if (!result || !visible) return null;
 
-  const isCrit = result.rolls[0] === 20; // Simplified crit check for d20
-  const isFail = result.rolls[0] === 1;
+  const isD20 = result.die === '1d20';
+  const isCrit = isD20 && result.rolls[0] === 20;
+  const isFail = isD20 && result.rolls[0] === 1;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
@@ -33,6 +34,8 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ result, onClose }) => {
         <button 
           onClick={onClose} 
           className="absolute top-4 right-4 text-zinc-500 hover:text-white"
+          aria-label="Close"
+          title="Close"
         >
           <X size={20} />
         </button>
@@ -43,10 +46,10 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ result, onClose }) => {
           </div>
         </div>
 
-        <h3 className="text-xl text-zinc-400 font-display mb-2 uppercase tracking-widest text-sm">{result.label}</h3>
+        <h3 className="text-sm text-zinc-400 font-display mb-2 uppercase tracking-widest">{result.label}</h3>
         
         <div className="flex items-center justify-center gap-2 mb-2">
-           <span className="text-zinc-500 text-lg">d20 ({result.rolls[0]}) + {result.modifier}</span>
+           <span className="text-zinc-500 text-lg">{result.die} ({result.rolls.join(' + ')}){result.modifier !== 0 ? ` ${result.modifier >= 0 ? '+' : ''}${result.modifier}` : ''}</span>
         </div>
 
         <div className={`text-6xl font-bold font-display mb-4 ${

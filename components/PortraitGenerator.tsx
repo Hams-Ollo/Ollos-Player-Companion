@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Wand2, Camera, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
+import { checkRateLimit } from '../utils';
 
 interface PortraitGeneratorProps {
   currentPortrait: string;
@@ -38,6 +39,8 @@ const PortraitGenerator: React.FC<PortraitGeneratorProps> = ({ currentPortrait, 
     setError(null);
 
     try {
+      checkRateLimit(); // Enforce rate limit
+
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const model = 'gemini-2.5-flash-image';
 
@@ -92,14 +95,14 @@ const PortraitGenerator: React.FC<PortraitGeneratorProps> = ({ currentPortrait, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4 animate-in fade-in">
+      <div className="bg-zinc-900 sm:border border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md md:max-w-lg overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
         <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50">
           <h3 className="text-xl font-display font-bold text-white flex items-center gap-2">
             <Wand2 className="text-purple-400" size={20} />
             Portrait Artificer
           </h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white"><X size={24} /></button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white" aria-label="Close" title="Close"><X size={24} /></button>
         </div>
 
         <div className="p-4 flex gap-2 border-b border-zinc-800">
@@ -136,9 +139,9 @@ const PortraitGenerator: React.FC<PortraitGeneratorProps> = ({ currentPortrait, 
                    ref={fileInputRef}
                    type="file" 
                    accept="image/*" 
-                   capture="user"
                    className="hidden" 
                    onChange={handleFileSelect}
+                   aria-label="Upload reference photo"
                  />
                </div>
                <p className="text-xs text-zinc-500 mt-2 text-center">Reference for the AI to redraw</p>

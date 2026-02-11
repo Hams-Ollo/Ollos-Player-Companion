@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { X, Send, Bot, User, Loader2 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { checkRateLimit } from '../utils';
 
 interface AskDMModalProps {
   onClose: () => void;
@@ -31,14 +34,15 @@ const AskDMModal: React.FC<AskDMModalProps> = ({ onClose }) => {
     setLoading(true);
 
     try {
+      checkRateLimit(); // Enforce rate limit
+
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      // Using gemini-3-flash-preview for text chat
       const model = 'gemini-3-flash-preview'; 
 
       const chat = ai.chats.create({
         model: model,
         config: {
-            systemInstruction: "You are an expert Dungeon Master for Dungeons & Dragons 5th Edition. You have comprehensive knowledge of the Player's Handbook, Dungeon Master's Guide, Xanathar's, and Tasha's. Answer the player's questions about rules concisely but thoroughly. If asking about a specific spell or ability, cite the rule mechanics clearly. You are helpful, authoritative, and immersive.",
+            systemInstruction: "You are an expert Dungeon Master for Dungeons & Dragons 5th Edition. You have comprehensive knowledge of the Player's Handbook, Dungeon Master's Guide, Xanathar's, and Tasha's. Answer the player's questions about rules concisely but thoroughly. If asking about a specific spell or ability, cite the rule mechanics clearly.\n\nFORMATTING RULES:\n- Use **Markdown** for all responses.\n- Use **Bold** for key terms, dice rolls (e.g., **1d6**), and mechanic names.\n- Use `Tables` when listing Item stats (Name, Cost, Weight, Damage) or Level progression.\n- Use Bullet points for lists of properties or options.\n- You are helpful, authoritative, and immersive.",
         },
         history: messages.map(m => ({
             role: m.role,
@@ -50,23 +54,50 @@ const AskDMModal: React.FC<AskDMModalProps> = ({ onClose }) => {
       
       setMessages(prev => [...prev, { role: 'model', text: result.text || "The spirits are silent..." }]);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'model', text: "A magical disturbance prevents me from answering." }]);
+      const errorMessage = err.message || "A magical disturbance prevents me from answering.";
+      setMessages(prev => [...prev, { role: 'model', text: `*${errorMessage}*` }]);
     } finally {
       setLoading(false);
     }
   };
 
+  // Custom components to style Markdown elements with Tailwind
+  const MarkdownComponents = {
+    p: ({node, ...props}: any) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
+    ul: ({node, ...props}: any) => <ul className="list-disc pl-5 mb-3 space-y-1 text-zinc-300" {...props} />,
+    ol: ({node, ...props}: any) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-zinc-300" {...props} />,
+    li: ({node, ...props}: any) => <li className="pl-1" {...props} />,
+    h1: ({node, ...props}: any) => <h1 className="text-xl font-bold mb-3 text-amber-500 font-display mt-4 first:mt-0" {...props} />,
+    h2: ({node, ...props}: any) => <h2 className="text-lg font-bold mb-2 text-amber-400 font-display mt-3" {...props} />,
+    h3: ({node, ...props}: any) => <h3 className="text-md font-bold mb-2 text-amber-300 font-display mt-2" {...props} />,
+    strong: ({node, ...props}: any) => <strong className="font-bold text-amber-200" {...props} />,
+    em: ({node, ...props}: any) => <em className="italic text-zinc-400" {...props} />,
+    table: ({node, ...props}: any) => (
+      <div className="overflow-x-auto my-3 rounded-lg border border-zinc-700">
+        <table className="min-w-full divide-y divide-zinc-700 bg-zinc-900/50" {...props} />
+      </div>
+    ),
+    thead: ({node, ...props}: any) => <thead className="bg-black/40" {...props} />,
+    tbody: ({node, ...props}: any) => <tbody className="divide-y divide-zinc-700/50" {...props} />,
+    tr: ({node, ...props}: any) => <tr className="hover:bg-white/5 transition-colors" {...props} />,
+    th: ({node, ...props}: any) => <th className="px-4 py-2 text-left text-xs font-bold text-amber-500 uppercase tracking-wider" {...props} />,
+    td: ({node, ...props}: any) => <td className="px-4 py-2 text-sm text-zinc-300" {...props} />,
+    blockquote: ({node, ...props}: any) => <blockquote className="border-l-4 border-amber-600/50 pl-4 py-1 italic text-zinc-400 my-3 bg-amber-900/10 rounded-r" {...props} />,
+    a: ({node, ...props}: any) => <a className="text-amber-500 hover:text-amber-400 underline decoration-amber-500/50 hover:decoration-amber-400" target="_blank" rel="noopener noreferrer" {...props} />,
+    code: ({node, ...props}: any) => <code className="bg-zinc-950 px-1.5 py-0.5 rounded text-xs font-mono text-amber-300 border border-zinc-700/50" {...props} />,
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4 animate-in fade-in">
-      <div className="bg-zinc-900 border-t sm:border border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full max-w-md h-[80vh] flex flex-col shadow-2xl">
+      <div className="bg-zinc-900 border-t sm:border border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md md:max-w-lg lg:max-w-xl h-[80vh] sm:h-[70vh] md:h-[75vh] flex flex-col shadow-2xl">
         <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950 rounded-t-2xl">
           <h3 className="text-xl font-display font-bold text-amber-500 flex items-center gap-2">
             <Bot size={24} />
             Ask the DM
           </h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white"><X size={24} /></button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white" aria-label="Close" title="Close"><X size={24} /></button>
         </div>
 
         <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-[#111]">
@@ -75,12 +106,21 @@ const AskDMModal: React.FC<AskDMModalProps> = ({ onClose }) => {
               <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-zinc-700' : 'bg-amber-900/50'}`}>
                 {msg.role === 'user' ? <User size={16} /> : <Bot size={16} className="text-amber-500" />}
               </div>
-              <div className={`p-3 rounded-xl max-w-[80%] text-sm leading-relaxed ${
+              <div className={`p-3 rounded-xl max-w-[85%] text-sm ${
                 msg.role === 'user' 
                   ? 'bg-zinc-800 text-zinc-200' 
-                  : 'bg-amber-950/30 text-amber-100 border border-amber-900/30'
+                  : 'bg-amber-950/20 text-amber-100 border border-amber-900/30'
               }`}>
-                {msg.text}
+                {msg.role === 'user' ? (
+                  msg.text
+                ) : (
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={MarkdownComponents}
+                  >
+                    {msg.text}
+                  </ReactMarkdown>
+                )}
               </div>
             </div>
           ))}
@@ -110,6 +150,8 @@ const AskDMModal: React.FC<AskDMModalProps> = ({ onClose }) => {
                   onClick={handleSend}
                   disabled={loading || !input.trim()}
                   className="absolute right-2 top-1.5 p-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-full transition-colors disabled:opacity-50 disabled:bg-zinc-700"
+                  aria-label="Send message"
+                  title="Send message"
                 >
                     <Send size={16} />
                 </button>
