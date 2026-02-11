@@ -40,6 +40,25 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
     return cleaned.trim();
   };
 
+  const parseApiError = (err: any): string => {
+    const raw = err?.message || '';
+    // Try to extract a meaningful message from Google API JSON error responses
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.error?.message) {
+        // Strip HTML from the inner message
+        const inner = parsed.error.message.replace(/<[^>]*>/g, '').trim();
+        const code = parsed.error.code || '';
+        return `API Error ${code}: ${inner.substring(0, 120) || 'The AI service returned an error.'}`;
+      }
+    } catch { /* not JSON, use raw */ }
+    // If it contains HTML, strip it
+    if (raw.includes('<html>') || raw.includes('<HTML>')) {
+      return 'The AI service returned an unexpected error. Please check your API key and try again.';
+    }
+    return raw || 'An unknown error occurred during character creation.';
+  };
+
   const handleRoll = async () => {
     if (!race || !charClass) {
         setError("Please choose a lineage and calling.");
@@ -140,7 +159,7 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
                 config: {
                     responseMimeType: 'application/json',
                     responseSchema: characterSchema,
-                    temperature: 0.8
+                    thinkingConfig: { thinkingLevel: 'LOW' }
                 }
             }),
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Character generation timed out after 60s. Please try again.')), 60000))
@@ -250,7 +269,7 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
 
     } catch (err: any) {
         console.error("Quick Roll Ritual Failure:", err);
-        setError(err.message || "The ritual was interrupted. The Weave is unstable.");
+        setError(parseApiError(err));
     } finally {
         setIsForging(false);
     }

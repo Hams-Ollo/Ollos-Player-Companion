@@ -731,7 +731,7 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
           Format: { "features": [{ "name": "...", "source": "...", "description": "...", "fullText": "..." }], "spells": [{ "name": "...", "level": 0, "school": "...", "description": "...", "castingTime": "...", "range": "...", "duration": "...", "components": "..." }] }`;
 
           const rulesResponse = await Promise.race([
-            ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: rulesPrompt, config: { responseMimeType: 'application/json' } }),
+            ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: rulesPrompt, config: { responseMimeType: 'application/json', thinkingConfig: { thinkingLevel: 'LOW' } } }),
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Rules lookup timed out')), 30000))
           ]);
 

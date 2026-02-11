@@ -19,6 +19,7 @@ export const createChatWithContext = async (history: any[], systemInstruction: s
     history: history,
     config: {
       systemInstruction,
+      thinkingConfig: { thinkingLevel: 'LOW' },
     }
   });
 };
@@ -33,6 +34,7 @@ export const generateWithContext = async (prompt: string, config: any = {}) => {
     contents: prompt,
     config: {
       systemInstruction: "You are a specialized D&D 5e assistant. Provide accurate rules, engaging flavor text, and well-structured responses.",
+      thinkingConfig: { thinkingLevel: 'LOW' },
       ...config,
     },
   });
