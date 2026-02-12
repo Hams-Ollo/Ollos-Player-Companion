@@ -13,6 +13,13 @@ export default defineConfig(({ mode }) => {
     // Helper: prefer .env file value, fall back to OS env var (Docker/Cloud Run builds)
     const getVar = (key: string) => env[key] || process.env[key] || '';
 
+    // Build-time diagnostic — logs during vite build so we can see in Cloud Build logs
+    const geminiKeyVal = getVar('GEMINI_API_KEY');
+    console.log(`[vite-config] GEMINI_API_KEY: present=${!!geminiKeyVal}, length=${geminiKeyVal.length}, first8=${geminiKeyVal.substring(0, 8)}`);
+    console.log(`[vite-config] Mode: ${mode}`);
+    console.log(`[vite-config] loadEnv source: ${env['GEMINI_API_KEY'] ? '.env file' : 'not in .env'}`);
+    console.log(`[vite-config] process.env source: ${process.env['GEMINI_API_KEY'] ? 'present' : 'not set'}`);
+
     return {
       server: {
         port: 3000,

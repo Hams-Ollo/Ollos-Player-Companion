@@ -1,4 +1,7 @@
 
+// Debug fetch interceptor — must be first import to patch fetch before SDK loads
+import './lib/debug-fetch';
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles.css';

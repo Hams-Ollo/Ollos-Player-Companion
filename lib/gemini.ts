@@ -13,14 +13,20 @@ const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com';
 
 const getAI = () => {
   const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-  console.log('[Gemini] API key present:', !!apiKey, 'length:', apiKey?.length);
-  if (!apiKey || apiKey === 'undefined') {
-    throw new Error("Gemini API Key is missing. Ensure GEMINI_API_KEY is set in your .env file.");
+  console.log('[Gemini] getAI() called');
+  console.log('[Gemini] API key present:', !!apiKey, '| length:', apiKey?.length, '| first 8:', apiKey?.substring(0, 8));
+  console.log('[Gemini] baseUrl:', GEMINI_BASE_URL);
+  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+    const msg = `Gemini API Key is missing or empty. API_KEY=${typeof process.env.API_KEY} GEMINI_API_KEY=${typeof process.env.GEMINI_API_KEY}`;
+    console.error('[Gemini]', msg);
+    throw new Error(msg);
   }
-  return new GoogleGenAI({
+  const ai = new GoogleGenAI({
     apiKey,
     httpOptions: { baseUrl: GEMINI_BASE_URL },
   });
+  console.log('[Gemini] GoogleGenAI created successfully');
+  return ai;
 };
 
 /**
