@@ -28,6 +28,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
   const [plan, setPlan] = useState<LevelUpPlan | null>(null);
   const [selections, setSelections] = useState<Record<string, string[]>>({});
   const [loadingText, setLoadingText] = useState("");
+  const [targetLevel, setTargetLevel] = useState(data.level + 1);
   
   const nextLevel = data.level + 1;
   const STAT_KEYS: StatKey[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
@@ -39,6 +40,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
     }
     
     checkRateLimit();
+    setTargetLevel(nextLevel);
     setStep('analyzing');
     setLoadingText("Consulting the Weave for guidance...");
 
@@ -96,7 +98,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
             const userChoices = selections[choice.id] || [];
             if (userChoices.length === 0) return;
 
-            if (choice.type === 'asi') {
+            if (choice.type === 'asi' || choice.type.includes('asi')) {
                 userChoices.forEach(stat => {
                     if (updatedStats[stat as StatKey]) {
                         updatedStats[stat as StatKey].score += 1;
@@ -227,12 +229,13 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
                                         onChange={(e) => handleSelectionChange(choice.id, e.target.value, i)}
                                         value={selections[choice.id]?.[i] || ""}
                                     >
-                                        <option value="">Select {choice.type} {i+1}...</option>
+                                        <option value="">Select {choice.label || choice.type}{choice.count > 1 ? ` ${i+1}` : ''}...</option>
                                         {choice.type === 'expertise' 
                                             ? data.skills.filter(s => s.proficiency === 'proficient').map(s => <option key={s.name} value={s.name}>{s.name}</option>)
-                                            : choice.suggestions?.map(s => <option key={s} value={s}>{s}</option>)
+                                            : choice.type.includes('asi')
+                                              ? STAT_KEYS.map(s => <option key={s} value={s}>{s} (Current: {data.stats[s].score})</option>)
+                                              : choice.suggestions?.map(s => <option key={s} value={s}>{s}</option>)
                                         }
-                                        {choice.type === 'asi' && STAT_KEYS.map(s => <option key={s} value={s}>{s} (Current: {data.stats[s].score})</option>)}
                                         <option value="custom">-- Custom --</option>
                                     </select>
                                     <ChevronDown size={16} className="absolute right-3 top-3.5 text-zinc-600 pointer-events-none" />
@@ -251,7 +254,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
                     <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto text-black shadow-[0_0_40px_rgba(34,197,94,0.6)]">
                         <Check size={48} strokeWidth={4} />
                     </div>
-                    <h2 className="text-3xl font-display font-bold text-white mb-2">Level {nextLevel} Reached!</h2>
+                    <h2 className="text-3xl font-display font-bold text-white mb-2">Level {targetLevel} Reached!</h2>
                     <button onClick={onClose} className="px-8 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors">Return to Hall</button>
                 </div>
             )}

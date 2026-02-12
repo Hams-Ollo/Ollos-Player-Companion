@@ -264,10 +264,11 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const deleteCampaignAction = useCallback(async (campaignId: string) => {
     if (!user?.uid) throw new Error('Must be signed in');
-    await firestoreDeleteCampaign(campaignId, user.uid);
+    // Tear down active subscriptions BEFORE deleting to prevent permission errors from listeners
     if (activeCampaignId === campaignId) {
       setActiveCampaignId(null);
     }
+    await firestoreDeleteCampaign(campaignId, user.uid);
   }, [user?.uid, activeCampaignId, setActiveCampaignId]);
 
   const joinByCode = useCallback(

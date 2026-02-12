@@ -57,8 +57,8 @@ service cloud.firestore {
 
       // ── Members subcollection ────────────────────────────────
       match /members/{memberId} {
-        // All campaign members can read the member list
-        allow read: if isCampaignMember(campaignId);
+        // All campaign members can read the member list; DM always has access
+        allow read: if isCampaignMember(campaignId) || isCampaignDM(campaignId);
 
         // Users can add themselves (join) or the DM can add anyone
         allow create: if isSignedIn()
@@ -75,8 +75,8 @@ service cloud.firestore {
 
       // ── Encounters subcollection ─────────────────────────────
       match /encounters/{encounterId} {
-        // All members can read encounters (needed for initiative tracker)
-        allow read: if isCampaignMember(campaignId);
+        // All members can read encounters; DM always has access
+        allow read: if isCampaignMember(campaignId) || isCampaignDM(campaignId);
 
         // Only DM can create/update/delete encounters
         allow create: if isCampaignDM(campaignId);
@@ -104,10 +104,11 @@ service cloud.firestore {
 
       // ── Whispers subcollection ───────────────────────────────
       match /whispers/{whisperId} {
-        // Users can read whispers sent TO them or FROM them
+        // Users can read whispers sent TO/FROM them; DM can read all (for cleanup)
         allow read: if isSignedIn()
                     && (resource.data.toUid == request.auth.uid
-                        || resource.data.fromUid == request.auth.uid);
+                        || resource.data.fromUid == request.auth.uid
+                        || isCampaignDM(campaignId));
 
         // Members can create whispers
         allow create: if isCampaignMember(campaignId)
@@ -117,13 +118,14 @@ service cloud.firestore {
         allow update: if isSignedIn()
                       && resource.data.toUid == request.auth.uid;
 
-        allow delete: if false; // Whispers are permanent
+        // Only the DM can delete whispers (campaign cleanup)
+        allow delete: if isCampaignDM(campaignId);
       }
 
       // ── Roll Requests subcollection ──────────────────────────
       match /rollRequests/{requestId} {
-        // All members can read roll requests
-        allow read: if isCampaignMember(campaignId);
+        // All members can read roll requests; DM always has access
+        allow read: if isCampaignMember(campaignId) || isCampaignDM(campaignId);
 
         // Only DM can create roll requests
         allow create: if isCampaignDM(campaignId);

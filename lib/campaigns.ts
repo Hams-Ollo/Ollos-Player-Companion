@@ -160,8 +160,8 @@ export async function deleteCampaign(campaignId: string, dmUid: string): Promise
     throw new Error('Only the DM can delete a campaign.');
   }
 
-  // Delete subcollection docs (members, encounters, notes, templates, whispers, rollRequests)
-  const subcollections = ['members', 'encounters', 'notes', 'templates', 'whispers', 'rollRequests'];
+  // Delete subcollection docs — members LAST so isCampaignMember checks still pass for earlier reads
+  const subcollections = ['encounters', 'notes', 'templates', 'whispers', 'rollRequests', 'members'];
   for (const sub of subcollections) {
     const subSnap = await getDocs(collection(db, 'campaigns', campaignId, sub));
     if (!subSnap.empty) {
