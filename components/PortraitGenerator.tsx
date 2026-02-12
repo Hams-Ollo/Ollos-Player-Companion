@@ -1,8 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Wand2, Camera, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 import { checkRateLimit } from '../utils';
-import { IMAGE_MODEL } from '../lib/gemini';
+import { generatePortrait } from '../lib/gemini';
 
 interface PortraitGeneratorProps {
   currentPortrait: string;
@@ -42,9 +41,6 @@ const PortraitGenerator: React.FC<PortraitGeneratorProps> = ({ currentPortrait, 
     try {
       checkRateLimit(); // Enforce rate limit
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const model = IMAGE_MODEL;
-
       const parts: any[] = [];
 
       // Add image if in image mode
@@ -64,29 +60,13 @@ const PortraitGenerator: React.FC<PortraitGeneratorProps> = ({ currentPortrait, 
         parts.push({ text: `A high quality, high fantasy digital art portrait of a D&D character: ${prompt}. Aspect ratio 1:1.` });
       }
 
-      const response = await ai.models.generateContent({
-        model: model,
-        contents: { parts: parts },
-        config: {
-          responseModalities: ['Text', 'Image'],
-        },
-      });
+      const portraitPrompt = parts.length === 1 && parts[0].text ? parts[0].text : '';
+      const result = await generatePortrait(portraitPrompt, parts.length > 1 || !parts[0].text ? parts : undefined);
 
-      let foundImage = false;
-      if (response.candidates && response.candidates[0].content.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
-            const base64String = part.inlineData.data;
-            const newImageUrl = `data:image/png;base64,${base64String}`;
-            onUpdate(newImageUrl);
-            foundImage = true;
-            onClose();
-            break;
-          }
-        }
-      }
-      
-      if (!foundImage) {
+      if (result) {
+        onUpdate(result);
+        onClose();
+      } else {
          setError("No image generated. The model might have refused the prompt.");
       }
 

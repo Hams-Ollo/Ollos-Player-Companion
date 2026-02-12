@@ -2,9 +2,8 @@
 import React, { useState } from 'react';
 import { X, Dices, Sparkles, Wand2, Star, ChevronDown, Activity, AlertCircle } from 'lucide-react';
 import { CharacterData, StatKey, ProficiencyLevel } from '../types';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { checkRateLimit, recalculateCharacterStats } from '../utils';
-import { TEXT_MODEL, IMAGE_MODEL } from '../lib/gemini';
+import { generateWithContext, generatePortrait } from '../lib/gemini';
 import { 
   generateId, 
   getAllRaceOptions, 
@@ -46,34 +45,54 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
   };
 
   const parseApiError = (err: any): string => {
-    const raw = err?.message || '';
-    const status = err?.status || err?.statusCode || '';
+    const raw = err?.message || String(err);
+    const status = Number(err?.status || err?.statusCode || 0);
     
     // Log full error for debugging
-    console.error('[QuickRoll] Full API error:', { message: raw, status, name: err?.name, stack: err?.stack });
+    console.error('[QuickRoll] API error details:', { message: raw, status, name: err?.name, type: typeof err });
 
-    // Handle specific HTTP status codes
-    if (status === 405 || raw.includes('405')) {
-      return 'API endpoint rejected the request (405). This usually means the model name is invalid or the API version has changed. Please redeploy with an updated build.';
-    }
-    if (status === 401 || status === 403 || raw.includes('401') || raw.includes('403')) {
+    // Handle specific HTTP status codes (use numeric comparison, not string matching)
+    if (status === 401 || status === 403) {
       return 'API authentication failed. Please check that your GEMINI_API_KEY is valid and not expired.';
+    }
+    if (status === 404) {
+      return `Model not found (404). The model name may have changed. Raw: ${raw.substring(0, 100)}`;
+    }
+    if (status === 405) {
+      return `API method not allowed (405). The SDK or model endpoint may have changed. Raw: ${raw.substring(0, 100)}`;
+    }
+    if (status === 429) {
+      return 'Rate limit exceeded. Please wait a moment and try again.';
+    }
+    if (status >= 500) {
+      return 'The AI service is temporarily unavailable. Please try again in a moment.';
+    }
+
+    // Check for timeout
+    if (raw.includes('timed out') || err?.name === 'AbortError') {
+      return 'Character generation timed out. Please try again.';
+    }
+
+    // Check for network issues
+    if (raw.includes('Failed to fetch') || raw.includes('NetworkError') || raw.includes('CORS')) {
+      return 'Network error — could not reach the AI service. Check your internet connection.';
     }
 
     // Try to extract a meaningful message from Google API JSON error responses
     try {
       const parsed = JSON.parse(raw);
       if (parsed?.error?.message) {
-        // Strip HTML from the inner message
         const inner = parsed.error.message.replace(/<[^>]*>/g, '').trim();
         const code = parsed.error.code || '';
         return `API Error ${code}: ${inner.substring(0, 150) || 'The AI service returned an error.'}`;
       }
     } catch { /* not JSON, use raw */ }
+
     // If it contains HTML, strip it
     if (raw.includes('<html>') || raw.includes('<HTML>')) {
-      return 'The AI service returned an unexpected HTML error page. This may indicate an invalid API key or a temporary service issue. Please try again.';
+      return 'The AI service returned an unexpected error. This may indicate an invalid API key or a temporary service issue. Please try again.';
     }
+
     return raw.substring(0, 200) || 'An unknown error occurred during character creation.';
   };
 
@@ -94,15 +113,11 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
 
     try {
         checkRateLimit();
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-        // 1. Generate Character Data
+        // 1. Generate Character Data via shared helper
         setRitualMessage("Weaving the threads of destiny...");
         
-        const dataResponse = await Promise.race([
-            ai.models.generateContent({
-                model: TEXT_MODEL,
-                contents: `Generate a detailed Level ${quickLevel} D&D 5e character. 
+        const prompt = `Generate a detailed Level ${quickLevel} D&D 5e character. 
                           Race: ${race}. Class: ${charClass}. Vibe: ${vibe || 'Traditional'}.
                           Instructions:
                           1. Ability scores must be valid Standard Array (15, 14, 13, 12, 10, 8) distributed correctly for the class, BEFORE racial bonuses. If level >= 4, apply ASI bonuses (+2 to primary ability at each ASI level).
@@ -123,21 +138,19 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
                             "appearance": "string",
                             "backstory": "string",
                             "subclass": "string or omit if no subclass"
-                          }`,
-                config: {
-                    responseMimeType: 'application/json',
-                    thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
-                }
-            }),
+                          }`;
+
+        const dataText = await Promise.race([
+            generateWithContext(prompt, { responseMimeType: 'application/json' }),
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Character generation timed out after 60s. Please try again.')), 60000))
         ]);
 
         let charResult;
         try {
-            const jsonText = cleanJson(dataResponse.text || '{}');
+            const jsonText = cleanJson(dataText || '{}');
             charResult = JSON.parse(jsonText);
         } catch (parseErr) {
-            console.error("AI JSON Parse Error:", parseErr, dataResponse.text);
+            console.error("AI JSON Parse Error:", parseErr, dataText);
             throw new Error("The scroll was illegible. The AI returned a malformed response.");
         }
 
@@ -145,30 +158,18 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
             throw new Error("The spirit was incomplete. Vital stats were missing.");
         }
 
-        // 2. Generate Portrait
+        // 2. Generate Portrait via shared helper
         setRitualMessage("Manifesting the physical form...");
         
         let portraitUrl = "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=800&auto=format&fit=crop";
         try {
-            const portraitPrompt = `A stunning character portrait of a ${race} ${charClass}. ${charResult.appearance || ''}. High-fantasy digital art, cinematic lighting, 1:1 aspect ratio.`;
-            const portraitResponse = await Promise.race([
-                ai.models.generateContent({
-                    model: IMAGE_MODEL,
-                    contents: { parts: [{ text: portraitPrompt }] },
-                    config: {
-                        responseModalities: ['Text', 'Image'],
-                    },
-                }),
+            const portraitPrompt = `A stunning character portrait of a ${race} ${charClass}. ${charResult.appearance || ''}. ${vibe ? `Vibe: ${vibe}.` : ''} High-fantasy digital art, cinematic lighting, 1:1 aspect ratio.`;
+            const portraitResult = await Promise.race([
+                generatePortrait(portraitPrompt),
                 new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Portrait timed out')), 60000))
             ]);
-            
-            if (portraitResponse.candidates?.[0]?.content?.parts) {
-                for (const part of portraitResponse.candidates[0].content.parts) {
-                    if (part.inlineData) {
-                        portraitUrl = `data:image/png;base64,${part.inlineData.data}`;
-                        break;
-                    }
-                }
+            if (portraitResult) {
+                portraitUrl = portraitResult;
             }
         } catch (imgErr) {
             console.warn("Portrait failed, using fallback", imgErr);

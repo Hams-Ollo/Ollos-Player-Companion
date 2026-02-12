@@ -34,9 +34,8 @@ import {
   getASILevelsUpTo,
   STARTING_GOLD_BY_LEVEL,
 } from '../constants';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { checkRateLimit, recalculateCharacterStats, calculateModifier } from '../utils';
-import { TEXT_MODEL, IMAGE_MODEL } from '../lib/gemini';
+import { generateWithContext, generatePortrait } from '../lib/gemini';
 
 // ==========================================
 // Types
@@ -941,18 +940,13 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ onCreate, onClose }) =
       try {
         if (!process.env.API_KEY) throw new Error("API Key missing — skipping AI enrichment");
         checkRateLimit();
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
         const portraitPrompt = `High fantasy D&D Character Portrait: ${state.race} ${state.charClass}. Appearance: ${state.appearance || 'Mysterious adventurer'}. Cinematic lighting.`;
-        const portraitResponse = await Promise.race([
-          ai.models.generateContent({ model: IMAGE_MODEL, contents: { parts: [{ text: portraitPrompt }] }, config: { responseModalities: ['Text', 'Image'] } }),
+        const portraitResult = await Promise.race([
+          generatePortrait(portraitPrompt),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Portrait generation timed out')), 60000))
         ]);
-        if (portraitResponse.candidates?.[0]?.content?.parts) {
-          for (const part of portraitResponse.candidates[0].content.parts) {
-            if (part.inlineData) { portraitUrl = `data:image/png;base64,${part.inlineData.data}`; break; }
-          }
-        }
+        if (portraitResult) { portraitUrl = portraitResult; }
 
         const allSpellPowerNames = [...state.selectedPowers, ...Object.values(state.higherLevelSpells).flat()];
         if (allSpellPowerNames.length > 0) {
@@ -961,13 +955,13 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ onCreate, onClose }) =
           Ensure cantrips have level 0.
           Format: { "features": [{ "name": "...", "source": "...", "description": "...", "fullText": "..." }], "spells": [{ "name": "...", "level": 0, "school": "...", "description": "...", "castingTime": "...", "range": "...", "duration": "...", "components": "..." }] }`;
 
-          const rulesResponse = await Promise.race([
-            ai.models.generateContent({ model: TEXT_MODEL, contents: rulesPrompt, config: { responseMimeType: 'application/json', thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } } }),
+          const rulesText = await Promise.race([
+            generateWithContext(rulesPrompt, { responseMimeType: 'application/json' }),
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Rules lookup timed out')), 30000))
           ]);
 
           try {
-            const parsed = JSON.parse(rulesResponse.text || '{}');
+            const parsed = JSON.parse(rulesText || '{}');
             detailedResult = {
               features: Array.isArray(parsed.features) ? parsed.features : [],
               spells: Array.isArray(parsed.spells) ? parsed.spells : []
