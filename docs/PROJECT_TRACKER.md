@@ -81,7 +81,7 @@
 | ✅ | Task | Centralized Gemini client | @Hams-Ollo | `lib/gemini.ts` shared module |
 | ✅ | Task | Rate limiting (2s throttle) | @Hams-Ollo | Closure-based, tamper-resistant |
 | ✅ | Task | Gemini 3 API compatibility | @Hams-Ollo | `thinkingConfig: LOW`, removed incompatible temperature, `parseApiError()` helper |
-| ✅ | Feature | Quick Roll AI character gen | @Hams-Ollo | One-click AI character creation via `gemini-3-flash-preview` with structured output |
+| ✅ | Feature | Quick Roll AI character gen | @Hams-Ollo | One-click AI character creation via `gemini-2.5-flash` with structured output |
 | ✅ | Feature | Voice-to-text transcription | @Hams-Ollo | `TranscriptionButton` component |
 | 🟥 | User Story | As a developer, I want the API key not exposed in the bundle | — | Blocked: needs backend proxy |
 | ⬜ | Feature | Backend API proxy | — | Server-side Gemini key management |
@@ -161,59 +161,114 @@
 
 ---
 
-## 📌 Epic 7: Party System (Phase 2)
+## 📌 Epic 7: Foundation Cleanup (Phase 0)
 
-> _Multiplayer party features so friends can share characters within a campaign. **Depends on Epic 6 (Cloud Persistence).**_
+> _Extract shared utilities and add reference data to unblock all multiplayer and DM features._
 
 | Status | Type | Item | Owner | Notes |
 |--------|------|------|-------|-------|
-| ⬜ | Feature | Campaign join flow (replace stub) | — | Use existing `joinCode` to look up campaign in Firestore, add member |
-| ⬜ | Feature | Shared party roster view | — | See all characters in a campaign: name, class, level, HP, AC at a glance |
-| ⬜ | Feature | Character visibility controls | — | Owner can mark character as "visible to party" or private |
-| ⬜ | Feature | Real-time party sync | — | Firestore listeners so party view updates live when members change |
-| ⬜ | User Story | As a player, I want to see my party members' characters | — | Read-only view of other players' sheets |
-| ⬜ | User Story | As a DM, I want to see all players in my campaign | — | Full party overview with HP/AC/conditions |
+| 🟨 | Task | Extract dice rolling to `lib/dice.ts` | @Hams-Ollo | `parseDiceExpression`, `rollDice`, `rollBatch` — pulled from Dashboard/RestModal inline code |
+| 🟨 | Task | Add `CONDITIONS` reference map to constants | @Hams-Ollo | All 15 D&D 5e conditions with mechanical effects as structured data |
+| 🟨 | Task | Add encounter difficulty thresholds to constants | @Hams-Ollo | DMG XP budget tables: Easy/Medium/Hard/Deadly per player level 1-20 + encounter multipliers |
+| ⬜ | Task | Add SRD monster data (`lib/monsters.ts`) | — | ~300 SRD creatures: name, CR, HP, AC, initiative modifier, attacks, abilities |
+| 🟨 | Task | Refactor Dashboard to use `lib/dice.ts` | @Hams-Ollo | Replace inline `handleRoll` dice logic with shared module |
+| 🟨 | Task | Refactor RestModal to use `lib/dice.ts` | @Hams-Ollo | Replace inline `handleSpendHitDie` dice logic with shared module |
 
 ---
 
-## 📌 Epic 8: Dungeon Master Tool Suite (Phase 3)
+## 📌 Epic 8: Firestore Campaign Foundation (Phase 1)
 
-> _Tools for DMs to manage campaigns, combat, NPCs, and lore. **Depends on Epic 7 (Party System).**_
-
-### 8A: Core DM Dashboard
+> _Migrate campaigns from localStorage to Firestore. Add all new data models, security rules, Cloud Functions proxy, and campaign service layer. **Prerequisite for all multiplayer features.**_
 
 | Status | Type | Item | Owner | Notes |
 |--------|------|------|-------|-------|
-| ⬜ | Feature | DM Mode toggle | — | Campaign creator sees "DM Mode" switch in campaign view |
-| ⬜ | Feature | Party overview panel (DM view) | — | See all party members' HP, AC, conditions at a glance |
-| ⬜ | Feature | Initiative tracker | — | Roll/input initiative, sorted turn order, current turn indicator, next/prev |
-| ⬜ | Feature | Combat encounter builder | — | Add monsters (CR, HP, AC, attacks), mix with party in initiative order |
-| ⬜ | Feature | Turn timer | — | Configurable per-turn countdown (optional) |
-
-### 8B: Campaign Management Tools
-
-| Status | Type | Item | Owner | Notes |
-|--------|------|------|-------|-------|
-| ⬜ | Feature | NPC registry | — | Create/store NPCs with name, role, notes, location, disposition |
-| ⬜ | Feature | Session notes / lore journal | — | DM-side journal for world lore, session recaps; AI summarization |
-| ⬜ | Feature | Quest tracker | — | Quest arcs with status (active/completed/failed), objectives, rewards |
-| ⬜ | Feature | Campaign hooks board | — | Card/list of plot hooks and story threads |
-
-### 8C: Advanced DM Features (Long-term)
-
-| Status | Type | Item | Owner | Notes |
-|--------|------|------|-------|-------|
-| ⬜ | Feature | Monster stat block database (SRD) | — | Searchable monster database with full stat blocks |
-| ⬜ | Feature | Encounter balancer | — | CR calculator based on party size and level |
-| ⬜ | Feature | DM-to-player messaging | — | Push notes, images, or reveals to specific players |
-| ⬜ | Feature | AI encounter generator | — | Use Gemini to generate encounters for party level/size |
-| ⬜ | Feature | Map / location tracker | — | Simple location graph or scene manager |
+| 🟨 | Task | Expand data models in `types.ts` | @Hams-Ollo | `CampaignMember`, `CombatEncounter`, `Combatant`, `CombatLogEntry`, `DMNote`, `EncounterTemplate`, `Whisper`, `RollRequest`, `CampaignInvite` |
+| 🟨 | Task | Design Firestore subcollection structure | @Hams-Ollo | `campaigns/{id}/members`, `/encounters`, `/notes`, `/templates`, `/whispers`, `/rollRequests`; top-level `invites` |
+| 🟨 | Task | Create `lib/campaigns.ts` service layer | @Hams-Ollo | `createCampaign`, `subscribeToCampaign`, `subscribeToMembers`, `subscribeToMyInvites`, `leaveCampaign`, `archiveCampaign` |
+| 🟨 | Task | Update Firestore security rules | @Hams-Ollo | Campaign member reads, DM-only writes, encounter/note/whisper access, invite rules |
+| 🟨 | Task | Add Firestore composite indexes | @Hams-Ollo | `campaigns.joinCode`, `invites.email+status`, `encounters.active+createdAt`, `notes.type+createdAt` |
+| ⬜ | Task | Create Cloud Functions layer (`functions/`) | — | `joinByCode`, `fetchPartyCharacters`, `sendInvite`, `acceptInvite`, `geminiProxy` |
+| ⬜ | Task | Migrate localStorage campaigns to Firestore | — | Migration function following `migrateLocalCharacters` pattern |
 
 ---
 
-## 📌 Epic 9: Higher-Level Character Creation (Phase 4)
+## 📌 Epic 9: Campaign Context & Party UI (Phase 2)
 
-> _Allow players to create characters at any level from 1–20. **Complex due to cumulative level-up decisions.**_
+> _Build the `CampaignContext`, rewrite `CampaignManager`, and create party roster and DM overview views. **Depends on Epic 8.**_
+
+| Status | Type | Item | Owner | Notes |
+|--------|------|------|-------|-------|
+| 🟨 | Task | Create `CampaignContext` provider | @Hams-Ollo | `useCampaign()` hook: `activeCampaign`, `myCampaigns`, `members`, `partyCharacters`, `myRole`, `pendingInvites` |
+| ⬜ | Feature | Rewrite `CampaignManager` component | — | Replace localStorage with `useCampaign()`, campaign creation, join flow, list with role badges |
+| ⬜ | Feature | Build `PartyRoster` component | — | Grid of party member cards, read-only character overlay, character diff badges |
+| ⬜ | Feature | Build `DMPartyOverview` component | — | Live vitals grid, passive scores panel, party inventory summary |
+| ⬜ | Feature | Build `DMDashboard` layout | — | DM-specific layout replacing player Dashboard when `myRole === 'dm'` |
+| ⬜ | Task | Add "Party" card to player Dashboard | — | Party card in `CardStack` grid when character is in a campaign |
+| ⬜ | Task | Update `CharacterSelection` with campaign badges | — | Show campaign assignment, pending invites banner |
+
+---
+
+## 📌 Epic 10: Real-Time Combat & Initiative Tracker (Phase 3)
+
+> _Collaborative combat system with real-time initiative tracking, encounter builder, and AI encounter generation. **Depends on Epic 9.**_
+
+| Status | Type | Item | Owner | Notes |
+|--------|------|------|-------|-------|
+| ⬜ | Task | Create `lib/combat.ts` service layer | — | `createEncounter`, `startEncounter`, `nextTurn`, `prevTurn`, `updateCombatant`, `endEncounter`, `subscribeToEncounter` |
+| ⬜ | Feature | Build `InitiativeTracker` component | — | Sorted combatant list, current turn highlight, DM controls (next/damage/heal/conditions), player read-only view, monster HP descriptors, lair/legendary action support, turn timer, combat log |
+| ⬜ | Feature | Build `EncounterBuilder` component | — | Monster picker (SRD data), party auto-population, difficulty meter (DMG XP budgets), save/load templates |
+| ⬜ | Feature | AI Encounter Generator integration | — | Gemini-powered: party level/size + difficulty + theme → structured encounter JSON |
+| ⬜ | Feature | Keyboard shortcuts for combat | — | Space=next turn, N=add combatant, D=damage, H=heal, Esc=close |
+| ⬜ | Feature | Audio/visual combat feedback | — | Nat 20/1 animations, combat start/end transitions |
+
+---
+
+## 📌 Epic 11: DM Notes & Campaign Management (Phase 4)
+
+> _DM-only notes system with session grouping, NPC registry, quest tracker, and AI-powered summarization. **Depends on Epic 9.**_
+
+| Status | Type | Item | Owner | Notes |
+|--------|------|------|-------|-------|
+| ⬜ | Task | Create `lib/notes.ts` service layer | — | CRUD for `DMNote` docs, real-time subscriptions with type/tag/session filtering |
+| ⬜ | Feature | Build `DMNotesPanel` component | — | Tabbed views (Session/Event/NPC/Location/Lore/Quest), Markdown editor, tag system, linked entities, session grouping, quick-capture button |
+| ⬜ | Feature | AI session summarization | — | "Summarize Session" button → Gemini narrative recap |
+| ⬜ | Feature | Build `NPCRegistry` component | — | NPC cards with name/role/location/disposition, AI dialogue generator, portrait generation |
+| ⬜ | Feature | Build `QuestTracker` component | — | Quest list with status (Active/Completed/Failed/Hidden), objectives, rewards, linked NPCs/locations |
+| ⬜ | Feature | AI cross-reference suggestions | — | Auto-suggest links to existing NPCs/locations when saving notes |
+
+---
+
+## 📌 Epic 12: AI DM Co-Pilot (Phase 5)
+
+> _Context-aware AI assistant for DMs with full campaign state injection and structured output. **Depends on Epics 9-11.**_
+
+| Status | Type | Item | Owner | Notes |
+|--------|------|------|-------|-------|
+| ⬜ | Feature | Build `DMAssistant` component | — | Context-injected AI chat with party/encounter/notes state in system prompt |
+| ⬜ | Feature | Suggested prompt quick-actions | — | "Suggest a plot twist", "What would [NPC] do?", "Describe this environment", "Generate random encounter" |
+| ⬜ | Feature | Structured output mode | — | JSON schema output for encounters, NPCs, loot tables — directly importable |
+| ⬜ | Feature | Conversation persistence | — | Save DM-AI chats to Firestore, tagged by session |
+| ⬜ | Task | Enhance player `AskDMModal` | — | Inject character data into system prompt for context-aware rules answers |
+| ⬜ | task | Route AI through Cloud Function proxy | — | `geminiProxy` for server-side API key management |
+
+---
+
+## 📌 Epic 13: Multiplayer Communication (Phase 6)
+
+> _DM-to-player messaging, roll requests, and shared handouts. **Depends on Epic 9.**_
+
+| Status | Type | Item | Owner | Notes |
+|--------|------|------|-------|-------|
+| ⬜ | Feature | Whisper system | — | DM sends private messages to individual players, notification badges, read tracking |
+| ⬜ | Feature | Roll request system | — | DM initiates group rolls ("Wisdom save"), players receive pre-configured prompts, results stream back live |
+| ⬜ | Feature | Shared handouts | — | DM pushes read-only content (descriptions, lore, images) to players, modal display |
+| ⬜ | Feature | Invite management panel | — | Join code sharing + direct email invites, pending invites banner, accept/decline flow |
+
+---
+
+## 📌 Epic 14: Higher-Level Character Creation (Phase 7)
+
+> _Allow players to create characters at any level from 1–20. **Complex due to cumulative level-up decisions. Formerly Epic 9.**_
 
 | Status | Type | Item | Owner | Notes |
 |--------|------|------|-------|-------|
@@ -230,9 +285,9 @@
 
 ---
 
-## 📌 Epic 10: Polish & Extras
+## 📌 Epic 15: Polish & Extras
 
-> _UX improvements, quality-of-life features, and long-term ideas._
+> _UX improvements, quality-of-life features, and long-term ideas. Formerly Epic 10._
 
 | Status | Type | Item | Owner | Notes |
 |--------|------|------|-------|-------|
@@ -241,10 +296,12 @@
 | ⬜ | Feature | Sound effects | — | Dice rolls, level-up fanfare |
 | ⬜ | Feature | i18n / localization | — | Multi-language support |
 | ⬜ | User Story | As a player, I want a quick-reference rules card | — | Common actions, conditions |
+| ⬜ | Feature | Dice roll history panel | — | Last 50 rolls per session, persistent log |
+| ⬜ | Feature | Offline-first DM notes | — | Dual-mode persistence (Firestore + localStorage) for DM notes |
 
 ---
 
-## 📈 Progress Summary
+## � Progress Summary
 
 | Epic | Done | In Progress | Not Started | Total |
 |------|------|-------------|-------------|-------|
@@ -255,11 +312,16 @@
 | 5. Deployment & Infrastructure | 9 | 0 | 1 | 10 |
 | 5b. Developer Experience | 7 | 0 | 4 | 11 |
 | 6. Cloud Persistence (Phase 1) | 8 | 0 | 1 | 9 |
-| 7. Party System (Phase 2) | 0 | 0 | 6 | 6 |
-| 8. DM Tool Suite (Phase 3) | 0 | 0 | 14 | 14 |
-| 9. Higher-Level Char Creation (Phase 4) | 0 | 0 | 10 | 10 |
-| 10. Polish & Extras | 0 | 0 | 5 | 5 |
-| **Total** | **59** | **0** | **55** | **114** |
+| 7. Foundation Cleanup (Phase 0) | 0 | 6 | 1 | 7 |
+| 8. Firestore Campaign Foundation (Phase 1) | 0 | 5 | 2 | 7 |
+| 9. Campaign Context & Party UI (Phase 2) | 0 | 1 | 6 | 7 |
+| 10. Combat & Initiative Tracker (Phase 3) | 0 | 0 | 6 | 6 |
+| 11. DM Notes & Campaign Mgmt (Phase 4) | 0 | 0 | 6 | 6 |
+| 12. AI DM Co-Pilot (Phase 5) | 0 | 0 | 6 | 6 |
+| 13. Multiplayer Communication (Phase 6) | 0 | 0 | 4 | 4 |
+| 14. Higher-Level Char Creation (Phase 7) | 0 | 0 | 10 | 10 |
+| 15. Polish & Extras | 0 | 0 | 7 | 7 |
+| **Total** | **59** | **12** | **68** | **139** |
 
 ---
 

@@ -22,7 +22,10 @@ const CampaignManager: React.FC<CampaignManagerProps> = ({ user, campaigns, onUp
         dmId: user.uid,
         description: "A new adventure begins...",
         joinCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-        members: [{ uid: user.uid, name: user.displayName || 'DM' }],
+        members: [{ uid: user.uid, displayName: user.displayName || 'DM', role: 'dm', joinedAt: Date.now() }],
+        status: 'active',
+        currentSessionNumber: 1,
+        settings: { allowPlayerInvites: false, defaultCharacterVisibility: 'limited' },
         createdAt: Date.now()
     };
 

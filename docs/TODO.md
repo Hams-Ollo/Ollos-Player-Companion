@@ -2,7 +2,7 @@
 
 > Living document tracking planned features, enhancements, and community requests for The Player's Companion.
 >
-> **Last updated:** 2026-02-13
+> **Last updated:** 2026-02-11
 
 ---
 
@@ -18,77 +18,147 @@
 
 ---
 
-## 🚀 Next Up (v0.3.0) — Cloud Persistence & Party Foundation
+## 📊 Gantt Chart — Development Roadmap
+
+```
+Phase 0: Foundation Cleanup           ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ← NOW
+Phase 1: Firestore Campaign Foundation    ░░░░████████░░░░░░░░░░░░░░░░░░░░░░░░░░
+Phase 2: Campaign Context & Party UI          ░░░░░░░░████████░░░░░░░░░░░░░░░░░░
+Phase 3: Combat & Initiative Tracker                  ░░░░░░░░████████░░░░░░░░░░
+Phase 4: DM Notes & Campaign Mgmt                    ░░░░░░░░████████░░░░░░░░░░
+Phase 5: AI DM Co-Pilot                                      ░░░░░░░░████████░░
+Phase 6: Multiplayer Communication                            ░░░░░░░░████████░░
+Phase 7: Higher-Level Char Creation                                   ░░████████
+                                       v0.3.1   v0.4.0   v0.5.0   v0.6.0  v0.7.0
+```
+
+### Phase Dependencies
+
+```
+Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ Phase 3 (Combat)
+                                ├→ Phase 4 (Notes)     ─┬→ Phase 5 (AI Co-Pilot)
+                                └→ Phase 6 (Comms)      │
+                                                         └→ Phase 7 (Char Creation)
+```
+
+### Release Targets
+
+| Version | Phase | Target | Status |
+|---------|-------|--------|--------|
+| v0.3.1 | Phase 0: Foundation Cleanup | Foundation utilities, dice extraction, conditions data | 🟨 In Progress |
+| v0.4.0 | Phase 1-2: Campaign Foundation + Party UI | Firestore campaigns, party roster, DM overview, join/invite flow | ⬜ Not Started |
+| v0.5.0 | Phase 3-4: Combat + DM Tools | Initiative tracker, encounter builder, DM notes, NPC registry, quest tracker | ⬜ Not Started |
+| v0.6.0 | Phase 5-6: AI Co-Pilot + Communication | Context-aware DM assistant, whispers, roll requests, shared handouts | ⬜ Not Started |
+| v0.7.0 | Phase 7: Higher-Level Characters | Create characters at levels 1-20, multiclass support | ⬜ Not Started |
+
+---
+
+## 🚀 v0.3.1 — Foundation Cleanup (Phase 0)
+
+> _Extract shared utilities, add reference data, unblock all multiplayer/DM features._
 
 ### 🔴 Critical
 
-- [ ] **Backend API proxy** — Move Gemini API key to a server-side proxy so it’s not embedded in the client bundle
-- [x] **Firestore cloud sync** — Persist characters to Firebase Firestore so data survives across devices/browsers. Uses `ownerUid` as partition key. localStorage remains as guest/offline fallback. _(v0.3.0 — 2026-02-11)_
+- [ ] **Extract dice rolling to `lib/dice.ts`** — Pull inline dice logic from Dashboard (`handleRoll`) and RestModal (`handleSpendHitDie`) into a shared module: `parseDiceExpression()`, `rollDice()`, `rollBatch()`
+- [ ] **Refactor Dashboard to use `lib/dice.ts`** — Replace inline dice parsing with imported functions
+- [ ] **Refactor RestModal to use `lib/dice.ts`** — Replace inline hit die rolling with imported functions
 
 ### 🟠 High
 
-- [x] **Firestore data schema design** — Collection: `characters` (top-level, keyed by character ID). Fields: `ownerUid`, `createdAt`, `updatedAt`. Security rules enforce per-user isolation. _(v0.3.0 — 2026-02-11)_
-- [x] **Real-time Firestore listeners (`onSnapshot`)** — Characters sync live across devices via `CharacterContext` _(v0.3.0 — 2026-02-11)_
-- [x] **Data migration helper** — First login detects localStorage characters, offers one-click "Import All" migration to Firestore _(v0.3.0 — 2026-02-11)_
-- [ ] **Spellbook management** — Prepare/swap spells on long rest for prepared casters (Cleric, Druid, Wizard, Paladin)
+- [ ] **Add `CONDITIONS` reference map to constants** — All 15 D&D 5e conditions (Blinded, Charmed, Deafened, etc.) with mechanical effects as structured data
+- [ ] **Add encounter difficulty thresholds to constants** — DMG XP budget tables (Easy/Medium/Hard/Deadly per level 1-20) + encounter multiplier table
+- [ ] **Expand `types.ts` with multiplayer data models** — `CampaignMember`, `CombatEncounter`, `Combatant`, `CombatLogEntry`, `DMNote`, `EncounterTemplate`, `Whisper`, `RollRequest`, `CampaignInvite`
+- [ ] **Backend API proxy** — Move Gemini API key to a server-side proxy so it's not embedded in the client bundle
 
 ### 🟡 Medium
 
-- [ ] **Export/import character JSON** — Download character as `.json` file, import from file
-- [ ] **Conditions tracker** — Track active conditions (Poisoned, Stunned, etc.) with mechanical effects on the dashboard
-- [ ] **Subclass selection** — UI for choosing subclass at the appropriate level with feature integration
+- [ ] **Add SRD monster data** — `lib/monsters.ts` with ~300 SRD creatures (name, CR, HP, AC, initiative modifier, attacks)
 
 ---
 
-## 📦 v0.4.0 — Party System & Multiplayer
+## 📦 v0.4.0 — Campaign Foundation & Party System (Phases 1-2)
 
-> _Depends on v0.3.0 Firestore integration._
+> _Migrate campaigns to Firestore. Build party roster, DM overview, and invite system._
+
+### 🔴 Critical
+
+- [ ] **Firestore campaign subcollection structure** — `campaigns/{id}/members`, `/encounters`, `/notes`, `/templates`, `/whispers`, `/rollRequests`; top-level `invites`
+- [ ] **Create `lib/campaigns.ts` service layer** — `createCampaign`, `subscribeToCampaign`, `subscribeToMembers`, `leaveCampaign`, `archiveCampaign`
+- [ ] **Update Firestore security rules** — Campaign member reads, DM-only writes, encounter/note/whisper access, invite rules
+- [ ] **Create `CampaignContext` provider** — `useCampaign()` hook with `activeCampaign`, `myCampaigns`, `members`, `myRole`, `pendingInvites`
+- [ ] **Rewrite `CampaignManager` component** — Replace localStorage with `useCampaign()`, real join flow with `joinCode` Firestore lookup
 
 ### 🟠 High
 
-- [ ] **Campaign join flow** — Replace the current stub (`alert("coming soon")`) with real Firestore lookup using `joinCode`
-- [ ] **Shared party roster view** — See all characters in a campaign: name, class, level, HP, AC at a glance
-- [ ] **Real-time party sync** — Firestore listeners so party view updates live when members change
+- [ ] **Build `PartyRoster` component** — Grid of party member cards (portrait, name, class, level, HP, AC), read-only character overlay
+- [ ] **Build `DMPartyOverview` component** — Live vitals grid, passive scores panel, party inventory summary
+- [ ] **Build `DMDashboard` layout** — DM-specific layout replacing player Dashboard when `myRole === 'dm'`
+- [ ] **Invite management** — Join code sharing + direct email invites, pending invites banner, accept/decline flow
+- [ ] **Migrate localStorage campaigns to Firestore** — Migration function following `migrateLocalCharacters` pattern
 
 ### 🟡 Medium
 
-- [ ] **Character visibility controls** — Owner can mark character as "visible to party" or private
-- [ ] **Read-only party member sheets** — View other players' character sheets in read-only mode
+- [ ] **Cloud Functions layer** — `joinByCode`, `fetchPartyCharacters`, `sendInvite`, `acceptInvite`, `geminiProxy`
+- [ ] **Add "Party" card to player Dashboard** — Party card in `CardStack` grid when character is in a campaign
+- [ ] **Character diff badges** — Notification dot on party member cards when they've leveled up or changed equipment
 
 ---
 
-## 📦 v0.5.0 — Dungeon Master Tool Suite
+## 📦 v0.5.0 — Combat System & DM Campaign Tools (Phases 3-4)
 
-> _Depends on v0.4.0 Party System._
+> _Real-time initiative tracker, encounter builder, DM notes, NPC registry, quest tracker._
 
-### 🟠 High — Core DM Dashboard
+### 🟠 High — Combat & Initiative
 
-- [ ] **DM Mode toggle** — Campaign creator sees "DM Mode" switch in campaign view
-- [ ] **Party overview panel (DM view)** — See all party members' HP, AC, active conditions at a glance
-- [ ] **Initiative tracker** — Roll/input initiative, sorted turn order, current turn indicator, next/prev buttons
-- [ ] **Combat encounter builder** — Add monsters (CR, HP, AC, attacks), mix with party in initiative order
+- [ ] **Create `lib/combat.ts` service layer** — `createEncounter`, `startEncounter`, `nextTurn`, `prevTurn`, `updateCombatant`, `endEncounter`, `subscribeToEncounter` (all Firestore transaction-based)
+- [ ] **Build `InitiativeTracker` component** — Sorted combatant list, current turn highlight, DM controls (next/damage/heal/conditions), player read-only view, monster HP descriptors (Uninjured/Wounded/Bloodied/Near Death), combat log
+- [ ] **Build `EncounterBuilder` component** — Monster picker from SRD data, party auto-population, DMG difficulty meter, save/load encounter templates
+- [ ] **Batch initiative rolling** — DM clicks "Roll All" to auto-roll initiative for NPCs/monsters via `rollBatch()`
 
-### 🟡 Medium — Campaign Management
+### 🟠 High — DM Notes & Campaign Management
 
-- [ ] **NPC registry** — Create/store NPCs with name, role, notes, location, disposition
-- [ ] **Session notes / lore journal** — DM-side journal for world lore and session recaps with AI summarization
-- [ ] **Quest tracker** — Quest arcs with status (active/completed/failed), objectives, rewards
-- [ ] **Campaign hooks board** — Card/list of plot hooks and story threads
-- [ ] **Turn timer** — Configurable per-turn countdown (optional)
+- [ ] **Create `lib/notes.ts` service layer** — CRUD for `DMNote` docs, real-time subs with type/tag/session filtering
+- [ ] **Build `DMNotesPanel` component** — Tabbed views (Session/Event/NPC/Location/Lore/Quest), Markdown editor, tag system, linked entities, session grouping
+- [ ] **Build `NPCRegistry` component** — NPC cards (name/role/location/disposition), AI dialogue generator, portrait generation
+- [ ] **Build `QuestTracker` component** — Quest list with status (Active/Completed/Failed/Hidden), objectives, rewards
 
-### 🟢 Low — Advanced DM Features
+### 🟡 Medium
 
-- [ ] **Monster stat block database (SRD)** — Searchable monster database with full stat blocks
-- [ ] **Encounter balancer** — CR calculator based on party size and level
-- [ ] **DM-to-player messaging** — Push notes, images, or reveals to specific players
-- [ ] **AI encounter generator** — Use Gemini to generate level-appropriate encounters
-- [ ] **Map / location tracker** — Simple location graph or scene manager
+- [ ] **Lair action & legendary action support** — Fixed initiative-20 event entries, legendary action counter per creature
+- [ ] **Turn timer** — Configurable countdown (30s/60s/90s) with visual + audio alert
+- [ ] **Quick-capture notes during combat** — Floating button creates timestamped note tagged with current encounter
+- [ ] **AI session summarization** — "Summarize Session" sends notes to Gemini for narrative recap
+- [ ] **AI Encounter Generator** — Gemini-powered: party level/size + difficulty + theme → structured encounter JSON
+
+### 🟢 Low
+
+- [ ] **Keyboard shortcuts for combat** — Space=next turn, N=add combatant, D=damage, H=heal, Esc=close
+- [ ] **Audio/visual combat feedback** — Nat 20/1 animations, combat transition effects
+- [ ] **AI cross-reference note suggestions** — Auto-link NPC/location mentions when saving notes
 
 ---
 
-## 📦 v0.6.0 — Higher-Level Character Creation
+## 📦 v0.6.0 — AI DM Co-Pilot & Multiplayer Communication (Phases 5-6)
 
-> _Allow players to create characters at any level from 1–20._
+> _Context-aware AI assistant for DMs. DM-to-player messaging, group rolls, shared handouts._
+
+### 🟠 High
+
+- [ ] **Build `DMAssistant` component** — Context-injected AI chat; injects party composition, encounter state, session notes, active quests, NPC registry into system prompt
+- [ ] **Suggested prompt quick-actions** — "Suggest a plot twist", "What would [NPC] do?", "Describe this environment", "Generate random encounter", "Recap last session"
+- [ ] **Structured output mode** — JSON schema output for encounters/NPCs/loot tables, directly importable into encounter builder and NPC registry
+- [ ] **Enhance player `AskDMModal`** — Inject character data into system prompt for context-aware rules answers
+
+### 🟡 Medium
+
+- [ ] **Whisper system** — DM sends private messages to individual players, notification badges, read tracking
+- [ ] **Roll request system** — DM initiates group rolls ("Everyone make a Wisdom save"), players get pre-configured prompts, results stream back live
+- [ ] **Shared handouts** — DM pushes read-only content (descriptions, lore, images) to players
+- [ ] **AI conversation persistence** — Save DM-AI chat history to Firestore, tagged by session
+
+---
+
+## 📦 v0.7.0 — Higher-Level Character Creation (Phase 7)
 
 ### 🟠 High
 
@@ -108,7 +178,7 @@
 
 ---
 
-## 🗺️ Long-term (v0.7.0+)
+## 🗺️ Long-term (v0.8.0+)
 
 ### 🟡 Medium
 
@@ -116,16 +186,18 @@
 - [ ] **Concentration tracker** — Flag active concentration spell, auto-prompt CON save on damage
 - [ ] **Spell slot recovery UI** — Arcane Recovery (Wizard), Font of Magic (Sorcerer), Pact Magic short rest
 - [ ] **Dark/light theme toggle** — Currently dark-only; add a light theme option
+- [ ] **Offline-first DM notes** — Dual-mode persistence (Firestore + localStorage) for DM notes with sync
 
 ### 🟢 Low
 
 - [ ] **PWA support** — Service worker + manifest for installable mobile app with offline support
-- [ ] **Dice roll history** — Persistent log of all dice rolls in a session
+- [ ] **Dice roll history panel** — Last 50 rolls per session, persistent log
 - [ ] **Character comparison** — Side-by-side stat comparison between characters
 - [ ] **Sound effects** — Optional dice roll sounds, level-up fanfare
 - [ ] **i18n / localization** — Support for languages beyond English
 - [ ] **Print-friendly character sheet** — CSS print stylesheet for paper export
 - [ ] **Quick-reference rules card** — Common actions, conditions, and rules lookup
+- [ ] **Map / location tracker** — Simple location graph or scene manager
 
 ---
 
@@ -133,7 +205,7 @@
 
 > Add community-requested features here. Include the GitHub issue # if applicable.
 
-- [ ] **Create characters at any level (1–20)** — Users have asked to skip starting at level 1 for experienced campaigns. Tracked in Epic 9 / v0.6.0.
+- [ ] **Create characters at any level (1–20)** — Users have asked to skip starting at level 1 for experienced campaigns. Tracked in v0.7.0.
 - [ ] _[Open an issue](https://github.com/Hams-Ollo/The-Players-Companion/issues) to suggest a feature!_
 
 ---

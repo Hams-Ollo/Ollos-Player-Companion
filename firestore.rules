@@ -3,24 +3,151 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Helper functions ─────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Check if user is a member of a campaign (reads the members subcollection)
+    function isCampaignMember(campaignId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/campaigns/$(campaignId)/members/$(request.auth.uid));
+    }
+
+    // Check if user is the DM of a campaign
+    function isCampaignDM(campaignId) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.dmId == request.auth.uid;
+    }
+
     // ── Characters collection ────────────────────────────────────
     match /characters/{charId} {
-      // Users can only read their own characters
-      allow read: if request.auth != null
+      allow read: if isSignedIn()
                   && resource.data.ownerUid == request.auth.uid;
 
-      // Users can create characters assigned to themselves (max 20)
-      allow create: if request.auth != null
+      allow create: if isSignedIn()
                     && request.resource.data.ownerUid == request.auth.uid;
 
-      // Users can update only their own characters (ownerUid cannot be changed)
-      allow update: if request.auth != null
+      allow update: if isSignedIn()
                     && resource.data.ownerUid == request.auth.uid
                     && request.resource.data.ownerUid == request.auth.uid;
 
-      // Users can delete only their own characters
-      allow delete: if request.auth != null
+      allow delete: if isSignedIn()
                     && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // ── Campaigns collection ─────────────────────────────────────
+    match /campaigns/{campaignId} {
+      // Any signed-in user can read campaigns (needed for join-by-code queries)
+      allow read: if isSignedIn();
+
+      // Any signed-in user can create a campaign (they become the DM)
+      allow create: if isSignedIn()
+                    && request.resource.data.dmId == request.auth.uid;
+
+      // Only the DM can update campaign settings
+      allow update: if isCampaignDM(campaignId);
+
+      // Only the DM can delete (archive) a campaign
+      allow delete: if isCampaignDM(campaignId);
+
+      // ── Members subcollection ────────────────────────────────
+      match /members/{memberId} {
+        // All campaign members can read the member list
+        allow read: if isCampaignMember(campaignId);
+
+        // Users can add themselves (join) or the DM can add anyone
+        allow create: if isSignedIn()
+                      && (request.auth.uid == memberId || isCampaignDM(campaignId));
+
+        // Members can update their own doc; DM can update any member
+        allow update: if isSignedIn()
+                      && (request.auth.uid == memberId || isCampaignDM(campaignId));
+
+        // Members can remove themselves; DM can remove anyone
+        allow delete: if isSignedIn()
+                      && (request.auth.uid == memberId || isCampaignDM(campaignId));
+      }
+
+      // ── Encounters subcollection ─────────────────────────────
+      match /encounters/{encounterId} {
+        // All members can read encounters (needed for initiative tracker)
+        allow read: if isCampaignMember(campaignId);
+
+        // Only DM can create/update/delete encounters
+        allow create: if isCampaignDM(campaignId);
+        allow update: if isCampaignDM(campaignId);
+        allow delete: if isCampaignDM(campaignId);
+      }
+
+      // ── DM Notes subcollection ───────────────────────────────
+      match /notes/{noteId} {
+        // Only DM can read/write DM notes
+        allow read: if isCampaignDM(campaignId);
+        allow create: if isCampaignDM(campaignId);
+        allow update: if isCampaignDM(campaignId);
+        allow delete: if isCampaignDM(campaignId);
+      }
+
+      // ── Encounter Templates subcollection ────────────────────
+      match /templates/{templateId} {
+        // Only DM can manage templates
+        allow read: if isCampaignDM(campaignId);
+        allow create: if isCampaignDM(campaignId);
+        allow update: if isCampaignDM(campaignId);
+        allow delete: if isCampaignDM(campaignId);
+      }
+
+      // ── Whispers subcollection ───────────────────────────────
+      match /whispers/{whisperId} {
+        // Users can read whispers sent TO them or FROM them
+        allow read: if isSignedIn()
+                    && (resource.data.toUid == request.auth.uid
+                        || resource.data.fromUid == request.auth.uid);
+
+        // Members can create whispers
+        allow create: if isCampaignMember(campaignId)
+                      && request.resource.data.fromUid == request.auth.uid;
+
+        // Only the recipient can update (mark as read)
+        allow update: if isSignedIn()
+                      && resource.data.toUid == request.auth.uid;
+
+        allow delete: if false; // Whispers are permanent
+      }
+
+      // ── Roll Requests subcollection ──────────────────────────
+      match /rollRequests/{requestId} {
+        // All members can read roll requests
+        allow read: if isCampaignMember(campaignId);
+
+        // Only DM can create roll requests
+        allow create: if isCampaignDM(campaignId);
+
+        // Any member can update (to submit their response)
+        allow update: if isCampaignMember(campaignId);
+
+        allow delete: if isCampaignDM(campaignId);
+      }
+    }
+
+    // ── Invites collection (top-level) ───────────────────────────
+    match /invites/{inviteId} {
+      // Users can read invites addressed to their email
+      allow read: if isSignedIn();
+
+      // Any signed-in user can create invites
+      allow create: if isSignedIn()
+                    && request.resource.data.invitedByUid == request.auth.uid;
+
+      // Any signed-in user can update invite status (accept/decline)
+      allow update: if isSignedIn();
+
+      allow delete: if false; // Invites are permanent records
     }
 
     // Deny everything else by default

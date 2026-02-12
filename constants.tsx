@@ -1326,6 +1326,295 @@ export const getSpellsKnownCount = (className: string, charLevel: number): numbe
 export const getSneakAttackDice = (rogueLevel: number): string =>
   `${Math.ceil(rogueLevel / 2)}d6`;
 
+// ─── D&D 5e Conditions Reference ─────────────────────────────────────────────
+// All 15 conditions from the PHB/SRD with mechanical effects for tooltips,
+// initiative tracker, and condition management UI.
+
+export interface ConditionData {
+  name: string;
+  description: string;
+  /** Mechanical effects expressed as structured rules */
+  effects: string[];
+  /** Icon hint for UI rendering */
+  icon: string;
+}
+
+export const CONDITIONS: Record<string, ConditionData> = {
+  blinded: {
+    name: 'Blinded',
+    description: "A blinded creature can't see and automatically fails any ability check that requires sight.",
+    effects: [
+      'Automatically fails ability checks requiring sight',
+      "Attack rolls against the creature have advantage",
+      "The creature's attack rolls have disadvantage",
+    ],
+    icon: 'eye-off',
+  },
+  charmed: {
+    name: 'Charmed',
+    description: "A charmed creature can't attack the charmer or target the charmer with harmful abilities or magical effects.",
+    effects: [
+      "Can't attack the charmer",
+      "Can't target the charmer with harmful abilities or magic",
+      'The charmer has advantage on social ability checks against the creature',
+    ],
+    icon: 'heart',
+  },
+  deafened: {
+    name: 'Deafened',
+    description: "A deafened creature can't hear and automatically fails any ability check that requires hearing.",
+    effects: [
+      'Automatically fails ability checks requiring hearing',
+    ],
+    icon: 'ear-off',
+  },
+  frightened: {
+    name: 'Frightened',
+    description: 'A frightened creature has disadvantage on ability checks and attack rolls while the source of its fear is within line of sight.',
+    effects: [
+      'Disadvantage on ability checks while source of fear is visible',
+      'Disadvantage on attack rolls while source of fear is visible',
+      "Can't willingly move closer to the source of its fear",
+    ],
+    icon: 'alert-triangle',
+  },
+  grappled: {
+    name: 'Grappled',
+    description: "A grappled creature's speed becomes 0, and it can't benefit from any bonus to its speed.",
+    effects: [
+      'Speed becomes 0',
+      "Can't benefit from bonuses to speed",
+      'Ends if grappler is incapacitated or moved out of reach',
+    ],
+    icon: 'grip-horizontal',
+  },
+  incapacitated: {
+    name: 'Incapacitated',
+    description: "An incapacitated creature can't take actions or reactions.",
+    effects: [
+      "Can't take actions",
+      "Can't take reactions",
+    ],
+    icon: 'ban',
+  },
+  invisible: {
+    name: 'Invisible',
+    description: "An invisible creature is impossible to see without the aid of magic or a special sense. The creature's location can be detected by noise or tracks.",
+    effects: [
+      'Impossible to see without magic or special senses',
+      'Considered heavily obscured for hiding purposes',
+      "Attack rolls against the creature have disadvantage",
+      "The creature's attack rolls have advantage",
+    ],
+    icon: 'ghost',
+  },
+  paralyzed: {
+    name: 'Paralyzed',
+    description: 'A paralyzed creature is incapacitated and cannot move or speak.',
+    effects: [
+      "Can't move or speak",
+      'Automatically fails STR and DEX saving throws',
+      'Attack rolls against the creature have advantage',
+      'Melee attacks within 5 ft are automatic critical hits',
+    ],
+    icon: 'zap-off',
+  },
+  petrified: {
+    name: 'Petrified',
+    description: 'A petrified creature is transformed into a solid inanimate substance. It is incapacitated, unaware of its surroundings, and its weight increases by a factor of ten.',
+    effects: [
+      "Can't move or speak; unaware of surroundings",
+      'Attack rolls against the creature have advantage',
+      'Automatically fails STR and DEX saving throws',
+      'Resistance to all damage',
+      'Immune to poison and disease (existing ones suspended)',
+    ],
+    icon: 'mountain',
+  },
+  poisoned: {
+    name: 'Poisoned',
+    description: 'A poisoned creature has disadvantage on attack rolls and ability checks.',
+    effects: [
+      'Disadvantage on attack rolls',
+      'Disadvantage on ability checks',
+    ],
+    icon: 'skull',
+  },
+  prone: {
+    name: 'Prone',
+    description: 'A prone creature can only crawl. Standing up costs half of movement speed.',
+    effects: [
+      'Can only crawl (movement costs double)',
+      'Disadvantage on attack rolls',
+      'Melee attack rolls within 5 ft have advantage against the creature',
+      'Ranged attack rolls have disadvantage against the creature',
+      'Standing up costs half movement speed',
+    ],
+    icon: 'arrow-down',
+  },
+  restrained: {
+    name: 'Restrained',
+    description: "A restrained creature's speed becomes 0, and it can't benefit from any bonus to its speed.",
+    effects: [
+      'Speed becomes 0',
+      'Attack rolls against the creature have advantage',
+      "The creature's attack rolls have disadvantage",
+      'Disadvantage on DEX saving throws',
+    ],
+    icon: 'link',
+  },
+  stunned: {
+    name: 'Stunned',
+    description: "A stunned creature is incapacitated, can't move, and can speak only falteringly.",
+    effects: [
+      "Can't move; can speak only falteringly",
+      'Automatically fails STR and DEX saving throws',
+      'Attack rolls against the creature have advantage',
+    ],
+    icon: 'star',
+  },
+  unconscious: {
+    name: 'Unconscious',
+    description: 'An unconscious creature is incapacitated, drops what it is holding, and falls prone.',
+    effects: [
+      "Can't move or speak; unaware of surroundings",
+      'Drops what it is holding and falls prone',
+      'Automatically fails STR and DEX saving throws',
+      'Attack rolls against the creature have advantage',
+      'Melee attacks within 5 ft are automatic critical hits',
+    ],
+    icon: 'moon',
+  },
+  exhaustion: {
+    name: 'Exhaustion',
+    description: 'Exhaustion is measured in six levels. Effects are cumulative.',
+    effects: [
+      'Level 1: Disadvantage on ability checks',
+      'Level 2: Speed halved',
+      'Level 3: Disadvantage on attack rolls and saving throws',
+      'Level 4: HP maximum halved',
+      'Level 5: Speed reduced to 0',
+      'Level 6: Death',
+    ],
+    icon: 'battery-low',
+  },
+};
+
+/** Get a condition by key name (case-insensitive) */
+export function getCondition(name: string): ConditionData | undefined {
+  return CONDITIONS[name.toLowerCase()];
+}
+
+/** List of all condition names for dropdowns / filter chips */
+export const CONDITION_NAMES = Object.values(CONDITIONS).map(c => c.name);
+
+// ─── Encounter Difficulty Thresholds (DMG p.82) ──────────────────────────────
+// XP thresholds per character level for each difficulty category.
+// To determine encounter difficulty:
+// 1. Sum the XP thresholds for all party members at the appropriate difficulty
+// 2. Sum the XP values of all monsters in the encounter
+// 3. Apply the encounter multiplier based on monster count
+// 4. Compare adjusted XP to party thresholds
+
+export interface DifficultyThresholds {
+  easy: number;
+  medium: number;
+  hard: number;
+  deadly: number;
+}
+
+/** XP thresholds per character level (DMG p.82) */
+export const ENCOUNTER_THRESHOLDS_BY_LEVEL: Record<number, DifficultyThresholds> = {
+  1:  { easy: 25,    medium: 50,    hard: 75,    deadly: 100 },
+  2:  { easy: 50,    medium: 100,   hard: 150,   deadly: 200 },
+  3:  { easy: 75,    medium: 150,   hard: 225,   deadly: 400 },
+  4:  { easy: 125,   medium: 250,   hard: 375,   deadly: 500 },
+  5:  { easy: 250,   medium: 500,   hard: 750,   deadly: 1100 },
+  6:  { easy: 300,   medium: 600,   hard: 900,   deadly: 1400 },
+  7:  { easy: 350,   medium: 750,   hard: 1100,  deadly: 1700 },
+  8:  { easy: 450,   medium: 900,   hard: 1400,  deadly: 2100 },
+  9:  { easy: 550,   medium: 1100,  hard: 1600,  deadly: 2400 },
+  10: { easy: 600,   medium: 1200,  hard: 1900,  deadly: 2800 },
+  11: { easy: 800,   medium: 1600,  hard: 2400,  deadly: 3600 },
+  12: { easy: 1000,  medium: 2000,  hard: 3000,  deadly: 4500 },
+  13: { easy: 1100,  medium: 2200,  hard: 3400,  deadly: 5100 },
+  14: { easy: 1250,  medium: 2500,  hard: 3800,  deadly: 5700 },
+  15: { easy: 1400,  medium: 2800,  hard: 4300,  deadly: 6400 },
+  16: { easy: 1600,  medium: 3200,  hard: 4800,  deadly: 7200 },
+  17: { easy: 2000,  medium: 3900,  hard: 5900,  deadly: 8800 },
+  18: { easy: 2100,  medium: 4200,  hard: 6300,  deadly: 9500 },
+  19: { easy: 2400,  medium: 4900,  hard: 7300,  deadly: 10900 },
+  20: { easy: 2800,  medium: 5700,  hard: 8500,  deadly: 12700 },
+};
+
+/** Encounter multiplier based on number of monsters (DMG p.82) */
+export const ENCOUNTER_MULTIPLIERS: { maxMonsters: number; multiplier: number }[] = [
+  { maxMonsters: 1,  multiplier: 1 },
+  { maxMonsters: 2,  multiplier: 1.5 },
+  { maxMonsters: 6,  multiplier: 2 },
+  { maxMonsters: 10, multiplier: 2.5 },
+  { maxMonsters: 14, multiplier: 3 },
+  { maxMonsters: Infinity, multiplier: 4 },
+];
+
+/** Get the encounter multiplier for a given number of monsters */
+export function getEncounterMultiplier(monsterCount: number): number {
+  for (const { maxMonsters, multiplier } of ENCOUNTER_MULTIPLIERS) {
+    if (monsterCount <= maxMonsters) return multiplier;
+  }
+  return 4;
+}
+
+export type EncounterDifficulty = 'trivial' | 'easy' | 'medium' | 'hard' | 'deadly';
+
+/**
+ * Calculate encounter difficulty given party levels and total monster XP.
+ * Returns the difficulty category and the adjusted XP.
+ */
+export function calculateEncounterDifficulty(
+  partyLevels: number[],
+  totalMonsterXP: number,
+  monsterCount: number
+): { difficulty: EncounterDifficulty; adjustedXP: number; thresholds: DifficultyThresholds } {
+  // Sum thresholds for all party members
+  const thresholds: DifficultyThresholds = { easy: 0, medium: 0, hard: 0, deadly: 0 };
+  partyLevels.forEach(level => {
+    const lvl = Math.max(1, Math.min(20, level));
+    const t = ENCOUNTER_THRESHOLDS_BY_LEVEL[lvl];
+    thresholds.easy += t.easy;
+    thresholds.medium += t.medium;
+    thresholds.hard += t.hard;
+    thresholds.deadly += t.deadly;
+  });
+
+  const multiplier = getEncounterMultiplier(monsterCount);
+  const adjustedXP = Math.round(totalMonsterXP * multiplier);
+
+  let difficulty: EncounterDifficulty = 'trivial';
+  if (adjustedXP >= thresholds.deadly) difficulty = 'deadly';
+  else if (adjustedXP >= thresholds.hard) difficulty = 'hard';
+  else if (adjustedXP >= thresholds.medium) difficulty = 'medium';
+  else if (adjustedXP >= thresholds.easy) difficulty = 'easy';
+
+  return { difficulty, adjustedXP, thresholds };
+}
+
+// ─── Monster HP Descriptors ──────────────────────────────────────────────────
+// Used by the initiative tracker to show monster health to players without
+// revealing exact numbers.
+
+export type MonsterHealthDescriptor = 'Uninjured' | 'Barely Wounded' | 'Wounded' | 'Bloodied' | 'Near Death';
+
+export function getMonsterHealthDescriptor(currentHp: number, maxHp: number): MonsterHealthDescriptor {
+  if (maxHp <= 0) return 'Near Death';
+  const pct = currentHp / maxHp;
+  if (pct >= 1) return 'Uninjured';
+  if (pct >= 0.75) return 'Barely Wounded';
+  if (pct >= 0.5) return 'Wounded';
+  if (pct >= 0.25) return 'Bloodied';
+  return 'Near Death';
+}
+
 export const VESPER_DATA: CharacterData = {
   id: "vesper-default",
   name: "Vesper",

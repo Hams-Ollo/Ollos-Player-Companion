@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CharacterData } from '../types';
+import { rollHitDie } from '../lib/dice';
 import { X, Moon, Sunrise, Dices, Heart, RotateCcw } from 'lucide-react';
 
 interface RestModalProps {
@@ -19,9 +20,8 @@ const RestModal: React.FC<RestModalProps> = ({ data, onUpdate, onClose }) => {
     // Parse Hit Die (e.g., "1d8")
     const match = data.hitDice.die.match(/d(\d+)/);
     const sides = match ? parseInt(match[1]) : 8;
-    const roll = Math.floor(Math.random() * sides) + 1;
     const conMod = data.stats.CON.modifier;
-    const healAmount = Math.max(0, roll + conMod);
+    const { roll, total: healAmount } = rollHitDie(sides, conMod);
 
     const newHp = Math.min(data.hp.max, data.hp.current + healAmount);
     

@@ -33,7 +33,7 @@ import {
   getASILevelsUpTo,
   STARTING_GOLD_BY_LEVEL,
 } from '../constants';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { checkRateLimit, recalculateCharacterStats, calculateModifier } from '../utils';
 
 // ==========================================
@@ -562,10 +562,42 @@ const StepPowers: React.FC<{
   const level = state.startingLevel;
   const cantrips = CLASS_CANTRIPS[state.charClass] || [];
   const cantripsNeeded = getCantripsKnownCount(state.charClass, level);
-  const spellsNeeded = getSpellsKnownCount(state.charClass, level);
   const maxSpellLevel = getMaxSpellLevelForClass(state.charClass, level);
   const raceTraits = getRaceTraits(state.race);
   const racialSpellNames = (raceTraits?.racialSpells || []).filter(s => s.minCharLevel <= level).map(s => s.name);
+
+  // Prepared casters (Cleric, Druid, Paladin) prepare spells = level + ability modifier.
+  // Known casters (Bard, Ranger, Sorcerer, Warlock, Wizard) use the SPELLS_KNOWN table.
+  const spellsNeeded = useMemo(() => {
+    const knownCount = getSpellsKnownCount(state.charClass, level);
+    if (knownCount > 0) return knownCount;
+
+    // Prepared caster — calculate from ability modifier
+    const castingAbility = classData?.spellcastingAbility;
+    if (!castingAbility || !isCaster) return 0;
+
+    // Compute effective ability score (base + racial + ASI)
+    const baseScore = state.statMethod === 'standard'
+      ? (state.standardAssignment[castingAbility] ?? 8)
+      : state.baseStats[castingAbility];
+    const racialBonus = getRacialBonus(state.race, castingAbility);
+    const asiLevels = getASILevelsUpTo(state.charClass, level);
+    const primaryAbility = classData.primaryAbility || castingAbility;
+    let asiBonus = 0;
+    for (const lvl of asiLevels) {
+      const alloc = state.asiAllocations[lvl] || [primaryAbility, primaryAbility];
+      if (alloc[0] === castingAbility) asiBonus += 1;
+      if (alloc[1] === castingAbility) asiBonus += 1;
+    }
+    const finalScore = Math.min(20, baseScore + racialBonus + asiBonus);
+    const abilityMod = calculateModifier(finalScore);
+
+    // Paladin/Ranger are half-casters: prepared = ability mod + floor(level/2)
+    const isHalfCaster = state.charClass === 'Paladin' || state.charClass === 'Ranger';
+    const effectiveLevel = isHalfCaster ? Math.floor(level / 2) : level;
+
+    return Math.max(1, effectiveLevel + abilityMod);
+  }, [state.charClass, level, state.baseStats, state.standardAssignment, state.statMethod, state.race, state.asiAllocations, classData, isCaster]);
 
   // Build combined spell list for all accessible levels
   const spellsByLevel: Record<number, string[]> = {};
@@ -929,7 +961,7 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ campaigns, onCreate, o
           Format: { "features": [{ "name": "...", "source": "...", "description": "...", "fullText": "..." }], "spells": [{ "name": "...", "level": 0, "school": "...", "description": "...", "castingTime": "...", "range": "...", "duration": "...", "components": "..." }] }`;
 
           const rulesResponse = await Promise.race([
-            ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: rulesPrompt, config: { responseMimeType: 'application/json', thinkingConfig: { thinkingLevel: 'LOW' } } }),
+            ai.models.generateContent({ model: 'gemini-2.5-flash', contents: rulesPrompt, config: { responseMimeType: 'application/json', thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } } }),
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Rules lookup timed out')), 30000))
           ]);
 

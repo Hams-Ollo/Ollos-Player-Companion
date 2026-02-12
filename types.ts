@@ -105,8 +105,13 @@ export interface Campaign {
   dmId: string;
   description: string;
   joinCode: string;
-  members: { uid: string; name: string }[];
+  members: CampaignMember[];
+  status: CampaignStatus;
+  currentSessionNumber: number;
+  activeEncounterId?: string;
+  settings: CampaignSettings;
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface UserProfile {
@@ -133,4 +138,146 @@ export interface RollResult {
   diceGroups: DiceGroup[];
   modifier: number;
   mode: RollMode;
+}
+
+// ─── Campaign & Multiplayer Types ────────────────────────────────────────────
+
+export type CampaignRole = 'dm' | 'player';
+export type CampaignStatus = 'active' | 'archived';
+
+export interface CampaignMember {
+  uid: string;
+  displayName: string;
+  role: CampaignRole;
+  characterId?: string;
+  joinedAt: number;
+  lastSeen?: number;
+}
+
+export interface CampaignSettings {
+  allowPlayerInvites: boolean;
+  defaultCharacterVisibility: 'full' | 'limited' | 'hidden';
+}
+
+export interface CampaignInvite {
+  id: string;
+  email: string;
+  invitedByUid: string;
+  invitedByName: string;
+  campaignId: string;
+  campaignName: string;
+  createdAt: number;
+  status: 'pending' | 'accepted' | 'declined';
+}
+
+// ─── Combat & Encounter Types ────────────────────────────────────────────────
+
+export type CombatantType = 'pc' | 'npc' | 'monster';
+
+export interface Combatant {
+  id: string;
+  name: string;
+  initiative: number;
+  hp: number;
+  maxHp: number;
+  ac: number;
+  type: CombatantType;
+  /** Reference to CharacterData.id for PCs */
+  characterId?: string;
+  conditions: string[];
+  /** Fixed-initiative event entry (e.g. lair actions at initiative 20) */
+  isLairAction?: boolean;
+  /** Legendary action uses remaining (resets on creature's turn) */
+  legendaryActions?: number;
+  legendaryActionsMax?: number;
+  /** Whether the combatant is concentrating on a spell */
+  concentrating?: boolean;
+}
+
+export type CombatLogEntryType = 'turn_change' | 'damage' | 'heal' | 'condition' | 'roll' | 'note' | 'encounter_start' | 'encounter_end';
+
+export interface CombatLogEntry {
+  timestamp: number;
+  type: CombatLogEntryType;
+  actorName?: string;
+  description: string;
+}
+
+export interface CombatEncounter {
+  id: string;
+  campaignId: string;
+  name: string;
+  active: boolean;
+  round: number;
+  currentTurnIndex: number;
+  combatants: Combatant[];
+  log: CombatLogEntry[];
+  createdAt: number;
+  endedAt?: number;
+}
+
+export interface EncounterTemplate {
+  id: string;
+  campaignId: string;
+  name: string;
+  /** Combatants without runtime state (id, initiative) */
+  combatants: Omit<Combatant, 'id' | 'initiative'>[];
+  difficulty?: string;
+  notes?: string;
+  createdAt: number;
+}
+
+// ─── DM Notes Types ──────────────────────────────────────────────────────────
+
+export type DMNoteType = 'session' | 'event' | 'npc' | 'location' | 'lore' | 'quest';
+
+export interface LinkedEntity {
+  type: DMNoteType | 'character';
+  id: string;
+  name: string;
+}
+
+export interface DMNote {
+  id: string;
+  campaignId: string;
+  authorUid: string;
+  title: string;
+  content: string;
+  tags: string[];
+  type: DMNoteType;
+  sessionNumber?: number;
+  linkedEntities?: LinkedEntity[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ─── Multiplayer Communication Types ─────────────────────────────────────────
+
+export interface Whisper {
+  id: string;
+  campaignId: string;
+  fromUid: string;
+  toUid: string;
+  content: string;
+  read: boolean;
+  createdAt: number;
+}
+
+export interface RollRequestResponse {
+  uid: string;
+  displayName: string;
+  result: RollResult;
+  timestamp: number;
+}
+
+export interface RollRequest {
+  id: string;
+  campaignId: string;
+  dmUid: string;
+  /** e.g. "Wisdom Saving Throw", "Perception Check" */
+  type: string;
+  dc?: number;
+  targetUids: string[];
+  responses: RollRequestResponse[];
+  createdAt: number;
 }

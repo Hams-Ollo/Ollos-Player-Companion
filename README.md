@@ -34,7 +34,7 @@ The Player's Companion is a mobile-first web app for managing D&D 5th Edition ch
 | **Build** | Vite 6 |
 | **Styling** | Tailwind CSS (CDN) |
 | **Icons** | Lucide React |
-| **AI** | Google Gemini (`@google/genai`) — `gemini-3-flash-preview` (text), `gemini-2.5-flash-image` (portraits) |
+| **AI** | Google Gemini (`@google/genai`) — `gemini-2.5-flash` (text), `gemini-2.5-flash-image` (portraits) |
 | **Auth** | Firebase Authentication (Google + Anonymous providers) |
 | **Database** | Cloud Firestore (character sync for authenticated users) |
 | **Storage** | localStorage (guest/offline fallback) |

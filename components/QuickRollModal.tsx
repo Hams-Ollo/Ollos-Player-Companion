@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { X, Dices, Sparkles, Wand2, Star, ChevronDown, Activity, AlertCircle } from 'lucide-react';
 import { CharacterData, StatKey, ProficiencyLevel } from '../types';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { checkRateLimit, recalculateCharacterStats } from '../utils';
 import { 
   generateId, 
@@ -153,7 +153,7 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
 
         const dataResponse = await Promise.race([
             ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
+                model: 'gemini-2.5-flash',
                 contents: `Generate a detailed Level ${quickLevel} D&D 5e character. 
                           Race: ${race}. Class: ${charClass}. Vibe: ${vibe || 'Traditional'}.
                           Instructions:
@@ -165,7 +165,7 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
                 config: {
                     responseMimeType: 'application/json',
                     responseSchema: characterSchema,
-                    thinkingConfig: { thinkingLevel: 'LOW' }
+                    thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
                 }
             }),
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Character generation timed out after 60s. Please try again.')), 60000))

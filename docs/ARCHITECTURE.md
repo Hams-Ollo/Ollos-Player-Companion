@@ -185,7 +185,7 @@ See `types.ts` for all interfaces (`Stat`, `Skill`, `Attack`, `Feature`, `Spell`
 
 | Model | Purpose | Used By |
 |-------|---------|---------|
-| `gemini-3-flash-preview` | Text generation (rules, level-up, DM chat) | `lib/gemini.ts`, `LevelUpModal`, `AskDMModal`, `ItemDetailModal`, `JournalDetail` |
+| `gemini-2.5-flash` | Text generation (rules, level-up, DM chat) | `lib/gemini.ts`, `LevelUpModal`, `AskDMModal`, `ItemDetailModal`, `JournalDetail` |
 | `gemini-2.5-flash-image` | Image generation (portraits) | `CharacterCreationWizard`, `PortraitGenerator` |
 
 ### Gemini Client (`lib/gemini.ts`)

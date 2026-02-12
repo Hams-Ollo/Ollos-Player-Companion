@@ -1,5 +1,8 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+
+/** Primary text model — change here to update everywhere that uses this module. */
+const TEXT_MODEL = 'gemini-2.5-flash';
 
 const getAI = () => {
   const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
@@ -15,11 +18,11 @@ const getAI = () => {
 export const createChatWithContext = async (history: any[], systemInstruction: string) => {
   const ai = getAI();
   return ai.chats.create({
-    model: 'gemini-3-flash-preview',
+    model: TEXT_MODEL,
     history: history,
     config: {
       systemInstruction,
-      thinkingConfig: { thinkingLevel: 'LOW' },
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
     }
   });
 };
@@ -30,11 +33,11 @@ export const createChatWithContext = async (history: any[], systemInstruction: s
 export const generateWithContext = async (prompt: string, config: any = {}) => {
   const ai = getAI();
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: TEXT_MODEL,
     contents: prompt,
     config: {
       systemInstruction: "You are a specialized D&D 5e assistant. Provide accurate rules, engaging flavor text, and well-structured responses.",
-      thinkingConfig: { thinkingLevel: 'LOW' },
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       ...config,
     },
   });

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { CharacterData, StackType, RollResult, Item, Feature, Spell, RollMode, DiceGroup } from '../types';
+import { CharacterData, StackType, RollResult, Item, Feature, Spell, RollMode } from '../types';
+import { rollDice } from '../lib/dice';
 import CardStack from './CardStack';
 import DetailOverlay from './DetailOverlay';
 import VitalsDetail from './details/VitalsDetail';
@@ -40,65 +41,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<Item | Feature | Spell | null>(null);
 
   const handleRoll = (label: string, baseModifier: number, expression: string) => {
-    // Regex to find all dice groups and flat modifiers
-    const parts = expression.replace(/\s+/g, '').split(/(?=[+-])/);
-    const diceGroups: DiceGroup[] = [];
-    let total = 0;
-    let finalModifier = baseModifier;
-
-    parts.forEach(part => {
-      const diceMatch = part.match(/^([+-]?\d+)?d(\d+)$/i);
-      const modMatch = part.match(/^([+-]\d+)$/);
-
-      if (diceMatch) {
-        const sign = part.startsWith('-') ? -1 : 1;
-        const numDice = Math.abs(parseInt(diceMatch[1])) || 1;
-        const sides = parseInt(diceMatch[2]);
-        const rolls: number[] = [];
-
-        if (sides === 20 && numDice === 1 && rollMode !== 'normal') {
-          const r1 = Math.floor(Math.random() * 20) + 1;
-          const r2 = Math.floor(Math.random() * 20) + 1;
-          
-          if (rollMode === 'advantage') {
-            const high = Math.max(r1, r2);
-            const low = Math.min(r1, r2);
-            rolls.push(high);
-            total += high * sign;
-            diceGroups.push({ sides, rolls: [high], dropped: low });
-          } else {
-            const high = Math.max(r1, r2);
-            const low = Math.min(r1, r2);
-            rolls.push(low);
-            total += low * sign;
-            diceGroups.push({ sides, rolls: [low], dropped: high });
-          }
-        } else {
-          for (let i = 0; i < numDice; i++) {
-            const roll = Math.floor(Math.random() * sides) + 1;
-            rolls.push(roll);
-            total += roll * sign;
-          }
-          diceGroups.push({ sides, rolls });
-        }
-      } else if (modMatch) {
-        finalModifier += parseInt(modMatch[1]);
-      } else if (!part.includes('d')) {
-        const val = parseInt(part);
-        if (!isNaN(val)) finalModifier += val;
-      }
-    });
-
-    total += finalModifier;
-
-    setRollResult({
-      label,
-      total,
-      expression,
-      diceGroups,
-      modifier: finalModifier,
-      mode: rollMode
-    });
+    const result = rollDice(expression, baseModifier, rollMode);
+    setRollResult({ ...result, label });
   };
 
   const totalSlots = data.spellSlots.reduce((sum, s) => sum + s.max, 0);
