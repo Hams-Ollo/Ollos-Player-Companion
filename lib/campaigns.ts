@@ -374,6 +374,20 @@ export async function removeMember(
   await batch.commit();
 }
 
+/** Update which character a member is playing in a campaign. */
+export async function updateMemberCharacter(
+  campaignId: string,
+  uid: string,
+  characterId: string | null,
+): Promise<void> {
+  const memberRef = doc(db, 'campaigns', campaignId, 'members', uid);
+  if (characterId) {
+    await updateDoc(memberRef, { characterId, lastSeen: Date.now() });
+  } else {
+    await updateDoc(memberRef, { characterId: '', lastSeen: Date.now() });
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // Invites
 // ═══════════════════════════════════════════════════════════════════════

@@ -110,18 +110,18 @@ Character Export (no deps) ─→ can ship independently at any time
 
 ### 🟠 Hard
 
-- [ ] **DM/Player role selection** — Role selector at campaign creation
-- [ ] **Character-to-campaign assignment** — Dropdown picker stored as `CampaignMember.characterId`
+- [x] **DM/Player role selection** — DM role confirmation badge at campaign creation
+- [x] **Character-to-campaign assignment** — Dropdown picker at join, invite accept, and post-join change
 - [x] **Build `PartyRoster` component** — Grid of party member cards with portraits
 - [x] **Build `DMPartyOverview` component** — Live vitals grid, passive scores panel
 - [x] **Build `DMDashboard` layout** — DM-specific layout when `myRole === 'dm'`
-- [ ] **Invite management** — Join code sharing + direct email invites, accept/decline flow
+- [x] **Invite management** — Join code sharing (prominent copy-paste) + email invites + accept/decline flow
 - [ ] **Migrate localStorage campaigns to Firestore** — Migration function
 
 ### 🟡 Medium
 
 - [ ] **Cloud Functions layer** — `joinByCode`, `fetchPartyCharacters`, `sendInvite`, `geminiProxy`
-- [ ] **Add "Party" card to player Dashboard** — Party card in `CardStack` when in a campaign
+- [x] **Add "Party" card to player Dashboard** — Party card in `CardStack` when in a campaign
 - [ ] **Character diff badges** — Notification dot when party members level up
 
 ---
@@ -280,7 +280,7 @@ Character Export (no deps) ─→ can ship independently at any time
 > *"The people speak! Add your voice to the chorus."*
 
 - [ ] **Create characters at any level (1–20)** — Much requested. Tracked in v0.7.0.
-- [ ] _[Post on the Quest Board](https://github.com/Hams-Ollo/The-Players-Companion/issues) to suggest a feature!_
+- [ ] _[Post on the Quest Board](https://github.com/Hams-Ollo/Ollos-Player-Companion/issues) to suggest a feature!_
 
 ---
 
@@ -304,13 +304,15 @@ Character Export (no deps) ─→ can ship independently at any time
 - [x] **Starter Equipment Shop, Racial Traits, Class Features, Campaign Manager** _(v0.1.0)_
 - [x] **Campaign Provider Integration** — `CampaignProvider` wired into `App.tsx`, `CampaignManager` rewritten with `useCampaign()` _(v0.4.0 — 2026-02-12)_
 - [x] **DM Dashboard & Party Views** — `DMDashboard`, `DMPartyOverview`, `PartyRoster` components built _(v0.4.0 — 2026-02-12)_
+- [x] **Campaign Role & Character Assignment** — DM role confirmation, character picker at join/invite, `updateMemberCharacter` _(v0.4.0 — 2026-02-12)_
+- [x] **Invite Management** — Join code sharing panel, email invites via `createInvite`, `sendInvite` context action _(v0.4.0 — 2026-02-12)_
 - [x] **Accessibility Fixes, Error Boundaries, Tailwind Build Pipeline** _(v0.1.1–v0.2.0)_
 
 ---
 
 ## 💡 How to Post a Quest
 
-1. Check this board and [GitHub Issues](https://github.com/Hams-Ollo/The-Players-Companion/issues) for duplicates
+1. Check this board and [GitHub Issues](https://github.com/Hams-Ollo/Ollos-Player-Companion/issues) for duplicates
 2. Open a new issue with the `enhancement` label
 3. Describe the **user story** ("As a player, I want to...")
 4. Include any relevant PHB/SRD page references

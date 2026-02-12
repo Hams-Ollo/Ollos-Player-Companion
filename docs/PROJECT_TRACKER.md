@@ -168,14 +168,18 @@
 | 8.7 | Join codes (6-char) | ✅ | Shareable codes |
 | 8.8 | Campaign deletion with subcollections | ✅ | Members deleted last |
 | 8.9 | DM fallback read permissions | ✅ | On members, encounters, rollRequests, whispers |
-| 8.10 | Character-to-campaign assignment | 🔲 | v0.4.0 |
+| 8.10 | Character-to-campaign assignment | ✅ | Dropdown picker at join, invite accept, and post-join change |
 | 8.11 | Party roster component | ✅ | `PartyRoster.tsx` — card grid with character fetching |
 | 8.12 | DM party overview | ✅ | `DMPartyOverview.tsx` — vitals grid, passive scores |
-| 8.13 | Invite management (email + code) | 🔲 | v0.4.0 |
+| 8.13 | Invite management (email + code) | ✅ | Join code sharing panel + email invites + accept/decline |
 | 8.14 | Campaign member migration | 🔲 | v0.4.0 |
 | 8.15 | Wire `CampaignProvider` into `App.tsx` | ✅ | Provider wraps `AppContent`, no localStorage |
 | 8.16 | Rewrite `CampaignManager` with `useCampaign()` | ✅ | Fully Firestore-backed |
 | 8.17 | `DMDashboard` layout | ✅ | Tabbed DM view (overview/combat/notes/settings) |
+| 8.18 | DM role confirmation at creation | ✅ | Crown badge + confirmation in create form |
+| 8.19 | `updateMemberCharacter` service fn | ✅ | Change character assignment after joining |
+| 8.20 | `sendInvite` context action | ✅ | Wired `createInvite` into `CampaignContext` |
+| 8.21 | Party card in player Dashboard | ✅ | Conditional card in `CardStack` when in campaign |
 
 ---
 

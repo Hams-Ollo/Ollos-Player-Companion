@@ -1,6 +1,6 @@
 # ⚜️ The Planar Gate Manual — Cloud Run Deployment ⚜️
 
-> *"To transport The Player's Companion from the Material Plane  
+> *"To transport Ollo's Player Companion from the Material Plane  
 > to the Ethereal Plane of Google Cloud, one must follow  
 > the ancient deployment ritual precisely."*
 >
@@ -112,7 +112,7 @@ firebase deploy --only firestore:rules --project YOUR_PROJECT_ID
 
 ```bash
 # Set your environment variables in a single invocation
-gcloud run deploy the-players-companion \
+gcloud run deploy ollos-player-companion \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
@@ -147,14 +147,14 @@ docker build \
   --build-arg VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app \
   --build-arg VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id \
   --build-arg VITE_FIREBASE_APP_ID=your-app-id \
-  -t gcr.io/YOUR_PROJECT_ID/the-players-companion .
+  -t gcr.io/YOUR_PROJECT_ID/ollos-player-companion .
 
 # Step 2: Push to Container Registry
-docker push gcr.io/YOUR_PROJECT_ID/the-players-companion
+docker push gcr.io/YOUR_PROJECT_ID/ollos-player-companion
 
 # Step 3: Deploy to Cloud Run
-gcloud run deploy the-players-companion \
-  --image gcr.io/YOUR_PROJECT_ID/the-players-companion \
+gcloud run deploy ollos-player-companion \
+  --image gcr.io/YOUR_PROJECT_ID/ollos-player-companion \
   --region us-central1 \
   --allow-unauthenticated \
   --port 8080
@@ -169,10 +169,10 @@ gcloud run deploy the-players-companion \
 
 ### Add Cloud Run URL to Authorized Domains
 
-1. Copy your Cloud Run service URL (e.g., `https://the-players-companion-xxxxx-uc.a.run.app`)
+1. Copy your Cloud Run service URL (e.g., `https://ollos-player-companion-xxxxx-uc.a.run.app`)
 2. Go to **Firebase Console** → **Authentication** → **Settings** → **Authorized domains**
 3. Click **"Add domain"**
-4. Paste just the domain: `the-players-companion-xxxxx-uc.a.run.app`
+4. Paste just the domain: `ollos-player-companion-xxxxx-uc.a.run.app`
 
 > ⚠️ **Critical:** Without this step, Google sign-in will fail with `auth/unauthorized-domain`. The most common cause of "the gate won't open" reports.
 
@@ -184,7 +184,7 @@ gcloud run deploy the-players-companion \
 
 ```bash
 # Check the service is running
-gcloud run services describe the-players-companion \
+gcloud run services describe ollos-player-companion \
   --region us-central1 \
   --format "value(status.url)"
 
@@ -202,6 +202,9 @@ curl -s -o /dev/null -w "%{http_code}" https://YOUR_SERVICE_URL
 - [ ] AI features work (ask the DM a question)
 - [ ] Portrait generation works
 - [ ] Campaign creation/joining works
+- [ ] DM can see DM Dashboard with party overview
+- [ ] Invite flow works (join code sharing + email invites)
+- [ ] Character assignment to campaigns works
 
 ---
 
@@ -213,7 +216,7 @@ curl -s -o /dev/null -w "%{http_code}" https://YOUR_SERVICE_URL
 
 ```bash
 # Same command — Cloud Build detects changes and rebuilds
-gcloud run deploy the-players-companion \
+gcloud run deploy ollos-player-companion \
   --source . \
   --region us-central1 \
   --allow-unauthenticated
@@ -222,7 +225,7 @@ gcloud run deploy the-players-companion \
 ### Update Environment Variables Only
 
 ```bash
-gcloud run services update the-players-companion \
+gcloud run services update ollos-player-companion \
   --region us-central1 \
   --set-env-vars "GEMINI_API_KEY=new-key-here"
 ```
@@ -237,12 +240,12 @@ firebase deploy --only firestore:rules --project YOUR_PROJECT_ID
 
 ```bash
 # Stream logs in real-time
-gcloud run services logs read the-players-companion \
+gcloud run services logs read ollos-player-companion \
   --region us-central1 \
   --limit 50
 
 # Or tail live
-gcloud run services logs tail the-players-companion \
+gcloud run services logs tail ollos-player-companion \
   --region us-central1
 ```
 
@@ -255,7 +258,7 @@ gcloud run services logs tail the-players-companion \
 ```bash
 # Map a custom domain to your Cloud Run service
 gcloud run domain-mappings create \
-  --service the-players-companion \
+  --service ollos-player-companion \
   --domain your-domain.com \
   --region us-central1
 ```
@@ -291,7 +294,7 @@ gcloud builds log BUILD_ID
 
 ```bash
 # Check container logs
-gcloud run services logs read the-players-companion --limit 20
+gcloud run services logs read ollos-player-companion --limit 20
 ```
 
 **Common causes:**
@@ -314,7 +317,7 @@ gcloud run services logs read the-players-companion --limit 20
 
 ```bash
 # Check for port binding issues
-gcloud run services describe the-players-companion \
+gcloud run services describe ollos-player-companion \
   --format "value(spec.template.spec.containers[0].ports[0].containerPort)"
 # Should be 8080
 ```

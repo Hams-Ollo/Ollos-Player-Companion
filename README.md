@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/🏰-The%20Player's%20Companion-B8860B?style=for-the-badge&labelColor=1a1a2e" alt="The Player's Companion" />
+  <img src="https://img.shields.io/badge/🏰-Ollo's%20Player%20Companion-B8860B?style=for-the-badge&labelColor=1a1a2e" alt="Ollo's Player Companion" />
 </p>
 
-<h1 align="center">⚜️ The Player's Companion ⚜️</h1>
+<h1 align="center">⚜️ Ollo's Player Companion ⚜️</h1>
 
 <p align="center"><em>A Tome of Digital Sorcery for the Modern Adventurer</em></p>
 
@@ -21,7 +21,7 @@
 
 ## Chapter 1: Introduction
 
-**The Player's Companion** is a mobile-first web application for managing D&D 5th Edition characters. Create heroes with a guided wizard, track stats and inventory, roll dice, level up with AI assistance, and consult an AI Dungeon Master grounded in official rulebook text.
+**Ollo's Player Companion** is a mobile-first web application for managing D&D 5th Edition characters. Create heroes with a guided wizard, track stats and inventory, roll dice, level up with AI assistance, and consult an AI Dungeon Master grounded in official rulebook text.
 
 Whether you are a battle-scarred veteran of a hundred campaigns or a wide-eyed newcomer stepping into your first tavern, this companion will serve you well.
 
@@ -41,13 +41,17 @@ Whether you are a battle-scarred veteran of a hundred campaigns or a wide-eyed n
 | ⬆️ **Level Up Wizard** | AI-assisted ascension with HP rolls, ASI, new features, and spell slot updates |
 | 🤖 **Ask the DM** | Multi-turn AI chat grounded in uploaded PHB/DMG/MM/Basic Rules PDFs |
 | 🛏️ **Rest System** | Short & long rest with hit dice recovery, as the gods intended |
-| 🗺️ **Campaign Manager** | Create or join campaigns with shareable join codes |
+| 🗺️ **Campaign Manager** | Create or join campaigns with shareable join codes, DM role confirmation, character assignment, email invites |
 | 🔐 **Authentication** | Firebase Google sign-in + anonymous guest mode |
 | ☁️ **Cloud Sync** | Firestore character persistence — real-time sync across devices |
 | 🎨 **AI Portraits** | Gemini 2.5 Flash image model conjures character portraits from description |
 | 🎲 **Quick Roll** | One-click AI-generated character from a vibe prompt — stats, backstory, portrait |
 | 🎭 **Class Theming** | Dynamic color themes per D&D class — borders, gradients, and arcane glow effects |
 | 🎙️ **Voice Input** | Live audio transcription via Gemini Native Audio for hands-free DM chat |
+| 🛡️ **DM Dashboard** | Tabbed DM view with party overview, combat tracker, session notes, and campaign settings |
+| 👥 **Party Roster** | Live party member cards with HP bars, AC, level, and class info fetched from Firestore |
+| ⚔️ **Combat Strip** | At-a-glance initiative tracker and combat status bar |
+| 🎯 **Quick Action Bar** | Context-sensitive shortcut buttons for common actions |
 
 ---
 
@@ -88,8 +92,8 @@ Whether you are a battle-scarred veteran of a hundred campaigns or a wide-eyed n
 *Reach through the planes and pull the source code to your local realm:*
 
 ```bash
-git clone https://github.com/Hams-Ollo/The-Players-Companion.git
-cd The-Players-Companion
+git clone https://github.com/Hams-Ollo/Ollos-Player-Companion.git
+cd Ollos-Player-Companion
 npm install
 ```
 
@@ -153,7 +157,10 @@ npm run preview
 ├── lib/
 │   ├── gemini.ts                 # 🤖 The Weave — centralized Gemini AI client
 │   ├── firestore.ts              # 🔥 The Vault — Firestore CRUD & real-time sync
-│   └── campaigns.ts              # 🗺️ The Campaign Ledger — campaign Firestore operations
+│   ├── campaigns.ts              # 🗺️ The Campaign Ledger — campaign Firestore operations
+│   ├── dice.ts                   # 🎲 The Dice Bag — roll parsing & execution
+│   ├── themes.ts                 # 🎨 The Palette — class-based color themes
+│   └── debug-fetch.ts            # 🔍 Debug Fetch — network diagnostics utility
 │
 ├── contexts/
 │   ├── AuthContext.tsx            # 🔐 The Wardkeeper — Firebase auth provider
@@ -173,7 +180,13 @@ npm run preview
 │   ├── ShopModal.tsx              # 🏪 The Merchant's Stall
 │   ├── AskDMModal.tsx             # 🤖 The Oracle's Chamber
 │   ├── ItemDetailModal.tsx        # 🔎 The Identify Spell
-│   ├── CampaignManager.tsx        # 🗺️ The War Room
+│   ├── CampaignManager.tsx        # 🗺️ The War Room — create/join/invite/manage campaigns
+│   ├── DMDashboard.tsx            # 🛡️ The DM's Sanctum — tabbed DM campaign view
+│   ├── DMPartyOverview.tsx        # 👥 The Party Roster — live party vitals grid
+│   ├── PartyRoster.tsx            # 📋 The Muster Roll — party member cards
+│   ├── CombatStrip.tsx            # ⚔️ The Battle Line — combat status bar
+│   ├── QuickActionBar.tsx         # 🎯 The Quick Draw — shortcut action buttons
+│   ├── AbilityScoreBar.tsx        # 📊 The Measure — ability score display bar
 │   ├── SettingsModal.tsx          # ⚙️ The Tinkerer's Bench
 │   ├── PortraitGenerator.tsx      # 🎨 The Portrait Gallery
 │   ├── TranscriptionButton.tsx    # 🎙️ The Sending Stone
@@ -202,11 +215,14 @@ npm run preview
 Signed-in users (Google Auth) receive **automatic Firestore synchronization**:
 
 - Characters are stored in the `characters` collection, partitioned by `ownerUid`
+- Campaigns are stored in the `campaigns` collection with subcollections for `members`, `encounters`, `notes`, `templates`, `whispers`, and `rollRequests`
+- Invites are stored in a top-level `invites` collection with shareable 6-character join codes
 - Real-time `onSnapshot` listeners keep multiple browser tabs and devices in sync
 - Writes are **debounced** (500ms) to avoid excessive Firestore operations during heated combat
-- Guest adventurers continue using localStorage with no cloud calls
+- Guest adventurers continue using localStorage for characters with no cloud calls
+- Campaign features require Google authentication (no guest fallback)
 - First-time sign-in detects local characters and offers a one-click **migration** to the cloud
-- Firestore security rules enforce per-user isolation — no adventurer may read another's character sheet
+- Firestore security rules enforce per-user isolation and campaign membership checks
 
 ---
 

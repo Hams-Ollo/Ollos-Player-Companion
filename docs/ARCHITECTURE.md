@@ -4,7 +4,7 @@
 > Within them lies the fundamental structure of the Companion —  
 > its chambers, its passages, and the flow of magical energy throughout."*
 >
-> System design, data flow, and component map for The Player's Companion.
+> System design, data flow, and component map for Ollo's Player Companion.
 
 ---
 
@@ -87,7 +87,7 @@ flowchart TD
 |:----------|:-----|:---------------|
 | `LoginScreen` | `components/LoginScreen.tsx` | Google sign-in button, guest adventurer mode |
 | `CharacterSelection` | `components/CharacterSelection.tsx` | Character list, create/delete, campaign management |
-| `CampaignManager` | `components/CampaignManager.tsx` | Create/join campaigns with shareable codes |
+| `CampaignManager` | `components/CampaignManager.tsx` | Create/join campaigns, DM role confirmation, character assignment, invite management (join code + email) |
 
 ### 🧙 The Creation Layer
 
@@ -102,6 +102,14 @@ flowchart TD
 | `Dashboard` | `components/Dashboard.tsx` | Main character view shell, modal orchestration |
 | `CardStack` | `components/CardStack.tsx` | Swipeable card-stack UI for stat categories |
 | `DetailOverlay` | `components/DetailOverlay.tsx` | Fullscreen detail view wrapper with slide animation |
+
+### 🛡️ The DM Layer
+
+| Component | File | Responsibility |
+|:----------|:-----|:---------------|
+| `DMDashboard` | `components/DMDashboard.tsx` | Tabbed DM view (overview, combat, notes, settings) |
+| `DMPartyOverview` | `components/DMPartyOverview.tsx` | Live party vitals grid with HP bars, AC, passive scores |
+| `PartyRoster` | `components/PartyRoster.tsx` | Party member card grid, fetches characters from Firestore |
 
 ### 🔍 The Detail Views (`components/details/`)
 
@@ -128,6 +136,9 @@ flowchart TD
 | `SettingsModal` | `components/SettingsModal.tsx` | Settings gear icon |
 | `PortraitGenerator` | `components/PortraitGenerator.tsx` | Tap portrait on dashboard |
 | `TranscriptionButton` | `components/TranscriptionButton.tsx` | Mic icon on text fields |
+| `QuickActionBar` | `components/QuickActionBar.tsx` | Context-sensitive shortcut action buttons |
+| `CombatStrip` | `components/CombatStrip.tsx` | At-a-glance combat status bar |
+| `AbilityScoreBar` | `components/AbilityScoreBar.tsx` | Ability score display component |
 
 ---
 
@@ -178,7 +189,8 @@ See `types.ts` for all interfaces (`Stat`, `Skill`, `Attack`, `Feature`, `Spell`
 | Data | Storage (Google Users) | Storage (Guests) | Key / Collection |
 |:-----|:----------------------|:------------------|:-----------------|
 | Characters | Cloud Firestore | `localStorage` | `characters` collection / `vesper_chars` |
-| Campaigns | Cloud Firestore | `localStorage` | `campaigns` collection / `vesper_campaigns` |
+| Campaigns | Cloud Firestore | — *(auth required)* | `campaigns` collection + subcollections |
+| Invites | Cloud Firestore | — *(auth required)* | `invites` collection |
 | Auth Session | Firebase Auth | Firebase Auth / local | Managed by Firebase SDK |
 
 **Firestore Schema:**
@@ -192,6 +204,14 @@ See `types.ts` for all interfaces (`Stat`, `Skill`, `Attack`, `Feature`, `Spell`
 - On auth change: subscribes to Firestore (`onSnapshot`) for Google users, loads localStorage for guests
 - Writes are debounced (500ms) to avoid excessive Firestore operations during combat
 - Failed Firestore connections fall back to localStorage
+
+**Campaign Firestore Schema:**
+- Collection: `campaigns` (top-level) with subcollections: `members`, `encounters`, `notes`, `templates`, `whispers`, `rollRequests`
+- Collection: `invites` (top-level) — join code + email invite tracking
+- Members subcollection stores `uid`, `displayName`, `role` (`dm`/`player`), and optional `characterId`
+- Security rules enforce campaign membership — only members can read/write subcollection data
+- Campaign creation automatically assigns the creator as DM
+- Invite flow: DM shares join code or sends email invite → player accepts → added to members subcollection
 
 ---
 

@@ -438,4 +438,85 @@ const {
 
 ---
 
+## Chapter 10: The Campaign Ledger (`lib/campaigns.ts`)
+
+> *"No adventurer fights alone. The Campaign Ledger tracks every party,  
+> every alliance, and every invitation across the realm."*
+
+### Campaign CRUD
+
+| Function | Signature | Description |
+|:---------|:----------|:------------|
+| `createCampaign(data)` | `(Partial<Campaign>) → Promise<Campaign>` | Creates a new campaign, auto-generates a 6-char join code, adds creator as DM member |
+| `joinCampaignByCode(code, uid, displayName, characterId?)` | `(...) → Promise<Campaign>` | Joins an existing campaign via shareable code |
+| `leaveCampaign(campaignId, uid)` | `(string, string) → Promise<void>` | Removes the user from a campaign's members |
+| `updateCampaign(campaignId, data)` | `(string, Partial<Campaign>) → Promise<void>` | Updates campaign fields (name, description, settings) |
+| `updateMemberCharacter(campaignId, uid, characterId)` | `(string, string, string) → Promise<void>` | Updates which character a player is using in a campaign |
+
+### Invite Functions
+
+| Function | Signature | Description |
+|:---------|:----------|:------------|
+| `createInvite(invite)` | `(Partial<CampaignInvite>) → Promise<CampaignInvite>` | Creates an email-based invite for a campaign |
+| `acceptInvite(inviteId, uid, displayName, characterId?)` | `(...) → Promise<void>` | Accepts a pending invite, adds user to campaign |
+| `declineInvite(inviteId)` | `(string) → Promise<void>` | Declines and removes a pending invite |
+
+### Real-time Subscriptions
+
+| Function | Signature | Description |
+|:---------|:----------|:------------|
+| `subscribeUserCampaigns(uid, onData)` | `(string, callback) → Unsubscribe` | Listens to all campaigns the user belongs to |
+| `subscribeToMembers(campaignId, onData)` | `(string, callback) → Unsubscribe` | Listens to the members subcollection of a campaign |
+| `subscribeToMyInvites(email, onData)` | `(string, callback) → Unsubscribe` | Listens for pending invites addressed to the user's email |
+
+### DM Tools
+
+| Function | Signature | Description |
+|:---------|:----------|:------------|
+| `subscribeToDMWhispers(campaignId, onData)` | `(string, callback) → Unsubscribe` | Listens for DM whisper messages |
+| `subscribeToRollRequests(campaignId, onData)` | `(string, callback) → Unsubscribe` | Listens for DM-requested rolls |
+| `addEncounter(campaignId, encounter)` | `(string, Encounter) → Promise<void>` | Adds an encounter to the campaign |
+| `addSessionNote(campaignId, note)` | `(string, SessionNote) → Promise<void>` | Adds a session note entry |
+
+---
+
+## Chapter 11: The Campaign Keeper (`contexts/CampaignContext.tsx`)
+
+> *"The Keeper holds the state of all campaigns,  
+> providing every component with the knowledge it needs."*
+
+### `useCampaign()` Hook
+
+```typescript
+import { useCampaign } from '../contexts/CampaignContext';
+
+const {
+  campaigns,              // Campaign[] — all campaigns the user belongs to
+  activeCampaign,         // Campaign | null — currently selected campaign
+  setActiveCampaignId,    // (id: string | null) => void
+  members,                // CampaignMember[] — members of the active campaign
+  myRole,                 // 'dm' | 'player' | null
+  isDM,                   // boolean — true if current user is DM of active campaign
+  pendingInvites,         // CampaignInvite[] — invites awaiting user response
+  createCampaign,         // (data: Partial<Campaign>) => Promise<Campaign>
+  joinByCode,             // (code: string, characterId?: string) => Promise<void>
+  acceptInvite,           // (inviteId: string, characterId?: string) => Promise<void>
+  declineInvite,          // (inviteId: string) => Promise<void>
+  sendInvite,             // (email: string) => Promise<void>
+  updateMemberCharacter,  // (characterId: string) => Promise<void>
+  leaveCampaign,          // () => Promise<void>
+  isLoading,              // boolean
+} = useCampaign();
+```
+
+**Key behaviors:**
+- Subscribes to the user's campaigns on mount, updates in real-time
+- When `activeCampaignId` changes, subscribes to that campaign's `members` subcollection
+- `isDM` is derived from comparing `activeCampaign.dmId` to the current user's UID
+- `pendingInvites` listens on the user's email for incoming campaign invites
+- `sendInvite` creates an invite record addressed to the given email for the active campaign
+- `updateMemberCharacter` updates the current user's character assignment in the active campaign
+
+---
+
 <p align="center"><em>⚔️ Thus concludes the Spellbook. Wield these incantations wisely. ⚔️</em></p>

@@ -4,7 +4,7 @@
 > read these bylaws. Every good adventuring company has rules, and these  
 > will keep our codebase as organized as a wizard's spellbook."*
 >
-> Guidelines for contributing to The Player's Companion.
+> Guidelines for contributing to Ollo's Player Companion.
 
 ---
 
@@ -15,8 +15,8 @@
 *Create your own copy of the repository and pull it to your local realm:*
 
 ```bash
-git clone https://github.com/<your-username>/The-Players-Companion.git
-cd The-Players-Companion
+git clone https://github.com/<your-username>/Ollos-Player-Companion.git
+cd Ollos-Player-Companion
 npm install
 ```
 
@@ -200,10 +200,12 @@ Open a GitHub issue with:
 |:------|:-----------|:------------|
 | 📖 Spellbook Management | 🟡 Medium | Prepare/swap spells on long rest for prepared casters |
 | 📦 Export/Import JSON | 🟢 Easy | Download/upload character data as JSON files |
-| 🗺️ Campaign Firestore Sync | 🔴 Hard | Migrate campaigns to Firestore (characters already done) |
-| 🛡️ Conditions Tracker | 🟡 Medium | Track active conditions with mechanical effects |
+| �️ Conditions Tracker | 🟡 Medium | Track active conditions with mechanical effects |
 | 🔐 Backend API Proxy | 🔴 Hard | Move Gemini API key to a server-side proxy |
 | 🎯 Subclass Selection | 🟡 Medium | UI for choosing subclass at appropriate level |
+| 🔄 localStorage Migration | 🟡 Medium | Migrate campaign localStorage data to Firestore |
+| ☁️ Cloud Functions | 🔴 Hard | Server-side campaign operations (invite emails, notifications) |
+| 📊 Character Diff Badges | 🟡 Medium | Show visual diff indicators when stats change during level-up |
 
 ---
 
