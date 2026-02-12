@@ -19,6 +19,13 @@ const CardStack: React.FC<CardStackProps> = ({ title, color, children, onClick, 
     purple: "border-l-purple-600 shadow-purple-900/10 hover:border-purple-500",
     amber: "border-l-amber-600 shadow-amber-900/10 hover:border-amber-500",
     cyan: "border-l-cyan-600 shadow-cyan-900/10 hover:border-cyan-500",
+    green: "border-l-green-600 shadow-green-900/10 hover:border-green-500",
+    rose: "border-l-rose-600 shadow-rose-900/10 hover:border-rose-500",
+    violet: "border-l-violet-600 shadow-violet-900/10 hover:border-violet-500",
+    sky: "border-l-sky-600 shadow-sky-900/10 hover:border-sky-500",
+    emerald: "border-l-emerald-600 shadow-emerald-900/10 hover:border-emerald-500",
+    teal: "border-l-teal-600 shadow-teal-900/10 hover:border-teal-500",
+    slate: "border-l-slate-500 shadow-slate-900/10 hover:border-slate-400",
   };
 
   const glowMap: Record<string, string> = {
@@ -28,6 +35,13 @@ const CardStack: React.FC<CardStackProps> = ({ title, color, children, onClick, 
     purple: "group-hover:shadow-purple-500/5",
     amber: "group-hover:shadow-amber-500/5",
     cyan: "group-hover:shadow-cyan-500/5",
+    green: "group-hover:shadow-green-500/5",
+    rose: "group-hover:shadow-rose-500/5",
+    violet: "group-hover:shadow-violet-500/5",
+    sky: "group-hover:shadow-sky-500/5",
+    emerald: "group-hover:shadow-emerald-500/5",
+    teal: "group-hover:shadow-teal-500/5",
+    slate: "group-hover:shadow-slate-400/5",
   };
 
   const borderColor = colorMap[color] || "border-l-zinc-700";

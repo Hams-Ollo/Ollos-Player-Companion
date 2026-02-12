@@ -65,11 +65,22 @@ export const recalculateCharacterStats = (data: CharacterData): CharacterData =>
   const shield = inventory.items.find(i => i.name === 'Shield' && i.equipped);
   
   if (armor) {
-    if (armor.name.includes("Leather")) ac = 11 + stats.DEX.modifier;
-    else if (armor.name.includes("Studded")) ac = 12 + stats.DEX.modifier;
-    else if (armor.name.includes("Chain Shirt")) ac = 13 + Math.min(2, stats.DEX.modifier);
-    else if (armor.name.includes("Scale Mail")) ac = 14 + Math.min(2, stats.DEX.modifier);
-    else if (armor.name.includes("Plate")) ac = 18;
+    const name = armor.name.toLowerCase();
+    // Light Armor (add full DEX)
+    if (name.includes('padded')) ac = 11 + stats.DEX.modifier;
+    else if (name.includes('studded')) ac = 12 + stats.DEX.modifier;
+    else if (name.includes('leather')) ac = 11 + stats.DEX.modifier;
+    // Medium Armor (add DEX, max +2)
+    else if (name.includes('hide')) ac = 12 + Math.min(2, stats.DEX.modifier);
+    else if (name.includes('chain shirt')) ac = 13 + Math.min(2, stats.DEX.modifier);
+    else if (name.includes('scale mail')) ac = 14 + Math.min(2, stats.DEX.modifier);
+    else if (name.includes('breastplate')) ac = 14 + Math.min(2, stats.DEX.modifier);
+    else if (name.includes('half plate')) ac = 15 + Math.min(2, stats.DEX.modifier);
+    // Heavy Armor (no DEX)
+    else if (name.includes('ring mail')) ac = 14;
+    else if (name.includes('chain mail')) ac = 16;
+    else if (name.includes('splint')) ac = 17;
+    else if (name.includes('plate')) ac = 18;
   }
   if (shield) ac += 2;
 
@@ -87,7 +98,7 @@ export const recalculateCharacterStats = (data: CharacterData): CharacterData =>
             name: w.name,
             bonus: mod + profBonus,
             damage: `${damageDice}${mod >= 0 ? '+' : ''}${mod}`,
-            type: w.notes?.split(' ')[1] || 'Physical',
+            type: (w.notes?.split(' ')[1] || 'Physical').replace(/,/g, ''),
             range: w.notes?.match(/Range (\d+\/\d+)/)?.[1],
             properties: w.notes?.split(', ')
         };

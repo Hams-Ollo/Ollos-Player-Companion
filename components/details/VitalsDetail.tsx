@@ -1,5 +1,5 @@
-import React from 'react';
-import { Heart, Shield, Zap, Eye, Wind, Minus, Plus, ArrowUpCircle, Moon } from 'lucide-react';
+import React, { useState } from 'react';
+import { Heart, Shield, Zap, Eye, Wind, Minus, Plus, ArrowUpCircle, Moon, X } from 'lucide-react';
 import { CharacterData } from '../../types';
 
 interface VitalsDetailProps {
@@ -11,6 +11,7 @@ interface VitalsDetailProps {
 
 const VitalsDetail: React.FC<VitalsDetailProps> = ({ data, onUpdate, onLevelUp, onRest }) => {
   const hpPercent = (data.hp.current / data.hp.max) * 100;
+  const [hpInput, setHpInput] = useState<{ mode: 'damage' | 'heal'; value: string } | null>(null);
 
   const handleHealthChange = (amount: number) => {
     const newCurrent = Math.min(data.hp.max, Math.max(0, data.hp.current + amount));
@@ -22,13 +23,12 @@ const VitalsDetail: React.FC<VitalsDetailProps> = ({ data, onUpdate, onLevelUp, 
     });
   };
 
-  const handleManualEntry = (type: 'damage' | 'heal') => {
-    const input = window.prompt(`Enter amount to ${type}:`);
-    if (!input) return;
-    const amount = parseInt(input);
-    if (isNaN(amount)) return;
-    
-    handleHealthChange(type === 'damage' ? -amount : amount);
+  const applyHpChange = () => {
+    if (!hpInput) return;
+    const amount = parseInt(hpInput.value);
+    if (isNaN(amount) || amount <= 0) { setHpInput(null); return; }
+    handleHealthChange(hpInput.mode === 'damage' ? -amount : amount);
+    setHpInput(null);
   };
 
   return (
@@ -66,7 +66,7 @@ const VitalsDetail: React.FC<VitalsDetailProps> = ({ data, onUpdate, onLevelUp, 
       </div>
 
       {/* HP Card */}
-      <div className="bg-zinc-800 rounded-xl p-6 border border-zinc-700 shadow-md">
+      <div className="bg-zinc-800 rounded-xl p-6 border border-zinc-700 shadow-md relative">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 text-green-400">
             <Heart className="fill-current" />
@@ -76,24 +76,55 @@ const VitalsDetail: React.FC<VitalsDetailProps> = ({ data, onUpdate, onLevelUp, 
         </div>
         <div className="w-full bg-zinc-900 rounded-full h-4 overflow-hidden border border-zinc-700">
           <div 
-            className="bg-green-500 h-full transition-all duration-500" 
+            className={`h-full transition-all duration-500 ${hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500'}`}
             style={{ width: `${hpPercent}%` }}
           />
         </div>
-        <div className="flex justify-between mt-4 gap-2">
-          <button 
-            onClick={() => handleManualEntry('damage')}
-            className="flex-1 py-3 bg-red-900/20 hover:bg-red-900/40 text-red-200 border border-red-900/50 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
-          >
-            <Minus size={16} /> Damage
-          </button>
-          <button 
-            onClick={() => handleManualEntry('heal')}
-            className="flex-1 py-3 bg-green-900/20 hover:bg-green-900/40 text-green-200 border border-green-900/50 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
-          >
-            <Plus size={16} /> Heal
-          </button>
-        </div>
+
+        {/* Inline HP input */}
+        {hpInput ? (
+          <div className="flex items-center gap-2 mt-4">
+            <span className={`text-sm font-bold ${hpInput.mode === 'damage' ? 'text-red-400' : 'text-green-400'}`}>
+              {hpInput.mode === 'damage' ? 'Damage' : 'Heal'}
+            </span>
+            <input
+              type="number"
+              autoFocus
+              min="0"
+              value={hpInput.value}
+              onChange={(e) => setHpInput({ ...hpInput, value: e.target.value })}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyHpChange(); if (e.key === 'Escape') setHpInput(null); }}
+              className="flex-1 bg-zinc-900 border border-zinc-600 rounded-lg px-3 py-2 text-center text-white font-mono font-bold text-lg focus:outline-none focus:border-zinc-400"
+              placeholder="0"
+            />
+            <button
+              onClick={applyHpChange}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                hpInput.mode === 'damage' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-green-600 hover:bg-green-500 text-white'
+              }`}
+            >
+              Apply
+            </button>
+            <button onClick={() => setHpInput(null)} className="p-2 text-zinc-500 hover:text-white transition-colors">
+              <X size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex justify-between mt-4 gap-2">
+            <button 
+              onClick={() => setHpInput({ mode: 'damage', value: '' })}
+              className="flex-1 py-3 bg-red-900/20 hover:bg-red-900/40 text-red-200 border border-red-900/50 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
+            >
+              <Minus size={16} /> Damage
+            </button>
+            <button 
+              onClick={() => setHpInput({ mode: 'heal', value: '' })}
+              className="flex-1 py-3 bg-green-900/20 hover:bg-green-900/40 text-green-200 border border-green-900/50 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
+            >
+              <Plus size={16} /> Heal
+            </button>
+          </div>
+        )}
       </div>
 
       {/* AC & Speed Row */}

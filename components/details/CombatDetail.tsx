@@ -11,6 +11,7 @@ const CombatDetail: React.FC<CombatDetailProps> = ({ data, onRoll }) => {
   const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
 
   const sneakAttack = data.features.find(f => f.name === 'Sneak Attack');
+  const sneakDice = Math.ceil(data.level / 2); // Scales: 1d6 at 1, 2d6 at 3, etc.
 
   const handleRollAttack = (attack: Attack) => {
     onRoll(`Attack (${attack.name})`, attack.bonus, '1d20');
@@ -75,7 +76,7 @@ const CombatDetail: React.FC<CombatDetailProps> = ({ data, onRoll }) => {
                     <Crosshair size={18} />
                     {sneakAttack.name}
                   </h4>
-                  <span className="font-mono font-bold text-white bg-indigo-600 px-2 py-1 rounded text-sm">1d6</span>
+                  <span className="font-mono font-bold text-white bg-indigo-600 px-2 py-1 rounded text-sm">{sneakDice}d6</span>
                 </div>
                 <p className="text-sm text-indigo-200/70 truncate">
                   {expandedFeature === 'sneak' ? '' : sneakAttack.description}
@@ -87,7 +88,7 @@ const CombatDetail: React.FC<CombatDetailProps> = ({ data, onRoll }) => {
                 <button 
                    onClick={(e) => {
                      e.stopPropagation();
-                     onRoll("Sneak Attack", 0, "1d6");
+                     onRoll("Sneak Attack", 0, `${sneakDice}d6`);
                    }}
                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded flex items-center gap-1"
                 >

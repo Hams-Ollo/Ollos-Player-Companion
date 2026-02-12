@@ -33,6 +33,13 @@ const DetailOverlay: React.FC<DetailOverlayProps> = ({ isOpen, type, onClose, ti
     purple: "bg-purple-950/80 border-b-purple-900/50 text-purple-100",
     amber: "bg-amber-950/80 border-b-amber-900/50 text-amber-100",
     cyan: "bg-cyan-950/80 border-b-cyan-900/50 text-cyan-100",
+    green: "bg-green-950/80 border-b-green-900/50 text-green-100",
+    rose: "bg-rose-950/80 border-b-rose-900/50 text-rose-100",
+    violet: "bg-violet-950/80 border-b-violet-900/50 text-violet-100",
+    sky: "bg-sky-950/80 border-b-sky-900/50 text-sky-100",
+    emerald: "bg-emerald-950/80 border-b-emerald-900/50 text-emerald-100",
+    teal: "bg-teal-950/80 border-b-teal-900/50 text-teal-100",
+    slate: "bg-slate-900/80 border-b-slate-700/50 text-slate-100",
   };
 
   const headerClass = headerColors[color] || "bg-zinc-900 border-b-zinc-800";

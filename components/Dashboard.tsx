@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { CharacterData, StackType, RollResult, Item, Feature, Spell, RollMode } from '../types';
+import { DND_CLASSES } from '../constants';
 import { rollDice } from '../lib/dice';
+import { getClassTheme, SECTION_COLORS } from '../lib/themes';
 import CardStack from './CardStack';
 import DetailOverlay from './DetailOverlay';
+import AbilityScoreBar from './AbilityScoreBar';
+import CombatStrip from './CombatStrip';
+import QuickActionBar from './QuickActionBar';
 import VitalsDetail from './details/VitalsDetail';
 import CombatDetail from './details/CombatDetail';
 import SkillsDetail from './details/SkillsDetail';
@@ -21,7 +26,7 @@ import RestModal from './RestModal';
 import PartyRoster from './PartyRoster';
 import ErrorBoundary from './ErrorBoundary';
 import { useCampaign } from '../contexts/CampaignContext';
-import { Heart, Sword, Brain, Sparkles, Backpack, Edit2, MessageSquare, Settings, LogOut, Book, ShoppingBag, Wand2, ChevronDown, Users, Swords } from 'lucide-react';
+import { Heart, Sword, Brain, Edit2, MessageSquare, Settings, LogOut, Book, ShoppingBag, Wand2, Users, Swords, Scroll, Shield } from 'lucide-react';
 
 interface DashboardProps {
   data: CharacterData;
@@ -43,6 +48,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
   const [showRest, setShowRest] = useState(false);
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<Item | Feature | Spell | null>(null);
 
+  const theme = getClassTheme(data.class);
+  const classData = DND_CLASSES.find(c => c.name.toLowerCase() === data.class?.toLowerCase());
+  const isCaster = classData?.isCaster ?? false;
+
   const handleRoll = (label: string, baseModifier: number, expression: string) => {
     const result = rollDice(expression, baseModifier, rollMode);
     setRollResult({ ...result, label });
@@ -50,46 +59,78 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
 
   const totalSlots = data.spellSlots.reduce((sum, s) => sum + s.max, 0);
   const currentSlots = data.spellSlots.reduce((sum, s) => sum + s.current, 0);
+  const equippedCount = data.inventory.items.filter(i => i.equipped).length;
+  const profBonus = Math.ceil(data.level / 4) + 1;
+
+  // Top 3 skills sorted by modifier
+  const topSkills = [...data.skills].sort((a, b) => b.modifier - a.modifier).slice(0, 3);
+
+  // Overlay color — derive from activeStack section
+  const overlayColor = activeStack ? (SECTION_COLORS[activeStack] || 'red') : 'red';
+
+  // Overlay title — nicer labels than raw type names
+  const overlayTitles: Record<string, string> = {
+    vitals: 'Vitals',
+    combat: 'Combat',
+    skills: 'Skills & Saves',
+    features: 'Class Features',
+    spells: 'Spellbook',
+    inventory: 'Inventory',
+    journal: 'Journal',
+    party: 'Party',
+  };
 
   return (
     <div className="min-h-screen bg-obsidian text-zinc-300 pb-20 selection:bg-indigo-500/30">
-       <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-indigo-900/10 via-obsidian/50 to-obsidian pointer-events-none" />
+       {/* Class-themed gradient backdrop */}
+       <div className={`absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b ${theme.headerGradient} pointer-events-none`} />
 
-       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 lg:pt-12 relative z-10">
-         {/* Character Header */}
-         <header className="flex flex-wrap items-center gap-4 lg:gap-8 mb-10 lg:mb-16">
-            <button onClick={onExit} className="p-2 text-zinc-600 hover:text-white transition-colors">
+       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 lg:pt-10 relative z-10 space-y-5">
+
+         {/* ═══════════════════ HERO HEADER ═══════════════════ */}
+         <header className="flex flex-wrap items-center gap-4 lg:gap-6">
+            <button onClick={onExit} className="p-2 text-zinc-600 hover:text-white transition-colors" title="Exit to Hall">
                 <LogOut size={22} className="rotate-180" />
             </button>
-            
+
+            {/* Portrait */}
             <div className="relative group cursor-pointer" onClick={() => setShowPortraitGen(true)}>
-              <div className="w-20 h-20 lg:w-28 lg:h-28 rounded-3xl overflow-hidden border-2 border-white/5 shadow-2xl ring-1 ring-white/10 group-hover:ring-amber-500/50 transition-all duration-500">
+              <div className={`w-18 h-18 lg:w-24 lg:h-24 rounded-2xl overflow-hidden border-2 border-white/5 shadow-2xl ring-1 ${theme.ring} group-hover:ring-2 transition-all duration-500`}>
                  <img src={data.portraitUrl} alt={data.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Edit2 size={20} className="text-white" />
+                    <Edit2 size={18} className="text-white" />
                  </div>
               </div>
-              <div className="absolute -bottom-2 -right-2 bg-obsidian text-[10px] font-black px-2 py-1 rounded-lg border border-zinc-800 shadow-xl text-amber-500 tracking-tighter">
+              <div className={`absolute -bottom-1.5 -right-1.5 ${theme.badge} border text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-xl tracking-tighter`}>
                 LVL {data.level}
               </div>
             </div>
 
+            {/* Name / Class / Subclass */}
             <div className="flex-grow min-w-0">
-              <h1 className="text-3xl lg:text-5xl font-display font-black text-white leading-none tracking-tight truncate drop-shadow-md">{data.name}</h1>
-              <div className="flex items-center gap-3 mt-2">
-                <span className="text-zinc-500 font-bold text-xs uppercase tracking-widest">{data.race} &bull; {data.class}</span>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-black text-white leading-none tracking-tight truncate drop-shadow-md">{data.name}</h1>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="text-zinc-500 font-bold text-xs uppercase tracking-widest">{data.race}</span>
+                <span className="text-zinc-700">&bull;</span>
+                <span className={`font-bold text-xs uppercase tracking-widest ${theme.text}`}>{data.class}</span>
+                {data.subclass && (
+                  <>
+                    <span className="text-zinc-700">&bull;</span>
+                    <span className="text-zinc-600 text-xs uppercase tracking-widest">{data.subclass}</span>
+                  </>
+                )}
               </div>
             </div>
 
+            {/* Roll Mode + Action Buttons */}
             <div className="flex items-center gap-2 w-full sm:w-auto sm:justify-end">
-                {/* Roll Mode Selector */}
                 <div className="flex p-1 bg-zinc-900 border border-zinc-800 rounded-xl">
                    {(['advantage', 'normal', 'disadvantage'] as RollMode[]).map((mode) => (
                      <button
                         key={mode}
                         onClick={() => setRollMode(mode)}
                         className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all ${
-                          rollMode === mode 
+                          rollMode === mode
                           ? mode === 'advantage' ? 'bg-green-600 text-white shadow-lg shadow-green-900/40' :
                             mode === 'disadvantage' ? 'bg-red-600 text-white shadow-lg shadow-red-900/40' :
                             'bg-zinc-700 text-white'
@@ -100,93 +141,106 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                      </button>
                    ))}
                 </div>
-
-                <div className="h-10 w-px bg-zinc-800 mx-2" />
-
-                <button onClick={() => setShowAskDM(true)} className="p-3 bg-amber-950/20 text-amber-500 border border-amber-500/20 rounded-xl hover:bg-amber-900/40 transition-all">
-                    <MessageSquare size={20} className="mx-auto" />
+                <div className="h-10 w-px bg-zinc-800 mx-1" />
+                <button onClick={() => setShowAskDM(true)} className="p-2.5 bg-amber-950/20 text-amber-500 border border-amber-500/20 rounded-xl hover:bg-amber-900/40 transition-all" title="Ask the DM">
+                    <MessageSquare size={18} />
                 </button>
-                <button onClick={() => setShowSettings(true)} className="p-3 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-xl hover:text-white transition-all">
-                    <Settings size={20} className="mx-auto" />
+                <button onClick={() => setShowSettings(true)} className="p-2.5 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-xl hover:text-white transition-all" title="Settings">
+                    <Settings size={18} />
                 </button>
             </div>
          </header>
 
-         {/* Grid Layout */}
-         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
-            
-            {/* Vitals - Large span */}
-            <div className="col-span-2 h-44">
-                <CardStack type="vitals" title="Vitality" color="red" onClick={() => setActiveStack('vitals')} icon={<Heart size={18} />}>
-                    <div className="flex items-center justify-around h-full">
-                        <div className="text-center">
-                            <span className="block text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-1">Health Points</span>
-                            <div className="flex items-baseline justify-center gap-1">
-                                <span className="text-4xl font-mono text-green-400 font-black">{data.hp.current}</span>
-                                <span className="text-lg text-zinc-600 font-bold">/ {data.hp.max}</span>
-                            </div>
+         {/* ═══════════════════ ABILITY SCORE BAR ═══════════════════ */}
+         <AbilityScoreBar data={data} onRoll={handleRoll} />
+
+         {/* ═══════════════════ COMBAT STRIP ═══════════════════ */}
+         <CombatStrip
+           data={data}
+           onUpdate={onUpdateData}
+           onRollInitiative={() => handleRoll('Initiative', data.initiative, '1d20')}
+           isCaster={isCaster}
+         />
+
+         {/* ═══════════════════ QUICK ACTION BAR ═══════════════════ */}
+         <QuickActionBar data={data} onRoll={handleRoll} />
+
+         {/* ═══════════════════ SECTION CARDS ═══════════════════ */}
+         <div className="grid grid-cols-2 gap-3 lg:gap-4">
+
+            {/* Skills & Saves */}
+            <div className="h-36">
+                <CardStack type="skills" title="Skills & Saves" color="blue" onClick={() => setActiveStack('skills')} icon={<Brain size={16} />}>
+                    <div className="space-y-1">
+                      {topSkills.map(s => (
+                        <div key={s.name} className="flex items-center justify-between text-xs">
+                          <span className="text-zinc-500 truncate">{s.name}</span>
+                          <span className="font-mono font-bold text-blue-400">{s.modifier >= 0 ? '+' : ''}{s.modifier}</span>
                         </div>
-                        <div className="w-px h-12 bg-zinc-800" />
-                        <div className="text-center">
-                            <span className="block text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-1">Defense</span>
-                            <span className="text-4xl font-display font-black text-white">{data.ac}</span>
-                        </div>
+                      ))}
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-zinc-800">
+                        <span className="text-zinc-600 text-[10px] uppercase tracking-wider">Prof. Bonus</span>
+                        <span className="font-mono font-bold text-zinc-400">+{profBonus}</span>
+                      </div>
                     </div>
                 </CardStack>
             </div>
 
-            {/* Initiative */}
-            <div className="h-44">
-                <CardStack type="combat" title="Initiative" color="orange" onClick={() => handleRoll('Initiative', data.initiative, '1d20')} icon={<Sword size={18} />}>
-                    <div className="text-center">
-                        <span className="text-5xl font-display font-black text-orange-400 drop-shadow-[0_0_15px_rgba(251,146,60,0.2)]">
-                            {data.initiative >= 0 ? '+' : ''}{data.initiative}
-                        </span>
-                        <p className="text-[9px] text-zinc-600 font-bold uppercase mt-2">Tap to Roll</p>
-                    </div>
-                </CardStack>
-            </div>
-
-            {/* Proficiency */}
-            <div className="h-44">
-                <CardStack type="skills" title="Talents" color="blue" onClick={() => setActiveStack('skills')} icon={<Brain size={18} />}>
+            {/* Class Features */}
+            <div className="h-36">
+                <CardStack type="features" title="Features" color="purple" onClick={() => setActiveStack('features')} icon={<Scroll size={16} />}>
                     <div className="text-center space-y-1">
-                        <span className="text-4xl font-display font-black text-blue-400">
-                            +{Math.ceil(data.level / 4) + 1}
-                        </span>
-                        <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-tighter">Proficiency Bonus</p>
+                      <span className="text-2xl font-display font-black text-purple-400">{data.features.length}</span>
+                      <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider">
+                        {data.features[0]?.name || 'No features yet'}
+                      </p>
                     </div>
                 </CardStack>
             </div>
 
-            {/* row 2 */}
-            <div className="col-span-2 h-40">
-                 <CardStack type="spells" title="Grimoire" color="cyan" onClick={() => setActiveStack('spells')} icon={<Wand2 size={18} />}>
-                    <div className="flex justify-between items-center px-2">
-                        <div className="space-y-1">
-                            <span className="block text-2xl font-mono text-cyan-400 font-black">{currentSlots}/{totalSlots}</span>
-                            <span className="text-[10px] text-zinc-600 uppercase font-black tracking-widest">Slots Available</span>
-                        </div>
-                        <div className="text-right">
-                             <span className="block text-sm font-bold text-white truncate max-w-[120px]">{data.spells[0]?.name || "N/A"}</span>
-                             <span className="text-[9px] text-zinc-600 uppercase font-black">Top spell</span>
-                        </div>
+            {/* Spellbook — only for casters */}
+            {isCaster && (
+              <div className="h-36">
+                <CardStack type="spells" title="Spellbook" color="cyan" onClick={() => setActiveStack('spells')} icon={<Wand2 size={16} />}>
+                    <div className="space-y-1">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-2xl font-mono text-cyan-400 font-black">{currentSlots}</span>
+                        <span className="text-sm text-zinc-600 font-bold">/ {totalSlots}</span>
+                      </div>
+                      <p className="text-[9px] text-zinc-600 uppercase font-black tracking-widest">Spell Slots</p>
+                    </div>
+                </CardStack>
+              </div>
+            )}
+
+            {/* Inventory */}
+            <div className="h-36">
+                <CardStack type="inventory" title="Inventory" color="amber" onClick={() => setActiveStack('inventory')} icon={<ShoppingBag size={16} />}>
+                    <div className="space-y-1">
+                      <span className="block text-lg font-mono font-black text-amber-400">{data.inventory.gold.toFixed(0)} GP</span>
+                      <p className="text-[9px] text-zinc-600 uppercase font-black tracking-widest">
+                        {equippedCount} items equipped
+                      </p>
                     </div>
                 </CardStack>
             </div>
 
-            <div className="h-40">
-                <CardStack type="inventory" title="Inventory" color="amber" onClick={() => setActiveStack('inventory')} icon={<ShoppingBag size={18} />}>
-                    <div className="text-center">
-                         <span className="block text-xl font-mono font-black text-amber-400">{data.inventory.gold.toFixed(0)} GP</span>
-                         <p className="text-[9px] text-zinc-600 uppercase font-black mt-1">Currency</p>
+            {/* Combat (Attacks detail) */}
+            <div className="h-36">
+                <CardStack type="combat" title="Combat" color="orange" onClick={() => setActiveStack('combat')} icon={<Sword size={16} />}>
+                    <div className="space-y-1">
+                      <span className="text-2xl font-display font-black text-orange-400">{data.attacks.length}</span>
+                      <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-wider truncate">
+                        {data.attacks[0]?.name || 'No weapons'}
+                      </p>
                     </div>
                 </CardStack>
             </div>
 
-            <div className="h-40">
-                <CardStack type="journal" title="Journal" color="purple" onClick={() => setActiveStack('journal')} icon={<Book size={18} />}>
-                    <div className="text-center opacity-50 px-2 overflow-hidden">
+            {/* Journal */}
+            <div className="h-36">
+                <CardStack type="journal" title="Journal" color="purple" onClick={() => setActiveStack('journal')} icon={<Book size={16} />}>
+                    <div className="text-center opacity-60 px-1 overflow-hidden">
                         <p className="text-[10px] italic leading-tight line-clamp-3">
                            {data.journal[0]?.content || "Your legend begins here..."}
                         </p>
@@ -194,13 +248,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                 </CardStack>
             </div>
 
-            {/* Party Card — only shown when in a campaign */}
+            {/* Party Card — campaign only */}
             {activeCampaign && (
-              <div className="col-span-2 h-40">
-                <CardStack type="party" title="Party" color="green" onClick={() => setActiveStack('party')} icon={<Users size={18} />}>
-                  <div className="flex justify-between items-center px-2">
+              <div className="col-span-2 h-32">
+                <CardStack type="party" title="Party" color="green" onClick={() => setActiveStack('party')} icon={<Users size={16} />}>
+                  <div className="flex justify-between items-center px-1">
                     <div className="space-y-1">
-                      <span className="block text-lg font-bold text-green-400 truncate max-w-[160px]">{activeCampaign.name}</span>
+                      <span className="block text-base font-bold text-green-400 truncate max-w-[160px]">{activeCampaign.name}</span>
                       <span className="text-[10px] text-zinc-600 uppercase font-black tracking-widest">
                         {members.length} Member{members.length !== 1 ? 's' : ''} &middot; {isDM ? 'DM' : 'Player'}
                       </span>
@@ -208,7 +262,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                     <div className="text-right">
                       {activeEncounter ? (
                         <div className="flex items-center gap-2">
-                          <Swords size={16} className="text-red-400 animate-pulse" />
+                          <Swords size={14} className="text-red-400 animate-pulse" />
                           <span className="text-xs font-bold text-red-400">In Combat</span>
                         </div>
                       ) : (
@@ -222,9 +276,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
          </div>
        </div>
 
-       {/* Overlays */}
+       {/* ═══════════════════ OVERLAYS ═══════════════════ */}
        {activeStack && (
-         <DetailOverlay isOpen={!!activeStack} onClose={() => setActiveStack(null)} type={activeStack} title={activeStack.toUpperCase()} color="indigo">
+         <DetailOverlay isOpen={!!activeStack} onClose={() => setActiveStack(null)} type={activeStack} title={overlayTitles[activeStack] || activeStack.toUpperCase()} color={overlayColor}>
             {activeStack === 'vitals' && <VitalsDetail data={data} onUpdate={onUpdateData} onLevelUp={() => setShowLevelUp(true)} onRest={() => setShowRest(true)} />}
             {activeStack === 'combat' && <CombatDetail data={data} onRoll={handleRoll} />}
             {activeStack === 'skills' && <SkillsDetail data={data} onRoll={handleRoll} />}
@@ -236,7 +290,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
          </DetailOverlay>
        )}
 
-       {/* Utility Modals */}
+       {/* ═══════════════════ UTILITY MODALS ═══════════════════ */}
        <DiceRollModal result={rollResult} onClose={() => setRollResult(null)} />
        {showPortraitGen && <PortraitGenerator currentPortrait={data.portraitUrl} onUpdate={onUpdatePortrait} onClose={() => setShowPortraitGen(false)} characterDescription={`${data.race} ${data.class}`} />}
        {showAskDM && <AskDMModal onClose={() => setShowAskDM(false)} />}
