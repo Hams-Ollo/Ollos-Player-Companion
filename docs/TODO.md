@@ -6,7 +6,7 @@
 >
 > Living document tracking planned features, enhancements, and community requests.
 >
-> **Scribed last:** 2026-02-12 (evening)
+> **Scribed last:** 2026-02-12 (security hardening roadmap added)
 
 ---
 
@@ -33,6 +33,7 @@ Phase 0: Foundation Cleanup           ██████████████
 Phase 1: Firestore Campaign Foundation    ████████████████████████████████████████  ✅ CLEARED
 UI Overhaul & API Cleanup                ████████████████████████████████████████  ✅ CLEARED
 Phase 2: Campaign Context & Party UI          ██████████████████░░░░░░░░░░░░░░░░  ← WE ARE HERE
+🔒 Security Hardening (BLOCKS PUBLIC LAUNCH)   ░░░░░░░░████████░░░░░░░░░░░░░░░░  ← NEXT PRIORITY
 Phase 3: Combat & Initiative Tracker                  ░░░░░░░░████████░░░░░░░░░░
 Phase 4: DM Journal, NPCs & Items                    ░░░░░░░░████████░░░░░░░░░░
 Phase 4b: Custom Items & Loot                        ░░░░░░░░░░██████░░░░░░░░░░
@@ -40,7 +41,7 @@ Phase 5: AI DM Co-Pilot                                      ░░░░░░�
 Phase 6: Multiplayer Communication                            ░░░░░░░░████████░░
 Phase 7: Higher-Level Char Creation                                   ░░████████
 Character Export (independent)         ░░░░░░░░░░░░░░ (can ship anytime)
-                                       v0.3.1   v0.4.0   v0.5.0  v0.5.5  v0.6.0  v0.7.0
+                                       v0.3.1   v0.4.0  v0.4.1  v0.5.0  v0.5.5  v0.6.0  v0.7.0
 ```
 
 ### Phase Dependencies
@@ -48,10 +49,12 @@ Character Export (independent)         ░░░░░░░░░░░░░�
 > *Some dungeons must be cleared before others become accessible.*
 
 ```
-Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ Phase 3 (Combat)
+Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST clear before public sharing)
+                                │      │
+                                │      └→ Phase 3 (Combat)
                                 ├→ Phase 4 (Journal/NPCs) ─┬→ Phase 4b (Items & Loot)
-                                ├→ Phase 6 (Comms)        │
-                                │                          └→ Phase 5 (AI Co-Pilot)
+                                ├→ Phase 6 (Comms)         │
+                                │                           └→ Phase 5 (AI Co-Pilot)
                                 └→ Phase 7 (Char Creation)
 Character Export (no deps) ─→ can ship independently at any time
 ```
@@ -63,6 +66,7 @@ Character Export (no deps) ─→ can ship independently at any time
 | v0.3.1 | Phase 0 | Foundation — utilities, dice, conditions | ✅ Cleared |
 | v0.3.2 | UI Overhaul | Class theming, Dashboard rewrite, centralized AI | ✅ Cleared |
 | v0.4.0 | Phases 1–2 | Firestore campaigns, party roster, DM overview | 🟨 In Progress |
+| v0.4.1 | 🔒 Security | API proxy, rate limiting, debug cleanup, Firestore hardening | ⬜ Not Started |
 | v0.4.x | Character Export | JSON export/import, PDF sheet, FoundryVTT/D&D Beyond | ⬜ Not Started |
 | v0.5.0 | Phases 3–4 | Combat tracker, encounter builder, DM journal, NPC registry | ⬜ Not Started |
 | v0.5.5 | Phase 4b | DM item builder, SRD magic items, loot sessions | ⬜ Not Started |
@@ -86,7 +90,7 @@ Character Export (no deps) ─→ can ship independently at any time
 - [x] **Add `CONDITIONS` reference map** — All 15 D&D 5e conditions with mechanical effects
 - [x] **Add encounter difficulty thresholds** — DMG XP budget tables (Easy/Medium/Hard/Deadly per level 1–20)
 - [x] **Expand `types.ts` with multiplayer models** — `CampaignMember`, `CombatEncounter`, `Combatant`, `DMNote`, `Whisper`, `RollRequest`, etc.
-- [ ] **Backend API proxy** — Move Gemini API key to a server-side proxy
+- [ ] **Backend API proxy** — Move Gemini API key to a server-side proxy → _Tracked in v0.4.1 Security Hardening_
 
 ### 🟡 Medium
 
@@ -120,13 +124,71 @@ Character Export (no deps) ─→ can ship independently at any time
 
 ### 🟡 Medium
 
-- [ ] **Cloud Functions layer** — `joinByCode`, `fetchPartyCharacters`, `sendInvite`, `geminiProxy`
+- [ ] **Cloud Functions layer** — `joinByCode`, `fetchPartyCharacters`, `sendInvite` _(geminiProxy moved to v0.4.1 Security)_
 - [x] **Add "Party" card to player Dashboard** — Party card in `CardStack` when in a campaign
 - [ ] **Character diff badges** — Notification dot when party members level up
 
 ---
 
-## 📦 Epic Quest: v0.5.0 — Combat System & DM Campaign Tools (Phases 3–4)
+## � SECURITY GATE: v0.4.1 — The Warding Circle (Blocks Public Launch)
+
+> *"The strongest keep falls to a single unguarded gate. Before the realm is opened  
+> to visitors, every ward must be inscribed, every seal tested, every secret hidden."*
+>
+> **⚠️ CRITICAL: Complete Layers 1–3 before sharing on Reddit/Discord.**  
+> The Gemini API key is currently baked into the browser JS bundle. Anyone can extract  
+> it in 30 seconds with DevTools and abuse your quota. This phase eliminates that risk.
+
+### 🔴 Deadly — Layer 1: Backend API Proxy (eliminates root cause)
+
+- [ ] **Create Express proxy server** (`server/index.ts`) — Serves static SPA files + proxies `/api/gemini/*` routes
+- [ ] **Firebase Admin SDK token verification** — Every `/api/*` request requires valid Firebase ID token in `Authorization: Bearer <token>` header; unauthenticated requests get `401`
+- [ ] **Refactor `lib/gemini.ts`** — Replace direct `generativelanguage.googleapis.com` calls with `fetch('/api/gemini/...')` + attach Firebase ID token from `auth.currentUser.getIdToken()`
+- [ ] **Remove `GEMINI_API_KEY` from Vite `define`** — Key must never appear in the client JS bundle
+- [ ] **Remove `VITE_GEMINI_FILE_URI_*` from client bundle** — Move D&D PDF file URIs to server-side environment only
+- [ ] **Update Dockerfile** — Replace nginx-only Stage 2 with Node Express (serves static `dist/` + proxy routes)
+- [ ] **Update `cloudbuild.yaml`** — Remove `GEMINI_API_KEY` from `--build-arg`; inject as Cloud Run **runtime** env var instead
+
+### 🔴 Deadly — Layer 2: Server-Side Rate Limiting
+
+- [ ] **Per-user rate limiting** — In-memory map keyed by Firebase UID, 20 req/min per user
+- [ ] **Global rate limit fallback** — 200 req/min total across all users; prevents runaway if user pool spikes
+- [ ] **Rate limit response headers** — Return `X-RateLimit-Remaining` and `Retry-After` so the client can show friendly UX
+
+### 🟠 Hard — Layer 3: Debug & Logging Cleanup
+
+- [ ] **Strip API key `console.log` from `gemini.ts`** — Lines 16-18, 28 currently leak key length + first 8 chars to every user's browser console
+- [ ] **Strip key prefix logging from `vite.config.ts`** — Lines 18-22 print first 8 chars of API key to CI build logs
+- [ ] **Add production logging guard** — Wrap remaining debug logs in `if (import.meta.env.DEV)` checks
+
+### 🟠 Hard — Layer 4: Firestore Rules Tightening
+
+- [ ] **Restrict invite `update` rule** — Currently any signed-in user can accept any invite; restrict to `toEmail` owner or campaign DM only
+- [ ] **Add field-type validation** — Enforce string/number types on `ownerUid`, `name`, `level`, etc. in security rules
+- [ ] **Add document size limits** — `request.resource.data.size() < N` on character writes to prevent abuse
+- [ ] **Scope local guest fallback** — Remove `guest-local-*` UID bypass or restrict it to localStorage-only path (no Firestore access)
+
+### 🟡 Medium — Layer 5: Google Cloud Console Restrictions
+
+- [ ] **Restrict Gemini API key** — Google Cloud Console → Credentials → restrict to Cloud Run service account/IP (no longer browser-accessible)
+- [ ] **Restrict Firebase API key** — Add HTTP referrer restrictions to deployed domain(s) only
+- [ ] **Set daily quota caps** — Billing safety net on Gemini key (e.g., 5000 req/day)
+
+### 🟡 Medium — Layer 6: Security Headers & CSP
+
+- [ ] **Content Security Policy** — `default-src 'self'; script-src 'self'; connect-src 'self' *.googleapis.com *.firebaseio.com`
+- [ ] **HSTS header** — `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+- [ ] **Permissions-Policy** — Restrict camera/microphone/geolocation to what's actually needed (voice input uses mic)
+
+### 🟢 Easy — Layer 7: Dependency & Supply Chain
+
+- [ ] **Run `npm audit fix`** — Resolve known vulnerabilities before public launch
+- [ ] **Pin critical dependency versions** — Remove `^` semver ranges for `@google/genai`, `firebase`, `react`
+- [ ] **Update `.env.example`** — Document which variables are build-time (Firebase config) vs runtime-only (Gemini key)
+
+---
+
+## �📦 Epic Quest: v0.5.0 — Combat System & DM Campaign Tools (Phases 3–4)
 
 > *"Roll for initiative! The combat system and DM tools  
 > will bring the full tabletop experience to the digital realm."*

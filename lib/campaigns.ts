@@ -381,11 +381,13 @@ export async function updateMemberCharacter(
   characterId: string | null,
 ): Promise<void> {
   const memberRef = doc(db, 'campaigns', campaignId, 'members', uid);
-  if (characterId) {
-    await updateDoc(memberRef, { characterId, lastSeen: Date.now() });
-  } else {
-    await updateDoc(memberRef, { characterId: '', lastSeen: Date.now() });
-  }
+  const update: Record<string, any> = {
+    uid,
+    characterId: characterId || '',
+    lastSeen: Date.now(),
+  };
+  // Use merge so the doc is created if it doesn't exist yet (e.g. legacy campaigns)
+  await setDoc(memberRef, update, { merge: true });
 }
 
 // ═══════════════════════════════════════════════════════════════════════

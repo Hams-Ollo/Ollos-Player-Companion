@@ -326,6 +326,74 @@
 
 ---
 
+## Epic 19: The Warding Circle — Security Hardening
+
+> *"The strongest keep falls to a single unguarded gate. Before the realm is opened  
+> to visitors, every ward must be inscribed, every seal tested, every secret hidden."*
+
+### Layer 1: Backend API Proxy (CRITICAL — blocks public launch)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.1 | Create Express proxy server (`server/index.ts`) | 🔲 | Serves static SPA + proxies `/api/gemini/*` routes to Gemini API |
+| 19.2 | Firebase Admin SDK token verification | 🔲 | Every `/api/*` request requires valid Firebase ID token in `Authorization` header |
+| 19.3 | Refactor `lib/gemini.ts` to call proxy | 🔲 | Replace direct Gemini API calls with `fetch('/api/gemini/...')` + Firebase ID token |
+| 19.4 | Remove `GEMINI_API_KEY` from Vite `define` | 🔲 | Key must never appear in client JS bundle |
+| 19.5 | Update Dockerfile for Express server | 🔲 | Replace nginx-only with Node Express serving static + proxy |
+| 19.6 | Update `cloudbuild.yaml` — runtime secret | 🔲 | Move `GEMINI_API_KEY` from build arg to Cloud Run runtime env var |
+| 19.7 | Remove Gemini File URIs from client bundle | 🔲 | Move `VITE_GEMINI_FILE_URI_*` to server-side only |
+
+### Layer 2: Server-Side Rate Limiting (HIGH)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.8 | Per-user rate limiting on proxy | 🔲 | In-memory, 20 req/min per Firebase UID |
+| 19.9 | Global rate limiting fallback | 🔲 | 200 req/min total — prevents runaway if user pool is large |
+| 19.10 | Rate limit headers in responses | 🔲 | `X-RateLimit-Remaining`, `Retry-After` for client-side UX |
+
+### Layer 3: Debug & Logging Cleanup (MEDIUM)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.11 | Strip API key `console.log` from `gemini.ts` | 🔲 | Lines 16-18, 28 — leak key metadata to browser console |
+| 19.12 | Strip key prefix logging from `vite.config.ts` | 🔲 | Lines 18-22 — leak first 8 chars to CI build logs |
+| 19.13 | Production-only logging guard | 🔲 | Wrap debug logs in `if (import.meta.env.DEV)` |
+
+### Layer 4: Firestore Rules Tightening (MEDIUM)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.14 | Restrict invite `update` rule | 🔲 | Only `toEmail` owner or campaign DM can accept/decline |
+| 19.15 | Add field-type validation rules | 🔲 | Enforce types on `ownerUid`, `name`, `level`, etc. |
+| 19.16 | Add document size limits | 🔲 | `request.resource.data.size() < X` on character writes |
+| 19.17 | Eliminate local guest UID bypass | 🔲 | Remove `guest-local-*` fallback or scope it to localStorage only |
+
+### Layer 5: Google Cloud API Key Restrictions (MEDIUM)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.18 | Restrict Gemini API key to Cloud Run service | 🔲 | Google Cloud Console → Credentials → IP/service account restriction |
+| 19.19 | Restrict Firebase API key by HTTP referrer | 🔲 | Limit to deployed domain(s) only |
+| 19.20 | Set daily quota caps on Gemini key | 🔲 | Billing safety net — e.g., 5000 req/day |
+
+### Layer 6: Security Headers & CSP (LOW)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.21 | Content Security Policy header | 🔲 | `default-src 'self'; connect-src 'self' *.googleapis.com *.firebaseio.com` |
+| 19.22 | HSTS header | 🔲 | `Strict-Transport-Security: max-age=31536000; includeSubDomains` |
+| 19.23 | Permissions-Policy header | 🔲 | Restrict camera/mic/geolocation to what's actually needed |
+
+### Layer 7: Dependency & Supply Chain (LOW)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.24 | `npm audit` — fix known vulnerabilities | 🔲 | Run before public launch |
+| 19.25 | Pin dependency versions | 🔲 | Remove `^` ranges for critical deps |
+| 19.26 | Add `.env.example` secret checklist | 🔲 | Document which vars are build-time vs runtime |
+
+---
+
 ## Epic 18: The Enchantments — Polish & Accessibility
 
 > *"The finest weapons are not merely functional — they gleam."*
@@ -369,7 +437,8 @@
 | Epic 16: Communication | 0 | 0 | 3 | 3 |
 | Epic 17: Infrastructure | 5 | 0 | 3 | 8 |
 | Epic 18: Polish & A11y | 4 | 0 | 6 | 10 |
-| **TOTALS** | **109** | **0** | **48** | **157** |
+| Epic 19: Security Hardening | 0 | 0 | 26 | 26 |
+| **TOTALS** | **109** | **0** | **74** | **183** |
 
 ---
 
