@@ -30,6 +30,8 @@ import {
   getDoc,
   writeBatch,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
   Unsubscribe,
 } from 'firebase/firestore';
 import { firebaseApp } from '../contexts/AuthContext';
@@ -337,6 +339,19 @@ export async function joinCampaignByCode(
 
   // Write member doc — Cloud Function syncs memberUids automatically
   await setDoc(doc(db, 'campaigns', campaign.id, 'members', uid), member);
+
+  // Client-side fallback: update memberUids immediately so the campaign appears
+  // in the user's list without waiting for Cloud Functions.
+  try {
+    await updateDoc(doc(db, 'campaigns', campaign.id), {
+      memberUids: arrayUnion(uid),
+      updatedAt: Date.now(),
+    });
+  } catch (e) {
+    // Non-DM can't update campaign doc — Cloud Function will handle it
+    console.warn('[Campaigns] memberUids client-side update skipped (expected for non-DM):', e);
+  }
+
   return campaign;
 }
 
@@ -353,7 +368,18 @@ export async function leaveCampaign(
     throw new Error('DM cannot leave their own campaign. Archive it instead.');
   }
 
-  // Delete member doc — Cloud Function syncs memberUids automatically
+  // Client-side fallback: remove from memberUids BEFORE deleting member doc
+  // (so isCampaignMember rule still passes for the update)
+  try {
+    await updateDoc(doc(db, 'campaigns', campaignId), {
+      memberUids: arrayRemove(uid),
+      updatedAt: Date.now(),
+    });
+  } catch (e) {
+    console.warn('[Campaigns] memberUids client-side removal skipped:', e);
+  }
+
+  // Delete member doc — Cloud Function also syncs memberUids
   await deleteDoc(doc(db, 'campaigns', campaignId, 'members', uid));
 }
 
@@ -362,8 +388,18 @@ export async function removeMember(
   campaignId: string,
   targetUid: string,
 ): Promise<void> {
-  // Delete member doc — Cloud Function syncs memberUids automatically
+  // Delete member doc — Cloud Function also syncs memberUids
   await deleteDoc(doc(db, 'campaigns', campaignId, 'members', targetUid));
+
+  // Client-side fallback: DM can always update campaign doc
+  try {
+    await updateDoc(doc(db, 'campaigns', campaignId), {
+      memberUids: arrayRemove(targetUid),
+      updatedAt: Date.now(),
+    });
+  } catch (e) {
+    console.warn('[Campaigns] memberUids client-side removal skipped:', e);
+  }
 }
 
 /** Update which character a member is playing in a campaign. */

@@ -49,16 +49,22 @@ service cloud.firestore {
       allow create: if isSignedIn()
                     && request.resource.data.dmId == request.auth.uid;
 
-      // Only the DM can update campaign settings
-      allow update: if isCampaignDM(campaignId);
+      // Only the DM can update campaign settings.
+      // Members can also update ONLY memberUids + updatedAt (client-side fallback for join/leave).
+      allow update: if isCampaignDM(campaignId)
+                    || (isCampaignMember(campaignId)
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids', 'updatedAt']));
 
       // Only the DM can delete (archive) a campaign
       allow delete: if isCampaignDM(campaignId);
 
       // ── Members subcollection ────────────────────────────────
       match /members/{memberId} {
-        // All campaign members can read the member list; DM always has access
-        allow read: if isCampaignMember(campaignId) || isCampaignDM(campaignId);
+        // All campaign members can read the member list; DM always has access.
+        // Users can also read their OWN member doc (needed for join-flow duplicate check).
+        allow read: if isCampaignMember(campaignId)
+                    || isCampaignDM(campaignId)
+                    || (isSignedIn() && request.auth.uid == memberId);
 
         // Users can add themselves (join) or the DM can add anyone
         allow create: if isSignedIn()
