@@ -7,6 +7,24 @@ import ReactDOM from 'react-dom/client';
 import './styles.css';
 import App from './App';
 
+// ── Kill any rogue service worker from a previous deployment ──
+// A prior version registered a SW that proxies Google API requests to /api-proxy/,
+// breaking all AI features. This removes it for every visitor.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (const reg of registrations) {
+      console.log('[SW-cleanup] Unregistering service worker:', reg.scope);
+      reg.unregister();
+    }
+    if (registrations.length > 0) {
+      console.log('[SW-cleanup] All service workers unregistered. Reloading...');
+      window.location.reload();
+    }
+  });
+  // Also register the kill-switch SW to replace the old one via server-side cache
+  navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+}
+
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {
