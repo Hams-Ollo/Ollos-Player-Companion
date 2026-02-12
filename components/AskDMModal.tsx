@@ -23,10 +23,6 @@ const AskDMModal: React.FC<AskDMModalProps> = ({ onClose }) => {
 
   const handleSend = async () => {
     if (!input.trim()) return;
-    if (!process.env.API_KEY) {
-        setMessages(prev => [...prev, {role: 'model', text: 'Error: API Key missing.'}]);
-        return;
-    }
 
     const userMsg = input;
     setInput('');

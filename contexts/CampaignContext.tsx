@@ -8,6 +8,7 @@ import {
   CampaignRole,
 } from '../types';
 import { useAuth } from './AuthContext';
+import { useCharacters } from './CharacterContext';
 import {
   subscribeUserCampaigns,
   subscribeToCampaign,
@@ -78,6 +79,7 @@ const ACTIVE_CAMPAIGN_KEY = 'vesper_active_campaign';
 // ─── Provider ───────────────────────────────────────────────────────
 export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const { characters, activeCharacterId, updateCharacterById } = useCharacters();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaignId, setActiveCampaignIdRaw] = useState<string | null>(
@@ -283,17 +285,25 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const campaign = await joinCampaignByCode(code, user.uid, user.displayName, characterId);
       if (campaign) {
         setActiveCampaignId(campaign.id);
+        // Sync CharacterData.campaign/campaignId for the character being enrolled
+        if (characterId) {
+          updateCharacterById(characterId, { campaign: campaign.name, campaignId: campaign.id });
+        }
       }
       return campaign;
     },
-    [user?.uid, user?.displayName, setActiveCampaignId],
+    [user?.uid, user?.displayName, setActiveCampaignId, updateCharacterById],
   );
 
   const leaveCampaignAction = useCallback(async () => {
     if (!activeCampaignId || !user?.uid) return;
+    // Clear campaign reference from all characters in this campaign
+    characters
+      .filter(c => c.campaignId === activeCampaignId)
+      .forEach(c => updateCharacterById(c.id, { campaign: 'Solo Adventure', campaignId: undefined }));
     await firestoreLeaveCampaign(activeCampaignId, user.uid);
     setActiveCampaignId(null);
-  }, [activeCampaignId, user?.uid, setActiveCampaignId]);
+  }, [activeCampaignId, user?.uid, setActiveCampaignId, characters, updateCharacterById]);
 
   const acceptInviteAction = useCallback(
     async (inviteId: string, characterId?: string) => {

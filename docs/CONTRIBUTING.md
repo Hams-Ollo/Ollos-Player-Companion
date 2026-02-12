@@ -25,7 +25,11 @@ npm install
 *Copy the `.env` template and inscribe your personal keys:*
 
 ```env
+# Server-only — never exposed to the browser
 GEMINI_API_KEY=your_gemini_api_key
+PORT=3001
+
+# Client-side — baked into the Vite bundle
 VITE_FIREBASE_API_KEY=your_firebase_api_key
 VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your_project_id
@@ -34,13 +38,19 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 ```
 
+> ⚠️ `GEMINI_API_KEY` is read **only** by the Express proxy server (`server/index.js`). It never enters the Vite build or the browser.
+
 ### Step 3. Ignite the Dev Server
 
 ```bash
-npm run dev
+npm run dev:full
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The app hot-reloads on save — like a Ring of Regeneration for your code.
+This starts **two** processes concurrently:
+- **Vite** dev server on [http://localhost:3000](http://localhost:3000) (frontend, hot-reloads on save)
+- **Express** API proxy on port 3001 (proxies `/api/gemini/*` to Gemini, holds the API key)
+
+Vite is configured to forward `/api` requests to the Express proxy automatically.
 
 ### Step 4. Verify Your Enchantments
 
@@ -201,11 +211,12 @@ Open a GitHub issue with:
 | 📖 Spellbook Management | 🟡 Medium | Prepare/swap spells on long rest for prepared casters |
 | 📦 Export/Import JSON | 🟢 Easy | Download/upload character data as JSON files |
 | �️ Conditions Tracker | 🟡 Medium | Track active conditions with mechanical effects |
-| 🔐 Backend API Proxy | 🔴 Hard | Move Gemini API key to a server-side proxy |
 | 🎯 Subclass Selection | 🟡 Medium | UI for choosing subclass at appropriate level |
 | 🔄 localStorage Migration | 🟡 Medium | Migrate campaign localStorage data to Firestore |
 | ☁️ Cloud Functions | 🔴 Hard | Server-side campaign operations (invite emails, notifications) |
 | 📊 Character Diff Badges | 🟡 Medium | Show visual diff indicators when stats change during level-up |
+| 🔒 Firestore Rules Hardening | 🟠 Hard | Field-type validation, document size limits, invite rule tightening |
+| 🛡️ Security Headers & CSP | 🟡 Medium | Content Security Policy, HSTS, Permissions-Policy headers |
 
 ---
 

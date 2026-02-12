@@ -34,11 +34,6 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ data, onUpdate, onClose }) 
   const STAT_KEYS: StatKey[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
 
   const handleStartLevelUp = async () => {
-    if (!process.env.API_KEY) {
-        alert("API Key required.");
-        return;
-    }
-    
     checkRateLimit();
     setTargetLevel(nextLevel);
     setStep('analyzing');

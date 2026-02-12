@@ -51,6 +51,7 @@ interface WizardState {
   background: string;
   alignment: string;
   campaign: string;
+  campaignId: string;
   halfElfBonuses: StatKey[];
   startingLevel: number;
   subclass: string;
@@ -79,6 +80,7 @@ const INITIAL_STATE: WizardState = {
   background: '',
   alignment: '',
   campaign: '',
+  campaignId: '',
   halfElfBonuses: [],
   startingLevel: 1,
   subclass: '',
@@ -226,13 +228,17 @@ const StepIdentity: React.FC<{
           <label htmlFor="wizard-campaign" className="text-xs font-bold text-zinc-500 uppercase tracking-widest block mb-1">Campaign</label>
           <select 
             id="wizard-campaign"
-            value={state.campaign}
-            onChange={e => onChange({ campaign: e.target.value })}
+            value={state.campaignId}
+            onChange={e => {
+              const selectedId = e.target.value;
+              const selectedCampaign = campaigns.find(c => c.id === selectedId);
+              onChange({ campaignId: selectedId, campaign: selectedCampaign?.name || selectedId });
+            }}
             className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-amber-500"
           >
             <option value="">Select Campaign...</option>
-            {campaigns.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-            <option value="Solo Adventure">Solo Adventure</option>
+            {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <option value="solo">Solo Adventure</option>
           </select>
         </div>
 
@@ -938,7 +944,6 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ onCreate, onClose }) =
     try {
       // --- AI enrichment (portrait + rules text) ---
       try {
-        if (!process.env.API_KEY) throw new Error("API Key missing — skipping AI enrichment");
         checkRateLimit();
 
         const portraitPrompt = `High fantasy D&D Character Portrait: ${state.race} ${state.charClass}. Appearance: ${state.appearance || 'Mysterious adventurer'}. Cinematic lighting.`;
@@ -1010,6 +1015,7 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ onCreate, onClose }) =
       const character: CharacterData = {
         id: generateId(),
         campaign: state.campaign || 'Solo Adventure',
+        campaignId: (state.campaignId && state.campaignId !== 'solo') ? state.campaignId : undefined,
         name: state.name || 'Unnamed Adventurer',
         race: state.race,
         class: state.charClass,

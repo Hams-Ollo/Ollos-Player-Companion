@@ -33,7 +33,6 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({ item, onClose }) => {
   }, [item]);
 
   const fetchDetails = async () => {
-    if (!process.env.API_KEY) return;
     setLoading(true);
     try {
         checkRateLimit(); // Enforce rate limit

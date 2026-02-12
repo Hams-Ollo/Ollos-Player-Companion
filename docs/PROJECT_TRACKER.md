@@ -31,7 +31,7 @@
 | 1.5 | Add encounter difficulty thresholds | ✅ | DMG XP budget tables (1–20) |
 | 1.6 | Expand `types.ts` with multiplayer models | ✅ | `CampaignMember`, `CombatEncounter`, `Combatant`, `DMNote`, `Whisper`, `RollRequest` |
 | 1.7 | SRD monster data (`lib/monsters.ts`) | 🔲 | ~300 SRD creatures |
-| 1.8 | Backend API proxy for Gemini key | 🔲 | Move API key to server-side |
+| 1.8 | Backend API proxy for Gemini key | ✅ | Express proxy in `server/index.js` — shipped v0.4.1 |
 
 ---
 
@@ -44,9 +44,9 @@
 | 2.1 | Google sign-in + anonymous fallback | ✅ | `AuthContext.tsx` |
 | 2.2 | `LoginScreen` component | ✅ | Google button + guest mode |
 | 2.3 | Auth state persistence | ✅ | `onAuthStateChanged` listener |
-| 2.4 | Cloud Run deployment pipeline | ✅ | Dockerfile + nginx |
+| 2.4 | Cloud Run deployment pipeline | ✅ | Dockerfile + Express server |
 | 2.5 | Firebase project configuration | ✅ | Hosting, auth domains |
-| 2.6 | Environment variable setup | ✅ | Vite `define` for API key |
+| 2.6 | Environment variable setup | ✅ | `GEMINI_API_KEY` server-only via Express proxy; `VITE_*` via Vite |
 
 ---
 
@@ -135,11 +135,11 @@
 
 | # | Task | Status | Notes |
 |:--|:-----|:------:|:------|
-| 7.1 | Centralized AI client (`lib/gemini.ts`) | ✅ | Shared config & error handling |
-| 7.2 | `generateWithContext()` | ✅ | Single-shot generation |
-| 7.3 | `createChatWithContext()` | ✅ | Multi-turn conversation |
-| 7.4 | `generatePortrait()` | ✅ | Image generation via `gemini-2.5-flash-image` |
-| 7.5 | Rate limiting (2s cooldown) | ✅ | Module-level closure |
+| 7.1 | Centralized AI client (`lib/gemini.ts`) | ✅ | Calls Express proxy; API key never in browser |
+| 7.2 | `generateWithContext()` | ✅ | Single-shot via `/api/gemini/generate` |
+| 7.3 | `createChatWithContext()` | ✅ | Multi-turn via `/api/gemini/chat` |
+| 7.4 | `generatePortrait()` | ✅ | Image gen via `/api/gemini/portrait` |
+| 7.5 | Rate limiting (2s cooldown) | ✅ | Client-side + server-side (20/user/min, 200 global) |
 | 7.6 | Ask DM modal | ✅ | `AskDMModal.tsx` |
 | 7.7 | AI-assisted level-up choices | ✅ | Gemini suggests feat/ASI/spells |
 | 7.8 | AI backstory generation | ✅ | In creation wizard |
@@ -168,7 +168,7 @@
 | 8.7 | Join codes (6-char) | ✅ | Shareable codes |
 | 8.8 | Campaign deletion with subcollections | ✅ | Members deleted last |
 | 8.9 | DM fallback read permissions | ✅ | On members, encounters, rollRequests, whispers |
-| 8.10 | Character-to-campaign assignment | ✅ | Dropdown picker at join, invite accept, and post-join change |
+| 8.10 | Character-to-campaign assignment | ✅ | Dropdown picker + bidirectional sync of `CharacterData.campaign`/`campaignId` |
 | 8.11 | Party roster component | ✅ | `PartyRoster.tsx` — card grid with character fetching |
 | 8.12 | DM party overview | ✅ | `DMPartyOverview.tsx` — vitals grid, passive scores |
 | 8.13 | Invite management (email + code) | ✅ | Join code sharing panel + email invites + accept/decline |
@@ -315,7 +315,7 @@
 
 | # | Task | Status | Notes |
 |:--|:-----|:------:|:------|
-| 17.1 | Dockerfile + nginx config | ✅ | Multi-stage build |
+| 17.1 | Dockerfile + Express server | ✅ | Multi-stage build; Stage 2 = Node Express serving static + proxy |
 | 17.2 | Cloud Run deployment | ✅ | Source deploy + manual |
 | 17.3 | Firebase hosting config | ✅ | Auth domain setup |
 | 17.4 | Vite build pipeline | ✅ | TypeScript + Tailwind |
@@ -335,21 +335,21 @@
 
 | # | Task | Status | Notes |
 |:--|:-----|:------:|:------|
-| 19.1 | Create Express proxy server (`server/index.ts`) | 🔲 | Serves static SPA + proxies `/api/gemini/*` routes to Gemini API |
-| 19.2 | Firebase Admin SDK token verification | 🔲 | Every `/api/*` request requires valid Firebase ID token in `Authorization` header |
-| 19.3 | Refactor `lib/gemini.ts` to call proxy | 🔲 | Replace direct Gemini API calls with `fetch('/api/gemini/...')` + Firebase ID token |
-| 19.4 | Remove `GEMINI_API_KEY` from Vite `define` | 🔲 | Key must never appear in client JS bundle |
-| 19.5 | Update Dockerfile for Express server | 🔲 | Replace nginx-only with Node Express serving static + proxy |
-| 19.6 | Update `cloudbuild.yaml` — runtime secret | 🔲 | Move `GEMINI_API_KEY` from build arg to Cloud Run runtime env var |
-| 19.7 | Remove Gemini File URIs from client bundle | 🔲 | Move `VITE_GEMINI_FILE_URI_*` to server-side only |
+| 19.1 | Create Express proxy server (`server/index.ts`) | ✅ | `server/index.js` — serves static SPA + proxies `/api/gemini/*` routes |
+| 19.2 | Firebase Admin SDK token verification | ✅ | `server/middleware/auth.js` — verifies Firebase ID tokens, 5-min cache |
+| 19.3 | Refactor `lib/gemini.ts` to call proxy | ✅ | All Gemini calls go through `proxyFetch()` with Firebase bearer token |
+| 19.4 | Remove `GEMINI_API_KEY` from Vite `define` | ✅ | Key removed from `vite.config.ts` — not in client bundle |
+| 19.5 | Update Dockerfile for Express server | ✅ | Stage 2 = `node:20-alpine` running `node server/index.js` |
+| 19.6 | Update `cloudbuild.yaml` — runtime secret | ✅ | Removed build args; key injected via Cloud Run Secret Manager |
+| 19.7 | Remove Gemini File URIs from client bundle | ✅ | `GEMINI_FILE_URI_*` read server-side only |
 
 ### Layer 2: Server-Side Rate Limiting (HIGH)
 
 | # | Task | Status | Notes |
 |:--|:-----|:------:|:------|
-| 19.8 | Per-user rate limiting on proxy | 🔲 | In-memory, 20 req/min per Firebase UID |
-| 19.9 | Global rate limiting fallback | 🔲 | 200 req/min total — prevents runaway if user pool is large |
-| 19.10 | Rate limit headers in responses | 🔲 | `X-RateLimit-Remaining`, `Retry-After` for client-side UX |
+| 19.8 | Per-user rate limiting on proxy | ✅ | `server/middleware/rateLimit.js` — 20 req/min per Firebase UID |
+| 19.9 | Global rate limiting fallback | ✅ | 200 req/min total across all users |
+| 19.10 | Rate limit headers in responses | ✅ | `X-RateLimit-Remaining`, `Retry-After` headers |
 
 ### Layer 3: Debug & Logging Cleanup (MEDIUM)
 
@@ -419,14 +419,14 @@
 
 | Category | ✅ Done | 🚧 Active | 🔲 Remaining | Total |
 |:---------|:--------|:-----------|:-------------|:------|
-| Epic 1: Foundation | 6 | 0 | 2 | 8 |
+| Epic 1: Foundation | 7 | 0 | 1 | 8 |
 | Epic 2: Auth & Cloud | 6 | 0 | 0 | 6 |
 | Epic 3: Character Persistence | 8 | 0 | 0 | 8 |
 | Epic 4: Character Creation | 10 | 0 | 2 | 12 |
 | Epic 5: Dashboard & UI | 12 | 0 | 0 | 12 |
 | Epic 6: Marketplace | 8 | 0 | 3 | 11 |
 | Epic 7: AI Integration | 11 | 0 | 3 | 14 |
-| Epic 8: Campaign System | 9 | 0 | 5 | 14 |
+| Epic 8: Campaign System | 20 | 0 | 1 | 21 |
 | Epic 9: Spells & Casting | 7 | 0 | 3 | 10 |
 | Epic 10: Journal | 4 | 0 | 3 | 7 |
 | Epic 11: Skills | 5 | 0 | 1 | 6 |
@@ -437,8 +437,8 @@
 | Epic 16: Communication | 0 | 0 | 3 | 3 |
 | Epic 17: Infrastructure | 5 | 0 | 3 | 8 |
 | Epic 18: Polish & A11y | 4 | 0 | 6 | 10 |
-| Epic 19: Security Hardening | 0 | 0 | 26 | 26 |
-| **TOTALS** | **109** | **0** | **74** | **183** |
+| Epic 19: Security Hardening | 10 | 0 | 16 | 26 |
+| **TOTALS** | **131** | **0** | **59** | **190** |
 
 ---
 

@@ -3,11 +3,47 @@
 > *"Within these pages lie the incantations that power the Companion's magic.  
 > Study them carefully — a miscast spell can have... unexpected consequences."*
 >
-> Gemini AI integration, helper functions, data schemas, and environment configuration.
+> Express API proxy, Gemini AI integration, helper functions, data schemas, and environment configuration.
 
 ---
 
-## Chapter 1: The Weave — Gemini AI Client
+## Chapter 1: The Gatekeeper — Express API Proxy
+
+> *The Express server in `server/index.js` acts as the Gatekeeper between the browser and the Weave.  
+> It holds the Gemini API key, verifies identity, and enforces rate limits.*
+
+### Proxy Routes
+
+| Route | Method | Description |
+|:------|:-------|:------------|
+| `/api/gemini/generate` | POST | Single-shot text generation — prompt + optional config |
+| `/api/gemini/chat` | POST | Multi-turn chat — history + system instruction + message |
+| `/api/gemini/portrait` | POST | Image generation via `gemini-2.5-flash-image` |
+| `/api/gemini/live-token` | POST | Ephemeral token for live audio transcription |
+| `/api/health` | GET | Health check, returns `{ status: 'ok' }` |
+
+### Authentication Middleware (`server/middleware/auth.js`)
+
+Every `/api/gemini/*` request requires a valid Firebase ID token:
+
+```
+Authorization: Bearer <firebase-id-token>
+```
+
+The middleware verifies the token against Google's Identity Toolkit REST API and caches results for 5 minutes. Unauthenticated requests receive `401`.
+
+### Rate Limiting Middleware (`server/middleware/rateLimit.js`)
+
+| Limit | Scope | Window |
+|:------|:------|:-------|
+| 20 requests/min | Per Firebase UID | Sliding window |
+| 200 requests/min | Global (all users) | Sliding window |
+
+Returns `429 Too Many Requests` with `Retry-After` header when exceeded.
+
+---
+
+## Chapter 2: The Weave — Gemini AI Client
 
 > *The centralized conduit to the Weave lives in `lib/gemini.ts`.  
 > All AI-powered components channel their magic through this module.*
@@ -61,7 +97,7 @@ const response = await chat.sendMessage({ message: 'What does Magic Missile do?'
 
 ---
 
-## Chapter 2: Portrait Generation
+## Chapter 3: Portrait Generation
 
 > *"The Weave can paint as well as it can speak."*
 
@@ -95,9 +131,17 @@ const dataUri = await generatePortrait('Repaint in watercolor style', [
 
 ---
 
-## Chapter 3: Rate Limiting
+## Chapter 4: Rate Limiting
 
 > *"The Weave resists those who draw upon it too hastily."*
+
+Rate limiting operates at **two levels**:
+
+### Server-Side (Primary)
+
+The Express proxy enforces per-user (20/min) and global (200/min) rate limits via `server/middleware/rateLimit.js`. These are tamper-proof — the user cannot bypass them.
+
+### Client-Side (UX Guard)
 
 ### `checkRateLimit()`
 
@@ -113,7 +157,7 @@ Enforces a 2-second cooldown between AI requests. State is stored in a module-le
 
 ---
 
-## Chapter 4: The Artificer's Tools (`utils.ts`)
+## Chapter 5: The Artificer's Tools (`utils.ts`)
 
 > *"Every adventurer carries a toolkit. These are the shared utility functions  
 > that keep the Companion's magic running smoothly."*
@@ -161,7 +205,7 @@ const updated = recalculateCharacterStats(character);
 
 ---
 
-## Chapter 5: The Compendium Helpers (`constants.tsx`)
+## Chapter 6: The Compendium Helpers (`constants.tsx`)
 
 > *"The Compendium contains all the sacred tables of the PHB.  
 > These helper functions translate them into actionable magic."*
@@ -264,7 +308,7 @@ getSneakAttackDice(20); // → "10d6" (devastating)
 
 ---
 
-## Chapter 6: Data Schemas
+## Chapter 7: Data Schemas
 
 > *"Know the shape of your data as well as you know the shape of your sword."*
 
@@ -303,32 +347,42 @@ interface Campaign {
 
 ---
 
-## Chapter 7: Environment Variables
+## Chapter 8: Environment Variables
 
 > *"Guard these secrets as you would a dragon's hoard."*
 
+### Server-Side Only (never in browser bundle)
+
 | Variable | Required | Description |
 |:---------|:---------|:------------|
-| `GEMINI_API_KEY` | ✅ | Google AI Studio API key — your connection to the Weave |
+| `GEMINI_API_KEY` | ✅ | Google AI Studio API key — read by the Express proxy server only |
+| `PORT` | ❌ | Express server port (default: `8080`, dev: `3001`) |
+| `GEMINI_FILE_URI_BASIC` | ❌ | Gemini File API URI for Basic Rules PDF |
+| `GEMINI_FILE_URI_DMG` | ❌ | Gemini File API URI for DMG PDF |
+| `GEMINI_FILE_URI_MM` | ❌ | Gemini File API URI for Monster Manual PDF |
+| `GEMINI_FILE_URI_PHB` | ❌ | Gemini File API URI for PHB PDF |
+
+### Client-Side (baked into JS bundle at build time)
+
+| Variable | Required | Description |
+|:---------|:---------|:------------|
 | `VITE_FIREBASE_API_KEY` | ✅ | Firebase project API key |
 | `VITE_FIREBASE_AUTH_DOMAIN` | ✅ | Firebase auth domain |
 | `VITE_FIREBASE_PROJECT_ID` | ✅ | Firebase project ID |
 | `VITE_FIREBASE_STORAGE_BUCKET` | ✅ | Firebase storage bucket |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | ✅ | Firebase messaging sender ID |
 | `VITE_FIREBASE_APP_ID` | ✅ | Firebase app ID |
-| `VITE_GEMINI_FILE_URI_BASIC` | ❌ | Gemini File API URI for Basic Rules PDF |
-| `VITE_GEMINI_FILE_URI_DMG` | ❌ | Gemini File API URI for DMG PDF |
-| `VITE_GEMINI_FILE_URI_MM` | ❌ | Gemini File API URI for Monster Manual PDF |
-| `VITE_GEMINI_FILE_URI_PHB` | ❌ | Gemini File API URI for PHB PDF |
 
 ### How Env Vars Are Injected
 
-- **`GEMINI_API_KEY`** → Forged by Vite's `define` in `vite.config.ts` as `process.env.API_KEY`
-- **`VITE_*`** → Automatically exposed by Vite as `import.meta.env.VITE_*` and via the `getEnv()` helper in `AuthContext.tsx`
+- **`GEMINI_API_KEY`** → Read by `server/index.js` at runtime via `process.env`. Never exposed to Vite or the browser.
+- **`GEMINI_FILE_URI_*`** → Read by `server/index.js` at runtime. D&D PDF grounding URIs for context caching.
+- **`VITE_*`** → Baked into the client JS bundle by Vite at build time via `import.meta.env.VITE_*`.
+- **In production:** `GEMINI_API_KEY` is stored in Google Cloud Secret Manager and mounted as a Cloud Run environment variable.
 
 ---
 
-## Chapter 8: The Vault — Firestore Service (`lib/firestore.ts`)
+## Chapter 9: The Vault — Firestore Service (`lib/firestore.ts`)
 
 > *"All roads lead to the Vault. Here lie the functions that store and  
 > retrieve heroes from the eternal Firestore."*
@@ -404,7 +458,7 @@ Used by the migration banner when a Google user first signs in and has existing 
 
 ---
 
-## Chapter 9: The Character Vault (`contexts/CharacterContext.tsx`)
+## Chapter 10: The Character Vault (`contexts/CharacterContext.tsx`)
 
 > *"The Vault knows all. It manages every hero, whether stored in the cloud  
 > or scratched onto parchment (localStorage)."*
@@ -420,7 +474,8 @@ const {
   activeCharacterId,    // string | null
   setActiveCharacterId, // (id: string | null) => void
   createCharacter,      // (char: CharacterData) => void
-  updateCharacter,      // (partial: Partial<CharacterData>) => void
+  updateCharacter,      // (partial: Partial<CharacterData>) => void — updates active character
+  updateCharacterById,  // (id: string, partial: Partial<CharacterData>) => void — updates any character by ID
   updatePortrait,       // (url: string) => void
   deleteCharacter,      // (id: string) => void
   isCloudUser,          // boolean — true if using Firestore
@@ -438,7 +493,7 @@ const {
 
 ---
 
-## Chapter 10: The Campaign Ledger (`lib/campaigns.ts`)
+## Chapter 11: The Campaign Ledger (`lib/campaigns.ts`)
 
 > *"No adventurer fights alone. The Campaign Ledger tracks every party,  
 > every alliance, and every invitation across the realm."*
@@ -480,10 +535,11 @@ const {
 
 ---
 
-## Chapter 11: The Campaign Keeper (`contexts/CampaignContext.tsx`)
+## Chapter 12: The Campaign Keeper (`contexts/CampaignContext.tsx`)
 
 > *"The Keeper holds the state of all campaigns,  
-> providing every component with the knowledge it needs."*
+> providing every component with the knowledge it needs."*  
+> *Now also syncs `CharacterData.campaign`/`campaignId` on join, leave, and character reassignment.*
 
 ### `useCampaign()` Hook
 
@@ -515,6 +571,8 @@ const {
 - `isDM` is derived from comparing `activeCampaign.dmId` to the current user's UID
 - `pendingInvites` listens on the user's email for incoming campaign invites
 - `sendInvite` creates an invite record addressed to the given email for the active campaign
+- `joinByCode` syncs `CharacterData.campaign` and `campaignId` on the enrolled character
+- `leaveCampaign` clears `campaign`/`campaignId` on all of the user's characters in that campaign
 - `updateMemberCharacter` updates the current user's character assignment in the active campaign
 
 ---

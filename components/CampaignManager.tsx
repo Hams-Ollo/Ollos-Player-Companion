@@ -6,7 +6,7 @@ import { Users, Plus, Hash, Copy, Crown, ChevronRight, LogOut, Loader2, Check, A
 
 const CampaignManager: React.FC = () => {
   const { user } = useAuth();
-  const { characters } = useCharacters();
+  const { characters, updateCharacterById } = useCharacters();
   const {
     campaigns,
     activeCampaign,
@@ -142,6 +142,15 @@ const CampaignManager: React.FC = () => {
   const handleChangeCharacter = async (characterId: string) => {
     setError(null);
     try {
+      // Clear campaign fields on the previously assigned character
+      const oldCharId = members.find(m => m.uid === user?.uid)?.characterId;
+      if (oldCharId && oldCharId !== characterId) {
+        updateCharacterById(oldCharId, { campaign: 'Solo Adventure', campaignId: undefined });
+      }
+      // Set campaign fields on the newly assigned character
+      if (characterId && activeCampaign) {
+        updateCharacterById(characterId, { campaign: activeCampaign.name, campaignId: activeCampaign.id });
+      }
       await updateMemberCharacter(characterId || null);
     } catch (e: any) {
       setError(e.message || 'Failed to update character');

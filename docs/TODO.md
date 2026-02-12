@@ -32,8 +32,8 @@
 Phase 0: Foundation Cleanup           ████████████████████████████████████████  ✅ CLEARED
 Phase 1: Firestore Campaign Foundation    ████████████████████████████████████████  ✅ CLEARED
 UI Overhaul & API Cleanup                ████████████████████████████████████████  ✅ CLEARED
-Phase 2: Campaign Context & Party UI          ██████████████████░░░░░░░░░░░░░░░░  ← WE ARE HERE
-🔒 Security Hardening (BLOCKS PUBLIC LAUNCH)   ░░░░░░░░████████░░░░░░░░░░░░░░░░  ← NEXT PRIORITY
+Phase 2: Campaign Context & Party UI          ██████████████████████████████████  ✅ CLEARED
+🔒 Security Hardening (BLOCKS PUBLIC LAUNCH)   ██████████████████░░░░░░░░░░░░░░  ← WE ARE HERE
 Phase 3: Combat & Initiative Tracker                  ░░░░░░░░████████░░░░░░░░░░
 Phase 4: DM Journal, NPCs & Items                    ░░░░░░░░████████░░░░░░░░░░
 Phase 4b: Custom Items & Loot                        ░░░░░░░░░░██████░░░░░░░░░░
@@ -65,8 +65,8 @@ Character Export (no deps) ─→ can ship independently at any time
 |:--------|:------|:----------|:-------|
 | v0.3.1 | Phase 0 | Foundation — utilities, dice, conditions | ✅ Cleared |
 | v0.3.2 | UI Overhaul | Class theming, Dashboard rewrite, centralized AI | ✅ Cleared |
-| v0.4.0 | Phases 1–2 | Firestore campaigns, party roster, DM overview | 🟨 In Progress |
-| v0.4.1 | 🔒 Security | API proxy, rate limiting, debug cleanup, Firestore hardening | ⬜ Not Started |
+| v0.4.0 | Phases 1–2 | Firestore campaigns, party roster, DM overview | ✅ Cleared |
+| v0.4.1 | 🔒 Security | API proxy, rate limiting, debug cleanup, Firestore hardening | 🟨 In Progress (Layers 1–2 ✅, Layers 3–7 remaining) |
 | v0.4.x | Character Export | JSON export/import, PDF sheet, FoundryVTT/D&D Beyond | ⬜ Not Started |
 | v0.5.0 | Phases 3–4 | Combat tracker, encounter builder, DM journal, NPC registry | ⬜ Not Started |
 | v0.5.5 | Phase 4b | DM item builder, SRD magic items, loot sessions | ⬜ Not Started |
@@ -90,7 +90,7 @@ Character Export (no deps) ─→ can ship independently at any time
 - [x] **Add `CONDITIONS` reference map** — All 15 D&D 5e conditions with mechanical effects
 - [x] **Add encounter difficulty thresholds** — DMG XP budget tables (Easy/Medium/Hard/Deadly per level 1–20)
 - [x] **Expand `types.ts` with multiplayer models** — `CampaignMember`, `CombatEncounter`, `Combatant`, `DMNote`, `Whisper`, `RollRequest`, etc.
-- [ ] **Backend API proxy** — Move Gemini API key to a server-side proxy → _Tracked in v0.4.1 Security Hardening_
+- [ ] **Backend API proxy** — Move Gemini API key to a server-side proxy → _✅ Shipped in v0.4.1 Security Hardening (Layers 1–2)_
 
 ### 🟡 Medium
 
@@ -98,10 +98,10 @@ Character Export (no deps) ─→ can ship independently at any time
 
 ---
 
-## 📦 Current Quest: v0.4.0 — Campaign Foundation & Party System (Phases 1–2)
+## 📦 Current Quest: v0.4.0 — Campaign Foundation & Party System (Phases 1–2) ✅
 
-> *"The war council assembles. It is time to build the structures  
-> that will unite adventurers across the realm."*
+> *"The war council has assembled. The structures that unite  
+> adventurers across the realm stand firm."*
 
 ### 🔴 Deadly
 
@@ -141,19 +141,19 @@ Character Export (no deps) ─→ can ship independently at any time
 
 ### 🔴 Deadly — Layer 1: Backend API Proxy (eliminates root cause)
 
-- [ ] **Create Express proxy server** (`server/index.ts`) — Serves static SPA files + proxies `/api/gemini/*` routes
-- [ ] **Firebase Admin SDK token verification** — Every `/api/*` request requires valid Firebase ID token in `Authorization: Bearer <token>` header; unauthenticated requests get `401`
-- [ ] **Refactor `lib/gemini.ts`** — Replace direct `generativelanguage.googleapis.com` calls with `fetch('/api/gemini/...')` + attach Firebase ID token from `auth.currentUser.getIdToken()`
-- [ ] **Remove `GEMINI_API_KEY` from Vite `define`** — Key must never appear in the client JS bundle
-- [ ] **Remove `VITE_GEMINI_FILE_URI_*` from client bundle** — Move D&D PDF file URIs to server-side environment only
-- [ ] **Update Dockerfile** — Replace nginx-only Stage 2 with Node Express (serves static `dist/` + proxy routes)
-- [ ] **Update `cloudbuild.yaml`** — Remove `GEMINI_API_KEY` from `--build-arg`; inject as Cloud Run **runtime** env var instead
+- [x] **Create Express proxy server** (`server/index.ts`) — Serves static SPA files + proxies `/api/gemini/*` routes
+- [x] **Firebase Admin SDK token verification** — Every `/api/*` request requires valid Firebase ID token in `Authorization: Bearer <token>` header; unauthenticated requests get `401`
+- [x] **Refactor `lib/gemini.ts`** — Replace direct `generativelanguage.googleapis.com` calls with `fetch('/api/gemini/...')` + attach Firebase ID token from `auth.currentUser.getIdToken()`
+- [x] **Remove `GEMINI_API_KEY` from Vite `define`** — Key must never appear in the client JS bundle
+- [x] **Remove `VITE_GEMINI_FILE_URI_*` from client bundle** — Move D&D PDF file URIs to server-side environment only
+- [x] **Update Dockerfile** — Replace nginx-only Stage 2 with Node Express (serves static `dist/` + proxy routes)
+- [x] **Update `cloudbuild.yaml`** — Remove `GEMINI_API_KEY` from `--build-arg`; inject as Cloud Run **runtime** env var instead
 
 ### 🔴 Deadly — Layer 2: Server-Side Rate Limiting
 
-- [ ] **Per-user rate limiting** — In-memory map keyed by Firebase UID, 20 req/min per user
-- [ ] **Global rate limit fallback** — 200 req/min total across all users; prevents runaway if user pool spikes
-- [ ] **Rate limit response headers** — Return `X-RateLimit-Remaining` and `Retry-After` so the client can show friendly UX
+- [x] **Per-user rate limiting** — In-memory map keyed by Firebase UID, 20 req/min per user
+- [x] **Global rate limit fallback** — 200 req/min total across all users; prevents runaway if user pool spikes
+- [x] **Rate limit response headers** — Return `X-RateLimit-Remaining` and `Retry-After` so the client can show friendly UX
 
 ### 🟠 Hard — Layer 3: Debug & Logging Cleanup
 
@@ -364,6 +364,9 @@ Character Export (no deps) ─→ can ship independently at any time
 - [x] **Firebase Auth** — Google sign-in + anonymous fallback _(v0.2.3 — 2026-02-11)_
 - [x] **Spellbook Support, Advanced Dice, Data-driven Spells, Slot Tables** _(v0.1.x–v0.2.x)_
 - [x] **Starter Equipment Shop, Racial Traits, Class Features, Campaign Manager** _(v0.1.0)_
+- [x] **Express API Proxy (Layers 1–2)** — `server/index.js` + auth middleware + rate limiter; API key fully server-side _(v0.4.1 — 2026-02-12)_
+- [x] **Campaign Membership Sync** — Bidirectional sync of `CharacterData.campaign`/`campaignId` with members subcollection on join, leave, and reassignment _(v0.4.0 — 2026-02-12)_
+- [x] **Cloud Run Secret Manager** — `GEMINI_API_KEY` stored in GCP Secret Manager, mounted at runtime _(v0.4.1 — 2026-02-12)_
 - [x] **Campaign Provider Integration** — `CampaignProvider` wired into `App.tsx`, `CampaignManager` rewritten with `useCampaign()` _(v0.4.0 — 2026-02-12)_
 - [x] **DM Dashboard & Party Views** — `DMDashboard`, `DMPartyOverview`, `PartyRoster` components built _(v0.4.0 — 2026-02-12)_
 - [x] **Campaign Role & Character Assignment** — DM role confirmation, character picker at join/invite, `updateMemberCharacter` _(v0.4.0 — 2026-02-12)_

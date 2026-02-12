@@ -30,10 +30,6 @@ const PortraitGenerator: React.FC<PortraitGeneratorProps> = ({ currentPortrait, 
   };
 
   const handleGenerate = async () => {
-    if (!process.env.API_KEY) {
-      setError("API Key not found in environment.");
-      return;
-    }
 
     setLoading(true);
     setError(null);

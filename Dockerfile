@@ -14,49 +14,44 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build args for Vite define replacements (baked into JS at build time)
-ARG GEMINI_API_KEY=""
+# Build args for Vite define replacements — PUBLIC config only.
+# NOTE: GEMINI_API_KEY is NOT a build arg. It is injected as a Cloud Run
+# runtime environment variable and read by the Express server at startup.
 ARG VITE_FIREBASE_API_KEY=""
 ARG VITE_FIREBASE_AUTH_DOMAIN=""
 ARG VITE_FIREBASE_PROJECT_ID=""
 ARG VITE_FIREBASE_STORAGE_BUCKET=""
 ARG VITE_FIREBASE_MESSAGING_SENDER_ID=""
 ARG VITE_FIREBASE_APP_ID=""
-ARG VITE_GEMINI_FILE_URI_BASIC=""
-ARG VITE_GEMINI_FILE_URI_DMG=""
-ARG VITE_GEMINI_FILE_URI_MM=""
-ARG VITE_GEMINI_FILE_URI_PHB=""
 
 # Make build args available as env vars for Vite's build process
-ENV GEMINI_API_KEY=$GEMINI_API_KEY
 ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY
 ENV VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN
 ENV VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID
 ENV VITE_FIREBASE_STORAGE_BUCKET=$VITE_FIREBASE_STORAGE_BUCKET
 ENV VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID
 ENV VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID
-ENV VITE_GEMINI_FILE_URI_BASIC=$VITE_GEMINI_FILE_URI_BASIC
-ENV VITE_GEMINI_FILE_URI_DMG=$VITE_GEMINI_FILE_URI_DMG
-ENV VITE_GEMINI_FILE_URI_MM=$VITE_GEMINI_FILE_URI_MM
-ENV VITE_GEMINI_FILE_URI_PHB=$VITE_GEMINI_FILE_URI_PHB
 
 RUN npm run build
 
 # ==========================
-# Stage 2: Serve with nginx
+# Stage 2: Run with Express
 # ==========================
-FROM nginx:stable-alpine
+FROM node:20-alpine
 
-# Remove default nginx config
-RUN rm /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy package.json and install production deps only
+COPY package.json ./
+RUN npm install --omit=dev
+
+# Copy the Express proxy server
+COPY server/ ./server/
 
 # Copy built static files from build stage
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /app/dist ./dist
 
 # Cloud Run uses port 8080 by default
 EXPOSE 8080
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server/index.js"]

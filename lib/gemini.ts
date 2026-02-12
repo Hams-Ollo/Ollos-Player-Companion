@@ -1,5 +1,5 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { getAuth } from 'firebase/auth';
 import { compressPortrait } from "../utils";
 
 /** Primary text model — change here to update everywhere that uses this module. */
@@ -8,79 +8,90 @@ export const TEXT_MODEL = 'gemini-2.5-flash';
 /** Image generation model — change here to update everywhere. */
 export const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
-/** Force the SDK to use the correct API endpoint in every environment. */
-const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com';
-
-const getAI = () => {
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-  console.log('[Gemini] getAI() called');
-  console.log('[Gemini] API key present:', !!apiKey, '| length:', apiKey?.length, '| first 8:', apiKey?.substring(0, 8));
-  console.log('[Gemini] baseUrl:', GEMINI_BASE_URL);
-  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-    const msg = `Gemini API Key is missing or empty. API_KEY=${typeof process.env.API_KEY} GEMINI_API_KEY=${typeof process.env.GEMINI_API_KEY}`;
-    console.error('[Gemini]', msg);
-    throw new Error(msg);
+/**
+ * Get the current user's Firebase ID token for authenticating with the proxy.
+ * Returns null if the user is not signed in or token retrieval fails.
+ */
+const getAuthToken = async (): Promise<string | null> => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) return null;
+    return await user.getIdToken();
+  } catch {
+    return null;
   }
-  const ai = new GoogleGenAI({
-    apiKey,
-    httpOptions: { baseUrl: GEMINI_BASE_URL },
-  });
-  console.log('[Gemini] GoogleGenAI created successfully');
-  return ai;
 };
 
 /**
- * Creates a chat session with a specific system instruction.
+ * Make an authenticated request to our API proxy.
+ * All AI calls go through our server — the API key never touches the browser.
+ */
+const proxyFetch = async (endpoint: string, body: Record<string, unknown>): Promise<any> => {
+  const token = await getAuthToken();
+  if (!token) {
+    throw new Error('You must be signed in to use AI features.');
+  }
+
+  const response = await fetch(`/api/gemini/${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (response.status === 429) {
+    const data = await response.json();
+    throw new Error(data.message || 'Slow down, adventurer! The Weave needs a moment to settle.');
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({ error: 'AI request failed' }));
+    throw new Error(data.error || `AI request failed (${response.status})`);
+  }
+
+  return response.json();
+};
+
+/**
+ * Creates a stateless chat interaction with the AI.
+ * Sends the full history each time; the proxy handles the Gemini chat session.
+ * Returns an object compatible with the old chat.sendMessage() pattern.
  */
 export const createChatWithContext = async (history: any[], systemInstruction: string) => {
-  const ai = getAI();
-  return ai.chats.create({
-    model: TEXT_MODEL,
-    history: history,
-    config: {
-      systemInstruction,
-    }
-  });
+  // Return a chat-like object with a sendMessage method
+  return {
+    sendMessage: async ({ message }: { message: string }) => {
+      const data = await proxyFetch('chat', {
+        message,
+        history,
+        systemInstruction,
+      });
+      return { text: data.text || null };
+    },
+  };
 };
 
 /**
  * Simple text generation with optional JSON response schema.
  */
 export const generateWithContext = async (prompt: string, config: any = {}) => {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: TEXT_MODEL,
-    contents: prompt,
-    config: {
-      systemInstruction: "You are a specialized D&D 5e assistant. Provide accurate rules, engaging flavor text, and well-structured responses.",
-      ...config,
-    },
-  });
-  return response.text;
+  const data = await proxyFetch('generate', { prompt, config });
+  return data.text;
 };
 
 /**
  * Generate a portrait image using the image model.
  * Returns a base64 data URI on success, or null if no image was produced.
+ * Portrait compression is handled client-side after receiving the proxy response.
  */
 export const generatePortrait = async (prompt: string, parts?: any[]): Promise<string | null> => {
-  const ai = getAI();
-  const contentParts = parts || [{ text: prompt }];
-  const response = await ai.models.generateContent({
-    model: IMAGE_MODEL,
-    contents: { parts: contentParts },
-    config: {
-      responseModalities: ['Text', 'Image'],
-    },
-  });
+  const data = await proxyFetch('portrait', { prompt, parts });
 
-  if (response.candidates?.[0]?.content?.parts) {
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        const raw = `data:image/png;base64,${part.inlineData.data}`;
-        return compressPortrait(raw);
-      }
-    }
+  if (data.imageDataUri) {
+    return compressPortrait(data.imageDataUri);
   }
   return null;
 };

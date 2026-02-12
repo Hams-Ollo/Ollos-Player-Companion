@@ -18,6 +18,7 @@ interface CharacterContextType {
   setActiveCharacterId: (id: string | null) => void;
   createCharacter: (char: CharacterData) => void;
   updateCharacter: (partial: Partial<CharacterData>) => void;
+  updateCharacterById: (id: string, partial: Partial<CharacterData>) => void;
   updatePortrait: (url: string) => void;
   deleteCharacter: (id: string) => void;
   isCloudUser: boolean;
@@ -195,6 +196,32 @@ export const CharacterProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     [activeCharacterId, isCloud],
   );
 
+  /** Update a specific character by ID (not just the active one). */
+  const updateCharacterById = useCallback(
+    (id: string, partial: Partial<CharacterData>) => {
+      let charToSave: CharacterData | null = null;
+
+      setCharacters((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          const updated = recalculateCharacterStats({ ...c, ...partial, updatedAt: Date.now() });
+          charToSave = updated;
+          return updated;
+        }),
+      );
+
+      if (isCloud && charToSave) {
+        firestoreSave(charToSave)
+          .then(() => setSaveError(null))
+          .catch((err) => {
+            console.error('[CharacterContext] Failed to update character by ID:', err);
+            setSaveError(`Save failed: ${err.message}`);
+          });
+      }
+    },
+    [isCloud],
+  );
+
   const updatePortrait = useCallback(
     (url: string) => {
       updateCharacter({ portraitUrl: url });
@@ -244,6 +271,7 @@ export const CharacterProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setActiveCharacterId,
         createCharacter,
         updateCharacter,
+        updateCharacterById,
         updatePortrait,
         deleteCharacter: deleteChar,
         isCloudUser: isCloud,

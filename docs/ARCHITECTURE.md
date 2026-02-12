@@ -78,8 +78,8 @@ flowchart TD
 |:----------|:-----|:---------------|
 | `App` | `App.tsx` | Auth gate, routing between selection and dashboard |
 | `AuthProvider` | `contexts/AuthContext.tsx` | Firebase auth state, sign-in/out methods, React context |
-| `CharacterProvider` | `contexts/CharacterContext.tsx` | Character CRUD, Firestore/localStorage dual-mode, migration |
-| `CampaignProvider` | `contexts/CampaignContext.tsx` | Campaign CRUD, real-time subscriptions, invites |
+| `CharacterProvider` | `contexts/CharacterContext.tsx` | Character CRUD, Firestore/localStorage dual-mode, migration, `updateCharacterById` for cross-context syncing |
+| `CampaignProvider` | `contexts/CampaignContext.tsx` | Campaign CRUD, real-time subscriptions, invites, character–campaign membership sync |
 
 ### 📜 The Selection Layer
 
@@ -161,7 +161,8 @@ interface CharacterData {
   background?: string;
   alignment?: string;
   level: number;
-  campaign?: string;
+  campaign?: string;                     // display name (e.g. "Firestorm")
+  campaignId?: string;                   // Firestore campaign doc ID (synced with members subcollection)
   portraitUrl: string;
   stats: Record<StatKey, Stat>;       // STR, DEX, CON, INT, WIS, CHA
   hp: { current: number; max: number };
@@ -209,6 +210,7 @@ See `types.ts` for all interfaces (`Stat`, `Skill`, `Attack`, `Feature`, `Spell`
 - Collection: `campaigns` (top-level) with subcollections: `members`, `encounters`, `notes`, `templates`, `whispers`, `rollRequests`
 - Collection: `invites` (top-level) — join code + email invite tracking
 - Members subcollection stores `uid`, `displayName`, `role` (`dm`/`player`), and optional `characterId`
+- Character–campaign membership is synced bidirectionally: `CharacterData.campaignId` \u2194 `campaigns/{id}/members/{uid}`
 - Security rules enforce campaign membership — only members can read/write subcollection data
 - Campaign creation automatically assigns the creator as DM
 - Invite flow: DM shares join code or sends email invite → player accepts → added to members subcollection
@@ -235,7 +237,20 @@ Three exported incantations:
 - **`createChatWithContext(history, systemInstruction)`** — Multi-turn chat session
 - **`generatePortrait(prompt, parts?)`** — Image generation via `gemini-2.5-flash-image`, returns base64 data URI or null
 
-All use the `GEMINI_API_KEY` injected by Vite at build time via `process.env.API_KEY`. The `getAI()` private factory validates the key exists before creating a `GoogleGenAI` instance.
+All AI calls route through the **Express API proxy** at `/api/gemini/*`. The client attaches a Firebase ID token via `Authorization: Bearer <token>`. The proxy server holds the `GEMINI_API_KEY` in its runtime environment (injected via Cloud Run secrets or `.env` locally) and forwards requests to the Gemini API. The API key **never** appears in the browser bundle.
+
+### The Express Proxy (`server/index.js`)
+
+| Route | Purpose |
+|:------|:--------|
+| `POST /api/gemini/generate` | Single-shot text generation |
+| `POST /api/gemini/chat` | Multi-turn chat |
+| `POST /api/gemini/portrait` | Image generation |
+| `POST /api/gemini/live-token` | Ephemeral token for live audio transcription |
+| `GET /api/health` | Health check |
+| `GET /*` | Serves static `dist/` files (production) |
+
+**Middleware pipeline:** Firebase token verification → per-user rate limiter (20/min) → global rate limiter (200/min) → Gemini proxy.
 
 ---
 

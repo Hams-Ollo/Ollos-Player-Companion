@@ -67,9 +67,11 @@ Whether you are a battle-scarred veteran of a hundred campaigns or a wide-eyed n
 | **Styling** | Tailwind CSS (CDN) |
 | **Iconography** | Lucide React |
 | **The Weave (AI)** | Google Gemini (`@google/genai` v1.41+) — `gemini-2.5-flash` (text), `gemini-2.5-flash-image` (portraits) |
+| **The Gate (Proxy)** | Express.js server — API proxy with auth middleware + rate limiting |
 | **Ward (Auth)** | Firebase Authentication (Google + Anonymous providers) |
 | **Vault (Database)** | Cloud Firestore (character sync for authenticated users) |
 | **Scroll Case (Storage)** | localStorage (guest/offline fallback) |
+| **Shield (Secrets)** | Google Cloud Secret Manager (Gemini API key, never in browser) |
 | **Planar Gate (Deploy)** | Docker (multi-stage) → Google Cloud Run |
 
 ---
@@ -105,9 +107,21 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` with your Gemini API key and Firebase config. See [`.env.example`](.env.example) for all available variables with descriptions.
+Edit `.env` with your Gemini API key and Firebase config. At minimum you need:
 
-> ⚠️ **Ward of Protection:** Never commit `.env` to version control. It is already guarded by `.gitignore`.
+```bash
+GEMINI_API_KEY=your_gemini_api_key
+PORT=3001
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+> ⚠️ **Ward of Protection:** Never commit `.env` to version control. It is already guarded by `.gitignore`.  
+> The `GEMINI_API_KEY` is read **only by the Express proxy server** — it is never exposed to the browser.
 
 ### Step 3. Upload Reference Tomes *(Optional)*
 
@@ -122,10 +136,16 @@ Place your D&D reference PDFs in `reference-docs/`, then run the command above. 
 ### Step 4. Ignite the Dev Server
 
 ```bash
-npm run dev
+# Start both the Express API proxy and the Vite dev server
+npm run dev:full
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser. Your companion awaits.
+- **Vite SPA:** [http://localhost:3000](http://localhost:3000)
+- **Express API proxy:** [http://localhost:3001](http://localhost:3001)
+
+The Vite dev server automatically proxies `/api/*` requests to the Express server.
+
+> 💡 You can also run them separately: `npm run dev:server` (proxy) and `npm run dev` (Vite).
 
 ### Step 5. Forge for Production
 
@@ -149,13 +169,18 @@ npm run preview
 ├── vite.config.ts                # ⚙️ The Forge Config — Vite with env var injection
 ├── index.html                    # 🌐 Portal of Entry
 ├── Dockerfile                    # 🐳 Blueprint for the Iron Golem (container)
-├── nginx.conf                    # 🌐 The Gatekeeper's Orders
 ├── firebase.json                 # 🔥 Pact of the Flame (Firebase config)
 ├── firestore.rules               # 🔒 Wards of Protection (security rules)
 ├── firestore.indexes.json        # 📇 Index of Forbidden Knowledge
 │
+├── server/
+│   ├── index.js                  # 🛡️ The Gatekeeper — Express API proxy + static SPA server
+│   └── middleware/
+│       ├── auth.js               # 🔐 Token Verification — validates Firebase ID tokens
+│       └── rateLimit.js          # ⏱️ Rate Limiter — per-user & global request throttling
+│
 ├── lib/
-│   ├── gemini.ts                 # 🤖 The Weave — centralized Gemini AI client
+│   ├── gemini.ts                 # 🤖 The Weave — proxy client (calls /api/gemini/*)
 │   ├── firestore.ts              # 🔥 The Vault — Firestore CRUD & real-time sync
 │   ├── campaigns.ts              # 🗺️ The Campaign Ledger — campaign Firestore operations
 │   ├── dice.ts                   # 🎲 The Dice Bag — roll parsing & execution
@@ -226,15 +251,20 @@ Signed-in users (Google Auth) receive **automatic Firestore synchronization**:
 
 ---
 
-## Chapter 7: Rate Limiting
+## Chapter 7: Security & Rate Limiting
 
 > *"The Weave resists those who draw upon it too hastily.  
 > Patience, young spellcaster — two seconds between castings."*
 
-Client-side multi-layer protection prevents abuse of the AI connection:
+The Companion employs a **defense-in-depth** strategy to protect the Gemini API key and prevent abuse:
 
-- **Per-call throttle:** 2-second minimum between AI requests
-- **Tamper detection:** Rate limit state stored in closure (not localStorage) — immune to console trickery
+- **Server-side API proxy:** All Gemini requests route through an Express server (`server/index.js`). The API key **never** reaches the browser.
+- **Firebase token verification:** Every proxy request requires a valid Firebase ID token — unauthenticated requests receive `401`.
+- **Per-user rate limiting:** 20 requests/minute per Firebase UID (server-side, tamper-proof).
+- **Global rate limiting:** 200 requests/minute across all users — prevents runaway if user pool spikes.
+- **Google Cloud Secret Manager:** API key stored as a managed secret, injected at Cloud Run runtime.
+- **Budget alert:** $20/month billing alert with thresholds at 50/90/100/150%.
+- **Client-side throttle:** 2-second minimum between AI requests as a UX safeguard.
 
 ---
 

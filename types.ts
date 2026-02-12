@@ -76,6 +76,7 @@ export interface CharacterData {
   level: number;
   subclass?: string;
   campaign?: string;
+  campaignId?: string;
   portraitUrl: string;
   stats: Record<StatKey, Stat>;
   hp: { current: number; max: number };

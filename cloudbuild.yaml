@@ -1,5 +1,7 @@
 steps:
-  # Step 1: Build the Docker image with all build-time args
+  # Step 1: Build the Docker image with PUBLIC config only.
+  # NOTE: GEMINI_API_KEY is NOT passed as a build arg.
+  # It is set as a Cloud Run runtime secret via Secret Manager.
   - name: gcr.io/cloud-builders/docker
     id: Build
     args:
@@ -7,8 +9,6 @@ steps:
       - '--no-cache'
       - '-t'
       - $_AR_HOSTNAME/$PROJECT_ID/$_AR_REPOSITORY/$_SERVICE_NAME:$COMMIT_SHA
-      - '--build-arg'
-      - GEMINI_API_KEY=$_GEMINI_API_KEY
       - '--build-arg'
       - VITE_FIREBASE_API_KEY=$_VITE_FIREBASE_API_KEY
       - '--build-arg'
@@ -21,14 +21,6 @@ steps:
       - VITE_FIREBASE_MESSAGING_SENDER_ID=$_VITE_FIREBASE_MESSAGING_SENDER_ID
       - '--build-arg'
       - VITE_FIREBASE_APP_ID=$_VITE_FIREBASE_APP_ID
-      - '--build-arg'
-      - VITE_GEMINI_FILE_URI_BASIC=$_VITE_GEMINI_FILE_URI_BASIC
-      - '--build-arg'
-      - VITE_GEMINI_FILE_URI_DMG=$_VITE_GEMINI_FILE_URI_DMG
-      - '--build-arg'
-      - VITE_GEMINI_FILE_URI_MM=$_VITE_GEMINI_FILE_URI_MM
-      - '--build-arg'
-      - VITE_GEMINI_FILE_URI_PHB=$_VITE_GEMINI_FILE_URI_PHB
       - .
 
   # Step 2: Push the image to Artifact Registry

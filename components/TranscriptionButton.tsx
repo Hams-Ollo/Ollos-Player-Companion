@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 // Correct import: Modality is required for Live API responseModalities configuration
 import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
+import { getAuth } from 'firebase/auth';
 
 interface TranscriptionButtonProps {
   onTranscription: (text: string) => void;
@@ -38,14 +39,42 @@ const TranscriptionButton: React.FC<TranscriptionButtonProps> = ({ onTranscripti
     };
   };
 
+  /**
+   * Fetch a short-lived API key from our proxy for the Live Audio session.
+   * The proxy verifies the Firebase ID token before returning the key.
+   */
+  const getEphemeralApiKey = async (): Promise<string | null> => {
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) return null;
+      const idToken = await user.getIdToken();
+
+      const response = await fetch('/api/gemini/live-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+      });
+
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.apiKey || null;
+    } catch {
+      return null;
+    }
+  };
+
   const startListening = async () => {
-    if (!process.env.API_KEY) return;
+    const apiKey = await getEphemeralApiKey();
+    if (!apiKey) return;
     setIsInitializing(true);
 
     try {
-      // Create a fresh GoogleGenAI instance right before the connection
+      // Create a fresh GoogleGenAI instance with the short-lived key from our proxy
       const ai = new GoogleGenAI({
-        apiKey: process.env.API_KEY,
+        apiKey: apiKey,
         httpOptions: { baseUrl: 'https://generativelanguage.googleapis.com' },
       });
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
