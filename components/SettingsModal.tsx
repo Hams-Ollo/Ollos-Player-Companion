@@ -19,7 +19,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) 
     stats: { ...data.stats }
   });
 
-  const hasApiKey = !!process.env.API_KEY;
+  const hasApiKey = true; // AI features are always available via server proxy
 
   const handleSave = () => {
     const profBonus = Math.ceil((formData.level || data.level) / 4) + 1;

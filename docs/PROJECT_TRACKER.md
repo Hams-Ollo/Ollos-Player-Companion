@@ -31,7 +31,7 @@
 | 1.5 | Add encounter difficulty thresholds | ✅ | DMG XP budget tables (1–20) |
 | 1.6 | Expand `types.ts` with multiplayer models | ✅ | `CampaignMember`, `CombatEncounter`, `Combatant`, `DMNote`, `Whisper`, `RollRequest` |
 | 1.7 | SRD monster data (`lib/monsters.ts`) | 🔲 | ~300 SRD creatures |
-| 1.8 | Backend API proxy for Gemini key | 🔲 | Move API key to server-side |
+| 1.8 | Backend API proxy for Gemini key | ✅ | Express proxy in `server/index.js` — shipped v0.4.1 |
 
 ---
 
@@ -44,9 +44,9 @@
 | 2.1 | Google sign-in + anonymous fallback | ✅ | `AuthContext.tsx` |
 | 2.2 | `LoginScreen` component | ✅ | Google button + guest mode |
 | 2.3 | Auth state persistence | ✅ | `onAuthStateChanged` listener |
-| 2.4 | Cloud Run deployment pipeline | ✅ | Dockerfile + nginx |
+| 2.4 | Cloud Run deployment pipeline | ✅ | Dockerfile + Express server |
 | 2.5 | Firebase project configuration | ✅ | Hosting, auth domains |
-| 2.6 | Environment variable setup | ✅ | Vite `define` for API key |
+| 2.6 | Environment variable setup | ✅ | `GEMINI_API_KEY` server-only via Express proxy; `VITE_*` via Vite |
 
 ---
 
@@ -135,11 +135,11 @@
 
 | # | Task | Status | Notes |
 |:--|:-----|:------:|:------|
-| 7.1 | Centralized AI client (`lib/gemini.ts`) | ✅ | Shared config & error handling |
-| 7.2 | `generateWithContext()` | ✅ | Single-shot generation |
-| 7.3 | `createChatWithContext()` | ✅ | Multi-turn conversation |
-| 7.4 | `generatePortrait()` | ✅ | Image generation via `gemini-2.5-flash-image` |
-| 7.5 | Rate limiting (2s cooldown) | ✅ | Module-level closure |
+| 7.1 | Centralized AI client (`lib/gemini.ts`) | ✅ | Calls Express proxy; API key never in browser |
+| 7.2 | `generateWithContext()` | ✅ | Single-shot via `/api/gemini/generate` |
+| 7.3 | `createChatWithContext()` | ✅ | Multi-turn via `/api/gemini/chat` |
+| 7.4 | `generatePortrait()` | ✅ | Image gen via `/api/gemini/portrait` |
+| 7.5 | Rate limiting (2s cooldown) | ✅ | Client-side + server-side (20/user/min, 200 global) |
 | 7.6 | Ask DM modal | ✅ | `AskDMModal.tsx` |
 | 7.7 | AI-assisted level-up choices | ✅ | Gemini suggests feat/ASI/spells |
 | 7.8 | AI backstory generation | ✅ | In creation wizard |
@@ -168,11 +168,18 @@
 | 8.7 | Join codes (6-char) | ✅ | Shareable codes |
 | 8.8 | Campaign deletion with subcollections | ✅ | Members deleted last |
 | 8.9 | DM fallback read permissions | ✅ | On members, encounters, rollRequests, whispers |
-| 8.10 | Character-to-campaign assignment | 🔲 | v0.4.0 |
-| 8.11 | Party roster component | 🔲 | v0.4.0 |
-| 8.12 | DM party overview | 🔲 | v0.4.0 |
-| 8.13 | Invite management (email + code) | 🔲 | v0.4.0 |
+| 8.10 | Character-to-campaign assignment | ✅ | Dropdown picker + bidirectional sync of `CharacterData.campaign`/`campaignId` |
+| 8.11 | Party roster component | ✅ | `PartyRoster.tsx` — card grid with character fetching |
+| 8.12 | DM party overview | ✅ | `DMPartyOverview.tsx` — vitals grid, passive scores |
+| 8.13 | Invite management (email + code) | ✅ | Join code sharing panel + email invites + accept/decline |
 | 8.14 | Campaign member migration | 🔲 | v0.4.0 |
+| 8.15 | Wire `CampaignProvider` into `App.tsx` | ✅ | Provider wraps `AppContent`, no localStorage |
+| 8.16 | Rewrite `CampaignManager` with `useCampaign()` | ✅ | Fully Firestore-backed |
+| 8.17 | `DMDashboard` layout | ✅ | Tabbed DM view (overview/combat/notes/settings) |
+| 8.18 | DM role confirmation at creation | ✅ | Crown badge + confirmation in create form |
+| 8.19 | `updateMemberCharacter` service fn | ✅ | Change character assignment after joining |
+| 8.20 | `sendInvite` context action | ✅ | Wired `createInvite` into `CampaignContext` |
+| 8.21 | Party card in player Dashboard | ✅ | Conditional card in `CardStack` when in campaign |
 
 ---
 
@@ -308,7 +315,7 @@
 
 | # | Task | Status | Notes |
 |:--|:-----|:------:|:------|
-| 17.1 | Dockerfile + nginx config | ✅ | Multi-stage build |
+| 17.1 | Dockerfile + Express server | ✅ | Multi-stage build; Stage 2 = Node Express serving static + proxy |
 | 17.2 | Cloud Run deployment | ✅ | Source deploy + manual |
 | 17.3 | Firebase hosting config | ✅ | Auth domain setup |
 | 17.4 | Vite build pipeline | ✅ | TypeScript + Tailwind |
@@ -316,6 +323,74 @@
 | 17.6 | CI/CD pipeline | 🔲 | GitHub Actions |
 | 17.7 | Staging environment | 🔲 | Separate Firebase project |
 | 17.8 | Cloud Functions deployment | 🔲 | v0.4.0 |
+
+---
+
+## Epic 19: The Warding Circle — Security Hardening
+
+> *"The strongest keep falls to a single unguarded gate. Before the realm is opened  
+> to visitors, every ward must be inscribed, every seal tested, every secret hidden."*
+
+### Layer 1: Backend API Proxy (CRITICAL — blocks public launch)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.1 | Create Express proxy server (`server/index.ts`) | ✅ | `server/index.js` — serves static SPA + proxies `/api/gemini/*` routes |
+| 19.2 | Firebase Admin SDK token verification | ✅ | `server/middleware/auth.js` — verifies Firebase ID tokens, 5-min cache |
+| 19.3 | Refactor `lib/gemini.ts` to call proxy | ✅ | All Gemini calls go through `proxyFetch()` with Firebase bearer token |
+| 19.4 | Remove `GEMINI_API_KEY` from Vite `define` | ✅ | Key removed from `vite.config.ts` — not in client bundle |
+| 19.5 | Update Dockerfile for Express server | ✅ | Stage 2 = `node:20-alpine` running `node server/index.js` |
+| 19.6 | Update `cloudbuild.yaml` — runtime secret | ✅ | Removed build args; key injected via Cloud Run Secret Manager |
+| 19.7 | Remove Gemini File URIs from client bundle | ✅ | `GEMINI_FILE_URI_*` read server-side only |
+
+### Layer 2: Server-Side Rate Limiting (HIGH)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.8 | Per-user rate limiting on proxy | ✅ | `server/middleware/rateLimit.js` — 20 req/min per Firebase UID |
+| 19.9 | Global rate limiting fallback | ✅ | 200 req/min total across all users |
+| 19.10 | Rate limit headers in responses | ✅ | `X-RateLimit-Remaining`, `Retry-After` headers |
+
+### Layer 3: Debug & Logging Cleanup (MEDIUM)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.11 | Strip API key `console.log` from `gemini.ts` | 🔲 | Lines 16-18, 28 — leak key metadata to browser console |
+| 19.12 | Strip key prefix logging from `vite.config.ts` | 🔲 | Lines 18-22 — leak first 8 chars to CI build logs |
+| 19.13 | Production-only logging guard | 🔲 | Wrap debug logs in `if (import.meta.env.DEV)` |
+
+### Layer 4: Firestore Rules Tightening (MEDIUM)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.14 | Restrict invite `update` rule | 🔲 | Only `toEmail` owner or campaign DM can accept/decline |
+| 19.15 | Add field-type validation rules | 🔲 | Enforce types on `ownerUid`, `name`, `level`, etc. |
+| 19.16 | Add document size limits | 🔲 | `request.resource.data.size() < X` on character writes |
+| 19.17 | Eliminate local guest UID bypass | 🔲 | Remove `guest-local-*` fallback or scope it to localStorage only |
+
+### Layer 5: Google Cloud API Key Restrictions (MEDIUM)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.18 | Restrict Gemini API key to Cloud Run service | 🔲 | Google Cloud Console → Credentials → IP/service account restriction |
+| 19.19 | Restrict Firebase API key by HTTP referrer | 🔲 | Limit to deployed domain(s) only |
+| 19.20 | Set daily quota caps on Gemini key | 🔲 | Billing safety net — e.g., 5000 req/day |
+
+### Layer 6: Security Headers & CSP (LOW)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.21 | Content Security Policy header | 🔲 | `default-src 'self'; connect-src 'self' *.googleapis.com *.firebaseio.com` |
+| 19.22 | HSTS header | 🔲 | `Strict-Transport-Security: max-age=31536000; includeSubDomains` |
+| 19.23 | Permissions-Policy header | 🔲 | Restrict camera/mic/geolocation to what's actually needed |
+
+### Layer 7: Dependency & Supply Chain (LOW)
+
+| # | Task | Status | Notes |
+|:--|:-----|:------:|:------|
+| 19.24 | `npm audit` — fix known vulnerabilities | 🔲 | Run before public launch |
+| 19.25 | Pin dependency versions | 🔲 | Remove `^` ranges for critical deps |
+| 19.26 | Add `.env.example` secret checklist | 🔲 | Document which vars are build-time vs runtime |
 
 ---
 
@@ -344,14 +419,14 @@
 
 | Category | ✅ Done | 🚧 Active | 🔲 Remaining | Total |
 |:---------|:--------|:-----------|:-------------|:------|
-| Epic 1: Foundation | 6 | 0 | 2 | 8 |
+| Epic 1: Foundation | 7 | 0 | 1 | 8 |
 | Epic 2: Auth & Cloud | 6 | 0 | 0 | 6 |
 | Epic 3: Character Persistence | 8 | 0 | 0 | 8 |
 | Epic 4: Character Creation | 10 | 0 | 2 | 12 |
 | Epic 5: Dashboard & UI | 12 | 0 | 0 | 12 |
 | Epic 6: Marketplace | 8 | 0 | 3 | 11 |
 | Epic 7: AI Integration | 11 | 0 | 3 | 14 |
-| Epic 8: Campaign System | 9 | 0 | 5 | 14 |
+| Epic 8: Campaign System | 20 | 0 | 1 | 21 |
 | Epic 9: Spells & Casting | 7 | 0 | 3 | 10 |
 | Epic 10: Journal | 4 | 0 | 3 | 7 |
 | Epic 11: Skills | 5 | 0 | 1 | 6 |
@@ -362,7 +437,8 @@
 | Epic 16: Communication | 0 | 0 | 3 | 3 |
 | Epic 17: Infrastructure | 5 | 0 | 3 | 8 |
 | Epic 18: Polish & A11y | 4 | 0 | 6 | 10 |
-| **TOTALS** | **109** | **0** | **48** | **157** |
+| Epic 19: Security Hardening | 10 | 0 | 16 | 26 |
+| **TOTALS** | **131** | **0** | **59** | **190** |
 
 ---
 

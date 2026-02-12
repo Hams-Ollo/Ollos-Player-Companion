@@ -102,11 +102,6 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
         return;
     }
 
-    if (!process.env.API_KEY) {
-        setError("AI Neural Link unavailable. Check environment.");
-        return;
-    }
-
     setIsForging(true);
     setError(null);
     setRitualMessage("Consulting the ancient scrolls...");

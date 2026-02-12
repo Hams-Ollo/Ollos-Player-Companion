@@ -6,7 +6,7 @@
 >
 > Living document tracking planned features, enhancements, and community requests.
 >
-> **Scribed last:** 2026-02-12
+> **Scribed last:** 2026-02-12 (security hardening roadmap added)
 
 ---
 
@@ -32,7 +32,8 @@
 Phase 0: Foundation Cleanup           ████████████████████████████████████████  ✅ CLEARED
 Phase 1: Firestore Campaign Foundation    ████████████████████████████████████████  ✅ CLEARED
 UI Overhaul & API Cleanup                ████████████████████████████████████████  ✅ CLEARED
-Phase 2: Campaign Context & Party UI          ██████████░░░░░░░░░░░░░░░░░░░░░░░░  ← WE ARE HERE
+Phase 2: Campaign Context & Party UI          ██████████████████████████████████  ✅ CLEARED
+🔒 Security Hardening (BLOCKS PUBLIC LAUNCH)   ██████████████████░░░░░░░░░░░░░░  ← WE ARE HERE
 Phase 3: Combat & Initiative Tracker                  ░░░░░░░░████████░░░░░░░░░░
 Phase 4: DM Journal, NPCs & Items                    ░░░░░░░░████████░░░░░░░░░░
 Phase 4b: Custom Items & Loot                        ░░░░░░░░░░██████░░░░░░░░░░
@@ -40,7 +41,7 @@ Phase 5: AI DM Co-Pilot                                      ░░░░░░�
 Phase 6: Multiplayer Communication                            ░░░░░░░░████████░░
 Phase 7: Higher-Level Char Creation                                   ░░████████
 Character Export (independent)         ░░░░░░░░░░░░░░ (can ship anytime)
-                                       v0.3.1   v0.4.0   v0.5.0  v0.5.5  v0.6.0  v0.7.0
+                                       v0.3.1   v0.4.0  v0.4.1  v0.5.0  v0.5.5  v0.6.0  v0.7.0
 ```
 
 ### Phase Dependencies
@@ -48,10 +49,12 @@ Character Export (independent)         ░░░░░░░░░░░░░�
 > *Some dungeons must be cleared before others become accessible.*
 
 ```
-Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ Phase 3 (Combat)
+Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST clear before public sharing)
+                                │      │
+                                │      └→ Phase 3 (Combat)
                                 ├→ Phase 4 (Journal/NPCs) ─┬→ Phase 4b (Items & Loot)
-                                ├→ Phase 6 (Comms)        │
-                                │                          └→ Phase 5 (AI Co-Pilot)
+                                ├→ Phase 6 (Comms)         │
+                                │                           └→ Phase 5 (AI Co-Pilot)
                                 └→ Phase 7 (Char Creation)
 Character Export (no deps) ─→ can ship independently at any time
 ```
@@ -62,7 +65,8 @@ Character Export (no deps) ─→ can ship independently at any time
 |:--------|:------|:----------|:-------|
 | v0.3.1 | Phase 0 | Foundation — utilities, dice, conditions | ✅ Cleared |
 | v0.3.2 | UI Overhaul | Class theming, Dashboard rewrite, centralized AI | ✅ Cleared |
-| v0.4.0 | Phases 1–2 | Firestore campaigns, party roster, DM overview | 🟨 In Progress |
+| v0.4.0 | Phases 1–2 | Firestore campaigns, party roster, DM overview | ✅ Cleared |
+| v0.4.1 | 🔒 Security | API proxy, rate limiting, debug cleanup, Firestore hardening | 🟨 In Progress (Layers 1–2 ✅, Layers 3–7 remaining) |
 | v0.4.x | Character Export | JSON export/import, PDF sheet, FoundryVTT/D&D Beyond | ⬜ Not Started |
 | v0.5.0 | Phases 3–4 | Combat tracker, encounter builder, DM journal, NPC registry | ⬜ Not Started |
 | v0.5.5 | Phase 4b | DM item builder, SRD magic items, loot sessions | ⬜ Not Started |
@@ -86,7 +90,7 @@ Character Export (no deps) ─→ can ship independently at any time
 - [x] **Add `CONDITIONS` reference map** — All 15 D&D 5e conditions with mechanical effects
 - [x] **Add encounter difficulty thresholds** — DMG XP budget tables (Easy/Medium/Hard/Deadly per level 1–20)
 - [x] **Expand `types.ts` with multiplayer models** — `CampaignMember`, `CombatEncounter`, `Combatant`, `DMNote`, `Whisper`, `RollRequest`, etc.
-- [ ] **Backend API proxy** — Move Gemini API key to a server-side proxy
+- [ ] **Backend API proxy** — Move Gemini API key to a server-side proxy → _✅ Shipped in v0.4.1 Security Hardening (Layers 1–2)_
 
 ### 🟡 Medium
 
@@ -94,10 +98,10 @@ Character Export (no deps) ─→ can ship independently at any time
 
 ---
 
-## 📦 Current Quest: v0.4.0 — Campaign Foundation & Party System (Phases 1–2)
+## 📦 Current Quest: v0.4.0 — Campaign Foundation & Party System (Phases 1–2) ✅
 
-> *"The war council assembles. It is time to build the structures  
-> that will unite adventurers across the realm."*
+> *"The war council has assembled. The structures that unite  
+> adventurers across the realm stand firm."*
 
 ### 🔴 Deadly
 
@@ -105,28 +109,86 @@ Character Export (no deps) ─→ can ship independently at any time
 - [x] **Create `lib/campaigns.ts` service layer** — Full campaign CRUD with real-time subscriptions
 - [x] **Update Firestore security rules** — Campaign member reads, DM-only writes, invite rules
 - [x] **Create `CampaignContext` provider** — `useCampaign()` hook with campaigns, members, roles
-- [ ] **Wire `CampaignProvider` into `App.tsx`** — Remove localStorage campaign state, wrap with provider
-- [ ] **Rewrite `CampaignManager` component** — Replace localStorage with `useCampaign()`
+- [x] **Wire `CampaignProvider` into `App.tsx`** — Remove localStorage campaign state, wrap with provider
+- [x] **Rewrite `CampaignManager` component** — Replace localStorage with `useCampaign()`
 
 ### 🟠 Hard
 
-- [ ] **DM/Player role selection** — Role selector at campaign creation
-- [ ] **Character-to-campaign assignment** — Dropdown picker stored as `CampaignMember.characterId`
-- [ ] **Build `PartyRoster` component** — Grid of party member cards with portraits
-- [ ] **Build `DMPartyOverview` component** — Live vitals grid, passive scores panel
-- [ ] **Build `DMDashboard` layout** — DM-specific layout when `myRole === 'dm'`
-- [ ] **Invite management** — Join code sharing + direct email invites, accept/decline flow
+- [x] **DM/Player role selection** — DM role confirmation badge at campaign creation
+- [x] **Character-to-campaign assignment** — Dropdown picker at join, invite accept, and post-join change
+- [x] **Build `PartyRoster` component** — Grid of party member cards with portraits
+- [x] **Build `DMPartyOverview` component** — Live vitals grid, passive scores panel
+- [x] **Build `DMDashboard` layout** — DM-specific layout when `myRole === 'dm'`
+- [x] **Invite management** — Join code sharing (prominent copy-paste) + email invites + accept/decline flow
 - [ ] **Migrate localStorage campaigns to Firestore** — Migration function
 
 ### 🟡 Medium
 
-- [ ] **Cloud Functions layer** — `joinByCode`, `fetchPartyCharacters`, `sendInvite`, `geminiProxy`
-- [ ] **Add "Party" card to player Dashboard** — Party card in `CardStack` when in a campaign
+- [ ] **Cloud Functions layer** — `joinByCode`, `fetchPartyCharacters`, `sendInvite` _(geminiProxy moved to v0.4.1 Security)_
+- [x] **Add "Party" card to player Dashboard** — Party card in `CardStack` when in a campaign
 - [ ] **Character diff badges** — Notification dot when party members level up
 
 ---
 
-## 📦 Epic Quest: v0.5.0 — Combat System & DM Campaign Tools (Phases 3–4)
+## � SECURITY GATE: v0.4.1 — The Warding Circle (Blocks Public Launch)
+
+> *"The strongest keep falls to a single unguarded gate. Before the realm is opened  
+> to visitors, every ward must be inscribed, every seal tested, every secret hidden."*
+>
+> **⚠️ CRITICAL: Complete Layers 1–3 before sharing on Reddit/Discord.**  
+> The Gemini API key is currently baked into the browser JS bundle. Anyone can extract  
+> it in 30 seconds with DevTools and abuse your quota. This phase eliminates that risk.
+
+### 🔴 Deadly — Layer 1: Backend API Proxy (eliminates root cause)
+
+- [x] **Create Express proxy server** (`server/index.ts`) — Serves static SPA files + proxies `/api/gemini/*` routes
+- [x] **Firebase Admin SDK token verification** — Every `/api/*` request requires valid Firebase ID token in `Authorization: Bearer <token>` header; unauthenticated requests get `401`
+- [x] **Refactor `lib/gemini.ts`** — Replace direct `generativelanguage.googleapis.com` calls with `fetch('/api/gemini/...')` + attach Firebase ID token from `auth.currentUser.getIdToken()`
+- [x] **Remove `GEMINI_API_KEY` from Vite `define`** — Key must never appear in the client JS bundle
+- [x] **Remove `VITE_GEMINI_FILE_URI_*` from client bundle** — Move D&D PDF file URIs to server-side environment only
+- [x] **Update Dockerfile** — Replace nginx-only Stage 2 with Node Express (serves static `dist/` + proxy routes)
+- [x] **Update `cloudbuild.yaml`** — Remove `GEMINI_API_KEY` from `--build-arg`; inject as Cloud Run **runtime** env var instead
+
+### 🔴 Deadly — Layer 2: Server-Side Rate Limiting
+
+- [x] **Per-user rate limiting** — In-memory map keyed by Firebase UID, 20 req/min per user
+- [x] **Global rate limit fallback** — 200 req/min total across all users; prevents runaway if user pool spikes
+- [x] **Rate limit response headers** — Return `X-RateLimit-Remaining` and `Retry-After` so the client can show friendly UX
+
+### 🟠 Hard — Layer 3: Debug & Logging Cleanup
+
+- [ ] **Strip API key `console.log` from `gemini.ts`** — Lines 16-18, 28 currently leak key length + first 8 chars to every user's browser console
+- [ ] **Strip key prefix logging from `vite.config.ts`** — Lines 18-22 print first 8 chars of API key to CI build logs
+- [ ] **Add production logging guard** — Wrap remaining debug logs in `if (import.meta.env.DEV)` checks
+
+### 🟠 Hard — Layer 4: Firestore Rules Tightening
+
+- [ ] **Restrict invite `update` rule** — Currently any signed-in user can accept any invite; restrict to `toEmail` owner or campaign DM only
+- [ ] **Add field-type validation** — Enforce string/number types on `ownerUid`, `name`, `level`, etc. in security rules
+- [ ] **Add document size limits** — `request.resource.data.size() < N` on character writes to prevent abuse
+- [ ] **Scope local guest fallback** — Remove `guest-local-*` UID bypass or restrict it to localStorage-only path (no Firestore access)
+
+### 🟡 Medium — Layer 5: Google Cloud Console Restrictions
+
+- [ ] **Restrict Gemini API key** — Google Cloud Console → Credentials → restrict to Cloud Run service account/IP (no longer browser-accessible)
+- [ ] **Restrict Firebase API key** — Add HTTP referrer restrictions to deployed domain(s) only
+- [ ] **Set daily quota caps** — Billing safety net on Gemini key (e.g., 5000 req/day)
+
+### 🟡 Medium — Layer 6: Security Headers & CSP
+
+- [ ] **Content Security Policy** — `default-src 'self'; script-src 'self'; connect-src 'self' *.googleapis.com *.firebaseio.com`
+- [ ] **HSTS header** — `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+- [ ] **Permissions-Policy** — Restrict camera/microphone/geolocation to what's actually needed (voice input uses mic)
+
+### 🟢 Easy — Layer 7: Dependency & Supply Chain
+
+- [ ] **Run `npm audit fix`** — Resolve known vulnerabilities before public launch
+- [ ] **Pin critical dependency versions** — Remove `^` semver ranges for `@google/genai`, `firebase`, `react`
+- [ ] **Update `.env.example`** — Document which variables are build-time (Firebase config) vs runtime-only (Gemini key)
+
+---
+
+## �📦 Epic Quest: v0.5.0 — Combat System & DM Campaign Tools (Phases 3–4)
 
 > *"Roll for initiative! The combat system and DM tools  
 > will bring the full tabletop experience to the digital realm."*
@@ -280,7 +342,7 @@ Character Export (no deps) ─→ can ship independently at any time
 > *"The people speak! Add your voice to the chorus."*
 
 - [ ] **Create characters at any level (1–20)** — Much requested. Tracked in v0.7.0.
-- [ ] _[Post on the Quest Board](https://github.com/Hams-Ollo/The-Players-Companion/issues) to suggest a feature!_
+- [ ] _[Post on the Quest Board](https://github.com/Hams-Ollo/Ollos-Player-Companion/issues) to suggest a feature!_
 
 ---
 
@@ -302,13 +364,20 @@ Character Export (no deps) ─→ can ship independently at any time
 - [x] **Firebase Auth** — Google sign-in + anonymous fallback _(v0.2.3 — 2026-02-11)_
 - [x] **Spellbook Support, Advanced Dice, Data-driven Spells, Slot Tables** _(v0.1.x–v0.2.x)_
 - [x] **Starter Equipment Shop, Racial Traits, Class Features, Campaign Manager** _(v0.1.0)_
+- [x] **Express API Proxy (Layers 1–2)** — `server/index.js` + auth middleware + rate limiter; API key fully server-side _(v0.4.1 — 2026-02-12)_
+- [x] **Campaign Membership Sync** — Bidirectional sync of `CharacterData.campaign`/`campaignId` with members subcollection on join, leave, and reassignment _(v0.4.0 — 2026-02-12)_
+- [x] **Cloud Run Secret Manager** — `GEMINI_API_KEY` stored in GCP Secret Manager, mounted at runtime _(v0.4.1 — 2026-02-12)_
+- [x] **Campaign Provider Integration** — `CampaignProvider` wired into `App.tsx`, `CampaignManager` rewritten with `useCampaign()` _(v0.4.0 — 2026-02-12)_
+- [x] **DM Dashboard & Party Views** — `DMDashboard`, `DMPartyOverview`, `PartyRoster` components built _(v0.4.0 — 2026-02-12)_
+- [x] **Campaign Role & Character Assignment** — DM role confirmation, character picker at join/invite, `updateMemberCharacter` _(v0.4.0 — 2026-02-12)_
+- [x] **Invite Management** — Join code sharing panel, email invites via `createInvite`, `sendInvite` context action _(v0.4.0 — 2026-02-12)_
 - [x] **Accessibility Fixes, Error Boundaries, Tailwind Build Pipeline** _(v0.1.1–v0.2.0)_
 
 ---
 
 ## 💡 How to Post a Quest
 
-1. Check this board and [GitHub Issues](https://github.com/Hams-Ollo/The-Players-Companion/issues) for duplicates
+1. Check this board and [GitHub Issues](https://github.com/Hams-Ollo/Ollos-Player-Companion/issues) for duplicates
 2. Open a new issue with the `enhancement` label
 3. Describe the **user story** ("As a player, I want to...")
 4. Include any relevant PHB/SRD page references

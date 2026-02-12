@@ -139,7 +139,7 @@ const DMDashboard: React.FC<DMDashboardProps> = ({ onExit }) => {
             <Swords size={20} className="text-red-400" />
             <div className="flex-1">
               <span className="text-sm font-bold text-red-300">Combat Active: {activeEncounter.name}</span>
-              <span className="text-xs text-red-500 ml-3">Round {activeEncounter.currentRound}</span>
+              <span className="text-xs text-red-500 ml-3">Round {activeEncounter.round}</span>
             </div>
           </div>
         )}

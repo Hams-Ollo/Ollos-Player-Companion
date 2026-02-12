@@ -8,6 +8,7 @@ import {
   CampaignRole,
 } from '../types';
 import { useAuth } from './AuthContext';
+import { useCharacters } from './CharacterContext';
 import {
   subscribeUserCampaigns,
   subscribeToCampaign,
@@ -24,6 +25,8 @@ import {
   leaveCampaign as firestoreLeaveCampaign,
   acceptInvite as firestoreAcceptInvite,
   declineInvite as firestoreDeclineInvite,
+  createInvite as firestoreCreateInvite,
+  updateMemberCharacter as firestoreUpdateMemberCharacter,
 } from '../lib/campaigns';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -64,6 +67,8 @@ interface CampaignContextType {
   leaveCampaign: () => Promise<void>;
   acceptInvite: (inviteId: string, characterId?: string) => Promise<void>;
   declineInvite: (inviteId: string) => Promise<void>;
+  sendInvite: (email: string) => Promise<void>;
+  updateMemberCharacter: (characterId: string | null) => Promise<void>;
 }
 
 const CampaignContext = createContext<CampaignContextType | undefined>(undefined);
@@ -74,6 +79,7 @@ const ACTIVE_CAMPAIGN_KEY = 'vesper_active_campaign';
 // ─── Provider ───────────────────────────────────────────────────────
 export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const { characters, activeCharacterId, updateCharacterById } = useCharacters();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaignId, setActiveCampaignIdRaw] = useState<string | null>(
@@ -279,17 +285,25 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const campaign = await joinCampaignByCode(code, user.uid, user.displayName, characterId);
       if (campaign) {
         setActiveCampaignId(campaign.id);
+        // Sync CharacterData.campaign/campaignId for the character being enrolled
+        if (characterId) {
+          updateCharacterById(characterId, { campaign: campaign.name, campaignId: campaign.id });
+        }
       }
       return campaign;
     },
-    [user?.uid, user?.displayName, setActiveCampaignId],
+    [user?.uid, user?.displayName, setActiveCampaignId, updateCharacterById],
   );
 
   const leaveCampaignAction = useCallback(async () => {
     if (!activeCampaignId || !user?.uid) return;
+    // Clear campaign reference from all characters in this campaign
+    characters
+      .filter(c => c.campaignId === activeCampaignId)
+      .forEach(c => updateCharacterById(c.id, { campaign: 'Solo Adventure', campaignId: undefined }));
     await firestoreLeaveCampaign(activeCampaignId, user.uid);
     setActiveCampaignId(null);
-  }, [activeCampaignId, user?.uid, setActiveCampaignId]);
+  }, [activeCampaignId, user?.uid, setActiveCampaignId, characters, updateCharacterById]);
 
   const acceptInviteAction = useCallback(
     async (inviteId: string, characterId?: string) => {
@@ -304,6 +318,29 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       await firestoreDeclineInvite(inviteId);
     },
     [],
+  );
+
+  const sendInviteAction = useCallback(
+    async (email: string) => {
+      if (!activeCampaignId || !activeCampaign) throw new Error('No active campaign');
+      if (!user?.uid || !user.displayName) throw new Error('Must be signed in');
+      await firestoreCreateInvite(
+        activeCampaignId,
+        activeCampaign.name,
+        email,
+        user.uid,
+        user.displayName,
+      );
+    },
+    [activeCampaignId, activeCampaign, user?.uid, user?.displayName],
+  );
+
+  const updateMemberCharacterAction = useCallback(
+    async (characterId: string | null) => {
+      if (!activeCampaignId || !user?.uid) throw new Error('No active campaign or not signed in');
+      await firestoreUpdateMemberCharacter(activeCampaignId, user.uid, characterId);
+    },
+    [activeCampaignId, user?.uid],
   );
 
   return (
@@ -328,6 +365,8 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         leaveCampaign: leaveCampaignAction,
         acceptInvite: acceptInviteAction,
         declineInvite: declineInviteAction,
+        sendInvite: sendInviteAction,
+        updateMemberCharacter: updateMemberCharacterAction,
       }}
     >
       {children}

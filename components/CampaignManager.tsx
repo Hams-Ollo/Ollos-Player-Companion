@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useCampaign } from '../contexts/CampaignContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Plus, Hash, Copy, Crown, ChevronRight, LogOut, Loader2, Check, AlertTriangle, Mail, X, Shield, Trash2 } from 'lucide-react';
+import { useCharacters } from '../contexts/CharacterContext';
+import { Users, Plus, Hash, Copy, Crown, ChevronRight, LogOut, Loader2, Check, AlertTriangle, Mail, X, Shield, Trash2, Send, UserPlus, Sword } from 'lucide-react';
 
 const CampaignManager: React.FC = () => {
   const { user } = useAuth();
+  const { characters, updateCharacterById } = useCharacters();
   const {
     campaigns,
     activeCampaign,
@@ -21,16 +23,23 @@ const CampaignManager: React.FC = () => {
     deleteCampaign,
     acceptInvite,
     declineInvite,
+    sendInvite,
+    updateMemberCharacter,
   } = useCampaign();
 
   const [showCreate, setShowCreate] = useState(false);
   const [newCampaignName, setNewCampaignName] = useState('');
   const [newCampaignDesc, setNewCampaignDesc] = useState('');
   const [joinCodeInput, setJoinCodeInput] = useState('');
+  const [joinCharacterId, setJoinCharacterId] = useState('');
+  const [inviteCharacterIds, setInviteCharacterIds] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const [inviteSent, setInviteSent] = useState(false);
 
   const handleCreate = async () => {
     if (!newCampaignName.trim()) return;
@@ -53,11 +62,12 @@ const CampaignManager: React.FC = () => {
     setJoining(true);
     setError(null);
     try {
-      const campaign = await joinByCode(joinCodeInput.trim());
+      const campaign = await joinByCode(joinCodeInput.trim(), joinCharacterId || undefined);
       if (!campaign) {
         setError('No campaign found with that code. Check the code and try again.');
       } else {
         setJoinCodeInput('');
+        setJoinCharacterId('');
       }
     } catch (e: any) {
       setError(e.message || 'Failed to join campaign');
@@ -99,6 +109,54 @@ const CampaignManager: React.FC = () => {
     }
   };
 
+  const handleSendInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    setSendingInvite(true);
+    setError(null);
+    try {
+      await sendInvite(inviteEmail.trim());
+      setInviteEmail('');
+      setInviteSent(true);
+      setTimeout(() => setInviteSent(false), 3000);
+    } catch (e: any) {
+      setError(e.message || 'Failed to send invite');
+    } finally {
+      setSendingInvite(false);
+    }
+  };
+
+  const handleAcceptInvite = async (inviteId: string) => {
+    setError(null);
+    try {
+      await acceptInvite(inviteId, inviteCharacterIds[inviteId] || undefined);
+      setInviteCharacterIds(prev => {
+        const next = { ...prev };
+        delete next[inviteId];
+        return next;
+      });
+    } catch (e: any) {
+      setError(e.message || 'Failed to accept invite');
+    }
+  };
+
+  const handleChangeCharacter = async (characterId: string) => {
+    setError(null);
+    try {
+      // Clear campaign fields on the previously assigned character
+      const oldCharId = members.find(m => m.uid === user?.uid)?.characterId;
+      if (oldCharId && oldCharId !== characterId) {
+        updateCharacterById(oldCharId, { campaign: 'Solo Adventure', campaignId: undefined });
+      }
+      // Set campaign fields on the newly assigned character
+      if (characterId && activeCampaign) {
+        updateCharacterById(characterId, { campaign: activeCampaign.name, campaignId: activeCampaign.id });
+      }
+      await updateMemberCharacter(characterId || null);
+    } catch (e: any) {
+      setError(e.message || 'Failed to update character');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="text-center py-20">
@@ -115,7 +173,7 @@ const CampaignManager: React.FC = () => {
         <div className="flex items-center gap-3 p-4 bg-red-900/20 border border-red-500/30 rounded-xl text-red-300 text-sm animate-in fade-in duration-300">
           <AlertTriangle size={16} className="shrink-0" />
           <span className="flex-1">{error}</span>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-white"><X size={14} /></button>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-white" title="Dismiss error"><X size={14} /></button>
         </div>
       )}
 
@@ -126,14 +184,32 @@ const CampaignManager: React.FC = () => {
             <Mail size={12} /> Pending Invites ({pendingInvites.length})
           </h3>
           {pendingInvites.map(invite => (
-            <div key={invite.id} className="bg-amber-900/10 border border-amber-500/20 p-4 rounded-xl flex items-center justify-between">
-              <div>
-                <h4 className="font-bold text-white">{invite.campaignName}</h4>
-                <p className="text-xs text-zinc-500">Invited as {invite.role}</p>
+            <div key={invite.id} className="bg-amber-900/10 border border-amber-500/20 p-4 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-white">{invite.campaignName}</h4>
+                  <p className="text-xs text-zinc-500">Invited by {invite.invitedByName} &middot; Join as Player</p>
+                </div>
               </div>
+              {/* Character picker for this invite */}
+              {characters.length > 0 && (
+                <select
+                  value={inviteCharacterIds[invite.id] || ''}
+                  onChange={e => setInviteCharacterIds(prev => ({ ...prev, [invite.id]: e.target.value }))}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                  title="Select a character for this campaign"
+                >
+                  <option value="">Select a character (optional)</option>
+                  {characters.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} — Level {c.level} {c.race} {c.class}
+                    </option>
+                  ))}
+                </select>
+              )}
               <div className="flex gap-2">
                 <button
-                  onClick={() => acceptInvite(invite.id)}
+                  onClick={() => handleAcceptInvite(invite.id)}
                   className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition-colors"
                 >
                   Accept
@@ -183,6 +259,16 @@ const CampaignManager: React.FC = () => {
                 rows={2}
                 maxLength={200}
               />
+              {/* DM Role Confirmation */}
+              <div className="flex items-center gap-3 p-3 bg-amber-900/10 border border-amber-500/20 rounded-lg">
+                <div className="w-8 h-8 rounded-full bg-amber-900/30 flex items-center justify-center shrink-0">
+                  <Crown size={14} className="text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-amber-400">You'll be the Dungeon Master</p>
+                  <p className="text-[10px] text-zinc-500">Share the join code with your players after creating</p>
+                </div>
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={handleCreate}
@@ -226,10 +312,102 @@ const CampaignManager: React.FC = () => {
                 {joining ? <Loader2 size={14} className="animate-spin" /> : 'Join'}
               </button>
             </div>
+            {/* Character picker for join */}
+            {characters.length > 0 && (
+              <select
+                value={joinCharacterId}
+                onChange={e => setJoinCharacterId(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                title="Select a character to join with"
+              >
+                <option value="">Select a character (optional)</option>
+                {characters.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} — Level {c.level} {c.race} {c.class}
+                  </option>
+                ))}
+              </select>
+            )}
             <p className="text-[10px] text-zinc-600">Ask your DM for the 6-character code</p>
           </div>
         </div>
       </div>
+
+      {/* DM Invite Players Panel — only shown when DM has an active campaign */}
+      {isDM && activeCampaign && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-5">
+          <h3 className="text-xs font-bold text-amber-500 uppercase tracking-widest flex items-center gap-2">
+            <UserPlus size={12} /> Invite Players to {activeCampaign.name}
+          </h3>
+
+          {/* Share Join Code — Primary Method */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 text-center space-y-3">
+            <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest">Share Join Code</p>
+            <div className="flex items-center justify-center gap-3">
+              <span className="font-mono text-3xl font-black text-amber-400 tracking-[0.3em]">
+                {activeCampaign.joinCode}
+              </span>
+              <button
+                onClick={() => handleCopyCode(activeCampaign.joinCode)}
+                className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                title="Copy join code"
+              >
+                {copiedCode === activeCampaign.joinCode ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
+              </button>
+            </div>
+            <p className="text-[10px] text-zinc-600">Players enter this code on the "Join a Party" card above</p>
+          </div>
+
+          {/* Email Invite — Secondary Method */}
+          <div className="space-y-2">
+            <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">Or Invite by Email</p>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Mail size={14} className="absolute left-3 top-3 text-zinc-500" />
+                <input
+                  type="email"
+                  placeholder="player@example.com"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-lg py-2.5 pl-9 pr-3 text-sm text-white focus:outline-none focus:border-amber-500"
+                  onKeyDown={e => e.key === 'Enter' && handleSendInvite()}
+                />
+              </div>
+              <button
+                onClick={handleSendInvite}
+                disabled={sendingInvite || !inviteEmail.trim() || !inviteEmail.includes('@')}
+                className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-4 rounded-lg transition-colors flex items-center gap-2 text-sm"
+              >
+                {sendingInvite ? <Loader2 size={14} className="animate-spin" /> : inviteSent ? <><Check size={14} className="text-green-300" /> Sent!</> : <><Send size={14} /> Send</>}
+              </button>
+            </div>
+            <p className="text-[10px] text-zinc-600">They'll see a notification when they log in with that email</p>
+          </div>
+        </div>
+      )}
+
+      {/* Active Campaign Character Assignment — for players */}
+      {activeCampaign && !isDM && characters.length > 0 && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-3">
+          <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2">
+            <Sword size={12} /> Your Character in {activeCampaign.name}
+          </h3>
+          <select
+            value={members.find(m => m.uid === user?.uid)?.characterId || ''}
+            onChange={e => handleChangeCharacter(e.target.value)}
+            className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
+            title="Choose your character for this campaign"
+          >
+            <option value="">No character assigned</option>
+            {characters.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name} — Level {c.level} {c.race} {c.class}
+              </option>
+            ))}
+          </select>
+          <p className="text-[10px] text-zinc-600">Choose which character you're playing in this campaign</p>
+        </div>
+      )}
 
       {/* Campaign List */}
       <div className="space-y-4">

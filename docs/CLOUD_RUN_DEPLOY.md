@@ -1,6 +1,6 @@
 # ⚜️ The Planar Gate Manual — Cloud Run Deployment ⚜️
 
-> *"To transport The Player's Companion from the Material Plane  
+> *"To transport Ollo's Player Companion from the Material Plane  
 > to the Ethereal Plane of Google Cloud, one must follow  
 > the ancient deployment ritual precisely."*
 >
@@ -100,6 +100,25 @@ firebase deploy --only firestore:rules --project YOUR_PROJECT_ID
 2. Create a new API key for your project
 3. Guard this key as you would a dragon's hoard
 
+### Step 6: Store the Key in Secret Manager
+
+> *"A key left in the open is an invitation to thieves. Seal it within the Vault."*
+
+```bash
+# Enable the Secret Manager API
+gcloud services enable secretmanager.googleapis.com
+
+# Create the secret
+printf "YOUR_GEMINI_API_KEY" | gcloud secrets create gemini-api-key --data-file=-
+
+# Grant Cloud Run access to read the secret
+gcloud secrets add-iam-policy-binding gemini-api-key \
+  --member="serviceAccount:$(gcloud iam service-accounts list --format='value(email)' --filter='displayName:Compute Engine default')" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+> ⚠️ **Never** pass `GEMINI_API_KEY` as a build arg or plain env var. It must be injected from Secret Manager at runtime.
+
 ---
 
 ## Chapter 4: Opening the Gate — Deploy to Cloud Run
@@ -111,26 +130,27 @@ firebase deploy --only firestore:rules --project YOUR_PROJECT_ID
 > *"The simplest path — Cloud Build handles the construction for you."*
 
 ```bash
-# Set your environment variables in a single invocation
+# Deploy with Firebase config as build-time env vars
+# and Gemini API key from Secret Manager (runtime only)
 gcloud run deploy the-players-companion \
   --source . \
-  --region us-central1 \
+  --region us-west1 \
   --allow-unauthenticated \
   --set-env-vars "\
-GEMINI_API_KEY=your-gemini-key,\
 VITE_FIREBASE_API_KEY=your-firebase-api-key,\
 VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com,\
 VITE_FIREBASE_PROJECT_ID=your-project-id,\
 VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app,\
 VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id,\
-VITE_FIREBASE_APP_ID=your-app-id"
+VITE_FIREBASE_APP_ID=your-app-id" \
+  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest"
 ```
 
 Cloud Build will:
 1. Detect the `Dockerfile`
-2. Build the container image
+2. Build the container image (Stage 1: Vite build, Stage 2: Express server)
 3. Push to Artifact Registry
-4. Deploy to Cloud Run
+4. Deploy to Cloud Run with the secret mounted
 5. Return a service URL
 
 ### Option B: Manual Docker Build
@@ -139,8 +159,8 @@ Cloud Build will:
 
 ```bash
 # Step 1: Build the image locally
+# Note: Only VITE_* vars are build args (baked into the SPA)
 docker build \
-  --build-arg GEMINI_API_KEY=your-gemini-key \
   --build-arg VITE_FIREBASE_API_KEY=your-firebase-api-key \
   --build-arg VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com \
   --build-arg VITE_FIREBASE_PROJECT_ID=your-project-id \
@@ -152,12 +172,13 @@ docker build \
 # Step 2: Push to Container Registry
 docker push gcr.io/YOUR_PROJECT_ID/the-players-companion
 
-# Step 3: Deploy to Cloud Run
+# Step 3: Deploy to Cloud Run with secret
 gcloud run deploy the-players-companion \
   --image gcr.io/YOUR_PROJECT_ID/the-players-companion \
-  --region us-central1 \
+  --region us-west1 \
   --allow-unauthenticated \
-  --port 8080
+  --port 8080 \
+  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest"
 ```
 
 ---
@@ -169,10 +190,10 @@ gcloud run deploy the-players-companion \
 
 ### Add Cloud Run URL to Authorized Domains
 
-1. Copy your Cloud Run service URL (e.g., `https://the-players-companion-xxxxx-uc.a.run.app`)
+1. Copy your Cloud Run service URL (e.g., `https://ollos-player-companion-xxxxx-uc.a.run.app`)
 2. Go to **Firebase Console** → **Authentication** → **Settings** → **Authorized domains**
 3. Click **"Add domain"**
-4. Paste just the domain: `the-players-companion-xxxxx-uc.a.run.app`
+4. Paste just the domain: `ollos-player-companion-xxxxx-uc.a.run.app`
 
 > ⚠️ **Critical:** Without this step, Google sign-in will fail with `auth/unauthorized-domain`. The most common cause of "the gate won't open" reports.
 
@@ -184,7 +205,7 @@ gcloud run deploy the-players-companion \
 
 ```bash
 # Check the service is running
-gcloud run services describe the-players-companion \
+gcloud run services describe ollos-player-companion \
   --region us-central1 \
   --format "value(status.url)"
 
@@ -202,6 +223,9 @@ curl -s -o /dev/null -w "%{http_code}" https://YOUR_SERVICE_URL
 - [ ] AI features work (ask the DM a question)
 - [ ] Portrait generation works
 - [ ] Campaign creation/joining works
+- [ ] DM can see DM Dashboard with party overview
+- [ ] Invite flow works (join code sharing + email invites)
+- [ ] Character assignment to campaigns works
 
 ---
 
@@ -215,7 +239,7 @@ curl -s -o /dev/null -w "%{http_code}" https://YOUR_SERVICE_URL
 # Same command — Cloud Build detects changes and rebuilds
 gcloud run deploy the-players-companion \
   --source . \
-  --region us-central1 \
+  --region us-west1 \
   --allow-unauthenticated
 ```
 
@@ -223,8 +247,18 @@ gcloud run deploy the-players-companion \
 
 ```bash
 gcloud run services update the-players-companion \
-  --region us-central1 \
-  --set-env-vars "GEMINI_API_KEY=new-key-here"
+  --region us-west1 \
+  --set-env-vars "SOME_VAR=new-value"
+```
+
+### Rotate the Gemini API Key
+
+```bash
+# Add a new secret version
+printf "NEW_API_KEY" | gcloud secrets versions add gemini-api-key --data-file=-
+
+# Redeploy to pick up the latest version
+gcloud run services update the-players-companion --region us-west1
 ```
 
 ### Update Firestore Rules Only
@@ -237,12 +271,12 @@ firebase deploy --only firestore:rules --project YOUR_PROJECT_ID
 
 ```bash
 # Stream logs in real-time
-gcloud run services logs read the-players-companion \
+gcloud run services logs read ollos-player-companion \
   --region us-central1 \
   --limit 50
 
 # Or tail live
-gcloud run services logs tail the-players-companion \
+gcloud run services logs tail ollos-player-companion \
   --region us-central1
 ```
 
@@ -255,7 +289,7 @@ gcloud run services logs tail the-players-companion \
 ```bash
 # Map a custom domain to your Cloud Run service
 gcloud run domain-mappings create \
-  --service the-players-companion \
+  --service ollos-player-companion \
   --domain your-domain.com \
   --region us-central1
 ```
@@ -296,13 +330,14 @@ gcloud run services logs read the-players-companion --limit 20
 
 **Common causes:**
 - Missing environment variables (all `VITE_*` vars must be set at **build time**)
-- nginx config mismatch (check `nginx.conf` sends all routes to `index.html`)
+- Express server crash (check logs for startup errors)
 
 ### AI features return errors
 
-- Verify `GEMINI_API_KEY` is set correctly
+- Verify the `gemini-api-key` secret exists: `gcloud secrets versions list gemini-api-key`
 - Check the API key is enabled for the Gemini API in Google AI Studio
-- Ensure rate limiting isn't blocking requests (2s cooldown)
+- Check proxy health: `curl https://YOUR_SERVICE_URL/api/health`
+- Ensure rate limiting isn't blocking requests (20/user/min, 200 global/min)
 
 ### Characters not saving
 
@@ -314,7 +349,7 @@ gcloud run services logs read the-players-companion --limit 20
 
 ```bash
 # Check for port binding issues
-gcloud run services describe the-players-companion \
+gcloud run services describe ollos-player-companion \
   --format "value(spec.template.spec.containers[0].ports[0].containerPort)"
 # Should be 8080
 ```
@@ -326,32 +361,31 @@ gcloud run services describe the-players-companion \
 > *"A map of the ethereal infrastructure."*
 
 ```
-┌─────────────────┐     ┌──────────────────────┐     ┌───────────────────┐
-│                  │     │                      │     │                   │
-│   Browser        │────▶│   Cloud Run          │     │   Firebase        │
-│   (React SPA)    │     │   (nginx + static)   │     │                   │
-│                  │     │                      │     │   • Auth          │
-└────────┬─────────┘     └──────────────────────┘     │   • Firestore    │
-         │                                            │                   │
-         │  Direct client-side calls                  └───────────────────┘
-         │                                                     ▲
-         ├─────────────────────────────────────────────────────┘
-         │  Firebase SDK (Auth + Firestore)
-         │
-         ▼
-┌─────────────────┐
-│                  │
-│   Google AI      │
-│   (Gemini API)   │
-│                  │
-└─────────────────┘
+┌─────────────────┐     ┌────────────────────────────┐     ┌───────────────────┐
+│                 │     │   Cloud Run                │     │                   │
+│   Browser       │────▶│   (Express Server)         │────▶│   Google AI       │
+│   (React SPA)   │     │                            │     │   (Gemini API)    │
+│                 │     │   • Serves static dist/     │     │                   │
+└────────┬────────┘     │   • Proxies /api/gemini/* │     └───────────────────┘
+         │              │   • Auth middleware       │
+         │              │   • Rate limiting         │     ┌───────────────────┐
+         │              └────────────────────────────┘     │                   │
+         │                                                │   Firebase        │
+         │  Firebase SDK (Auth + Firestore)               │   • Auth          │
+         └───────────────────────────────────────────────▶│   • Firestore    │
+                                                          │                   │
+         ┌────────────────────────────┐                   └───────────────────┘
+         │  GCP Secret Manager          │
+         │  • gemini-api-key → Express  │
+         └────────────────────────────┘
 ```
 
 **Key architectural notes:**
-- Cloud Run serves **static files only** (nginx). No server-side logic.
-- All API calls (Firebase, Gemini) happen **client-side** from the browser.
-- `GEMINI_API_KEY` is baked into the JS bundle at **build time** via Vite's `define`.
-- `VITE_*` environment variables are also baked at build time — changing them requires a redeploy.
+- Cloud Run runs an **Express server** (`server/index.js`) that serves the static Vite SPA and proxies AI requests.
+- **`GEMINI_API_KEY`** is stored in **Google Cloud Secret Manager** and injected as a runtime env var. It **never** appears in the client bundle or build args.
+- All Gemini API calls are routed through the Express proxy (`/api/gemini/*`) with Firebase token authentication and rate limiting.
+- `VITE_*` environment variables are baked into the client JS bundle at build time — changing them requires a redeploy.
+- Firebase Auth and Firestore calls still happen **client-side** from the browser via the Firebase JS SDK.
 
 ---
 
@@ -364,6 +398,7 @@ gcloud run services describe the-players-companion \
 | Cloud Run | 2M requests/month, 360K vCPU-seconds | **$0** for hobby use |
 | Cloud Build | 120 build-minutes/day | **$0** for most projects |
 | Artifact Registry | 0.5 GB storage free | **$0** unless many images |
+| Secret Manager | 6 active versions, 10K access ops | **$0** for hobby use |
 | Firebase Auth | 10K verifications/month | **$0** for hobby use |
 | Firestore | 1 GiB storage, 50K reads/day, 20K writes/day | **$0** for small parties |
 | Gemini API | Free tier with rate limits | **$0** with free API key |
