@@ -25,16 +25,19 @@ The Player's Companion is a mobile-first web app for managing D&D 5th Edition ch
 | 🔐 **Authentication** | Firebase Google sign-in + anonymous guest mode |
 | ☁️ **Cloud Sync** | Firestore character persistence for signed-in users — real-time sync across devices |
 | 🎨 **AI Portraits** | Gemini 2.5 Flash image model for character portraits |
+| 🎲 **Quick Roll** | One-click AI-generated character from a vibe prompt, complete with stats, backstory, and portrait |
+| 🎭 **Class Theming** | Dynamic color themes per D&D class — borders, gradients, and glow effects on the Dashboard |
+| 🎙️ **Voice Input** | Live audio transcription via Gemini Native Audio for hands-free DM chat |
 
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| **Framework** | React 19 + TypeScript |
+| **Framework** | React 19.2 + TypeScript 5.8 |
 | **Build** | Vite 6 |
 | **Styling** | Tailwind CSS (CDN) |
 | **Icons** | Lucide React |
-| **AI** | Google Gemini (`@google/genai`) — `gemini-2.5-flash` (text), `gemini-2.5-flash-image` (portraits) |
+| **AI** | Google Gemini (`@google/genai` v1.41+) — `gemini-2.5-flash` (text), `gemini-2.5-flash-image` (portraits) |
 | **Auth** | Firebase Authentication (Google + Anonymous providers) |
 | **Database** | Cloud Firestore (character sync for authenticated users) |
 | **Storage** | localStorage (guest/offline fallback) |
@@ -109,7 +112,7 @@ npm run preview
 ├── firestore.indexes.json      # 📇 Firestore composite indexes
 │
 ├── lib/
-│   ├── gemini.ts               # 🤖 Centralized Gemini AI client
+│   ├── gemini.ts               # 🤖 Centralized Gemini AI client (generateWithContext, generatePortrait, createChatWithContext)
 │   └── firestore.ts            # 🔥 Firestore CRUD, real-time subscriptions, migration
 │
 ├── contexts/
@@ -131,9 +134,9 @@ npm run preview
 │   ├── ItemDetailModal.tsx      # 🔎 AI-powered item/feature lookup
 │   ├── CampaignManager.tsx      # 🗺️ Create/join campaigns
 │   ├── SettingsModal.tsx        # ⚙️ Character stat editor
-│   ├── PortraitGenerator.tsx    # 🎨 AI portrait generation
-│   ├── TranscriptionButton.tsx  # 🎙️ Voice-to-text input
-│   ├── QuickRollModal.tsx       # 🎲 AI-generated quick character
+│   ├── PortraitGenerator.tsx    # 🎨 AI portrait generation (uses shared generatePortrait)
+│   ├── TranscriptionButton.tsx  # 🎙️ Voice-to-text via Gemini Live Audio API
+│   ├── QuickRollModal.tsx       # 🎲 AI-generated quick character (uses shared helpers)
 │   ├── ErrorBoundary.tsx        # 🛡️ React error boundary
 │   │
 │   └── details/

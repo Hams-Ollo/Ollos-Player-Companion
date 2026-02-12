@@ -7,6 +7,16 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CharacterProvider, useCharacters } from './contexts/CharacterContext';
 import { CampaignProvider, useCampaign } from './contexts/CampaignContext';
+import { AlertTriangle } from 'lucide-react';
+
+const SaveErrorBanner: React.FC<{ message: string }> = ({ message }) => (
+  <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[9999] max-w-md w-full px-4">
+    <div className="flex items-center gap-2 bg-red-900/90 border border-red-500/60 text-red-200 rounded-lg px-4 py-2 text-sm shadow-lg backdrop-blur-sm">
+      <AlertTriangle size={16} className="flex-shrink-0 text-red-400" />
+      <span className="truncate">{message}</span>
+    </div>
+  </div>
+);
 
 const AppContent: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
@@ -21,6 +31,7 @@ const AppContent: React.FC = () => {
     updatePortrait,
     deleteCharacter,
     isLoading: charsLoading,
+    saveError,
   } = useCharacters();
 
   if (authLoading || charsLoading) {
@@ -37,6 +48,7 @@ const AppContent: React.FC = () => {
   if (activeCharacter) {
     return (
       <ErrorBoundary fallbackTitle="The Dashboard has collapsed">
+        {saveError && <SaveErrorBanner message={saveError} />}
         <Dashboard 
           data={activeCharacter}
           onUpdatePortrait={(url) => updatePortrait(url)}
@@ -57,6 +69,7 @@ const AppContent: React.FC = () => {
 
   return (
     <ErrorBoundary fallbackTitle="The Hall has collapsed">
+      {saveError && <SaveErrorBanner message={saveError} />}
       <CharacterSelection 
         characters={characters}
         onSelect={(id) => setActiveCharacterId(id)}

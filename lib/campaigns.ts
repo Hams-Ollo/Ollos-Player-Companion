@@ -30,6 +30,8 @@ import {
   getDoc,
   writeBatch,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
   Unsubscribe,
 } from 'firebase/firestore';
 import { firebaseApp } from '../contexts/AuthContext';
@@ -102,7 +104,8 @@ export async function createCampaign(
     dmId: dmUid,
     description,
     joinCode: generateJoinCode(),
-    members: [], // Denormalized array kept in sync via subcollection
+    members: [],
+    memberUids: [dmUid],
     status: 'active',
     currentSessionNumber: 1,
     settings: {
@@ -147,6 +150,31 @@ export async function archiveCampaign(campaignId: string): Promise<void> {
   await updateCampaign(campaignId, { status: 'archived' });
 }
 
+/** Permanently delete a campaign and its subcollections. DM only. */
+export async function deleteCampaign(campaignId: string, dmUid: string): Promise<void> {
+  // Verify the caller is the DM
+  const campaignSnap = await getDoc(doc(db, 'campaigns', campaignId));
+  if (!campaignSnap.exists()) return;
+  const campaign = campaignSnap.data() as Campaign;
+  if (campaign.dmId !== dmUid) {
+    throw new Error('Only the DM can delete a campaign.');
+  }
+
+  // Delete subcollection docs (members, encounters, notes, templates, whispers, rollRequests)
+  const subcollections = ['members', 'encounters', 'notes', 'templates', 'whispers', 'rollRequests'];
+  for (const sub of subcollections) {
+    const subSnap = await getDocs(collection(db, 'campaigns', campaignId, sub));
+    if (!subSnap.empty) {
+      const batch = writeBatch(db);
+      subSnap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
+
+  // Delete the campaign document itself
+  await deleteDoc(doc(db, 'campaigns', campaignId));
+}
+
 /** Regenerate a campaign's join code. */
 export async function regenerateJoinCode(campaignId: string): Promise<string> {
   const newCode = generateJoinCode();
@@ -155,6 +183,48 @@ export async function regenerateJoinCode(campaignId: string): Promise<string> {
     updatedAt: Date.now(),
   });
   return newCode;
+}
+
+/**
+ * One-time migration: patch any campaigns created before the memberUids field
+ * was introduced. Finds campaigns where this user is the DM but memberUids
+ * doesn't include them, and seeds the array from the members subcollection.
+ */
+export async function migrateCampaignMemberUids(uid: string): Promise<void> {
+  try {
+    // Find campaigns where this user is the DM (they definitely should be a member)
+    const q = query(
+      campaignsCol(),
+      where('dmId', '==', uid),
+      where('status', '==', 'active'),
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+
+    const batch = writeBatch(db);
+    let patchCount = 0;
+
+    for (const campaignDoc of snap.docs) {
+      const data = campaignDoc.data() as Campaign;
+      // Skip if memberUids already exists and contains the DM
+      if (Array.isArray(data.memberUids) && data.memberUids.includes(uid)) continue;
+
+      // Read all members from subcollection to build the array
+      const membersSnap = await getDocs(membersCol(campaignDoc.id));
+      const uids = membersSnap.docs.map(d => d.id);
+      if (uids.length === 0) uids.push(uid); // At minimum, DM is a member
+
+      batch.update(campaignDoc.ref, { memberUids: uids, updatedAt: Date.now() });
+      patchCount++;
+    }
+
+    if (patchCount > 0) {
+      await batch.commit();
+      console.log(`[Campaigns] Migrated memberUids for ${patchCount} campaign(s)`);
+    }
+  } catch (err) {
+    console.warn('[Campaigns] memberUids migration failed (non-critical):', err);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -167,46 +237,20 @@ export function subscribeUserCampaigns(
   onData: (campaigns: Campaign[]) => void,
   onError?: (err: Error) => void,
 ): Unsubscribe {
-  // We query campaigns where the user's uid appears in the members subcollection.
-  // Since Firestore can't do subcollection membership queries directly,
-  // we use collectionGroup on 'members' filtered to this uid,
-  // then fetch the parent campaign docs.
-  //
-  // Alternative: keep a top-level userCampaigns/{uid} doc with campaign IDs.
-  // For now, we query all campaigns where dmId matches OR listen to a
-  // separate user-campaigns mapping. Starting simple: query campaigns
-  // the user created as DM + campaigns they've joined.
-  //
-  // Phase 1 approach: query campaigns by dmId, and also maintain a
-  // local-first approach where we listen to the membership subcollection.
-  // For MVP, we'll use a simpler model: store campaignIds on user profile
-  // or query both directions. Using collectionGroup query on 'members'.
-
+  // Query only campaigns where this user is a member using the denormalized memberUids array.
+  // This is a single synchronous query with no async follow-up — no race conditions.
   const memberQuery = query(
     collection(db, 'campaigns'),
+    where('memberUids', 'array-contains', uid),
     where('status', '==', 'active'),
     orderBy('updatedAt', 'desc'),
   );
 
-  // NOTE: This returns ALL active campaigns — we filter client-side by membership.
-  // In production, you'd use a collectionGroup query on members or a user→campaigns mapping.
-  // For now we subscribe and filter after snapshot.
   return onSnapshot(
     memberQuery,
-    async (snapshot) => {
-      const allCampaigns = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Campaign));
-
-      // Filter to only campaigns where this user is a member
-      // by checking the members subcollection for each campaign.
-      // This is fine for small numbers of campaigns; for scale, use a mapping collection.
-      const userCampaigns: Campaign[] = [];
-      for (const campaign of allCampaigns) {
-        const memberDoc = await getDoc(doc(db, 'campaigns', campaign.id, 'members', uid));
-        if (memberDoc.exists()) {
-          userCampaigns.push(campaign);
-        }
-      }
-      onData(userCampaigns);
+    (snapshot) => {
+      const campaigns = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Campaign));
+      onData(campaigns);
     },
     (err) => {
       console.error('[Campaigns] subscription error:', err);
@@ -293,7 +337,10 @@ export async function joinCampaignByCode(
     joinedAt: Date.now(),
   };
 
-  await setDoc(doc(db, 'campaigns', campaign.id, 'members', uid), member);
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'campaigns', campaign.id, 'members', uid), member);
+  batch.update(doc(db, 'campaigns', campaign.id), { memberUids: arrayUnion(uid), updatedAt: Date.now() });
+  await batch.commit();
   return campaign;
 }
 
@@ -310,7 +357,10 @@ export async function leaveCampaign(
     throw new Error('DM cannot leave their own campaign. Archive it instead.');
   }
 
-  await deleteDoc(doc(db, 'campaigns', campaignId, 'members', uid));
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'campaigns', campaignId, 'members', uid));
+  batch.update(doc(db, 'campaigns', campaignId), { memberUids: arrayRemove(uid), updatedAt: Date.now() });
+  await batch.commit();
 }
 
 /** Remove a player from the campaign (DM only action). */
@@ -318,7 +368,10 @@ export async function removeMember(
   campaignId: string,
   targetUid: string,
 ): Promise<void> {
-  await deleteDoc(doc(db, 'campaigns', campaignId, 'members', targetUid));
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'campaigns', campaignId, 'members', targetUid));
+  batch.update(doc(db, 'campaigns', campaignId), { memberUids: arrayRemove(targetUid), updatedAt: Date.now() });
+  await batch.commit();
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -400,6 +453,7 @@ export async function acceptInvite(
     joinedAt: Date.now(),
   };
   batch.set(doc(db, 'campaigns', invite.campaignId, 'members', uid), member);
+  batch.update(doc(db, 'campaigns', invite.campaignId), { memberUids: arrayUnion(uid), updatedAt: Date.now() });
 
   await batch.commit();
 }

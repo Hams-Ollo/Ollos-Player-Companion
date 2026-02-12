@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { firebaseApp } from '../contexts/AuthContext';
 import { CharacterData } from '../types';
+import { compressPortrait } from '../utils';
 
 // ─── Firestore instance ─────────────────────────────────────────────
 export const db = getFirestore(firebaseApp);
@@ -62,19 +63,26 @@ export function subscribeUserCharacters(
 
 // ─── Save / update a character (debounced) ──────────────────────────
 export async function saveCharacter(char: CharacterData): Promise<void> {
-  // Safety: warn if portrait data is very large (Firestore 1 MB doc limit)
-  const json = JSON.stringify(char);
-  if (json.length > 800_000) {
-    console.warn(
-      `[Firestore] Character "${char.name}" document is ${(json.length / 1024).toFixed(0)} KB — ` +
-      `approaching Firestore's 1 MB limit. Consider uploading the portrait to Storage.`,
-    );
+  // Compress portrait if it's a large base64 data URI
+  let portraitUrl = char.portraitUrl;
+  if (portraitUrl && portraitUrl.startsWith('data:image') && portraitUrl.length > 200_000) {
+    portraitUrl = await compressPortrait(portraitUrl, 512, 0.75);
   }
 
   const data: CharacterData = {
     ...char,
+    portraitUrl,
     updatedAt: Date.now(),
   };
+
+  // Final safety check — warn but still attempt
+  const json = JSON.stringify(data);
+  if (json.length > 800_000) {
+    console.warn(
+      `[Firestore] Character "${data.name}" document is ${(json.length / 1024).toFixed(0)} KB — ` +
+      `approaching Firestore's 1 MB limit.`,
+    );
+  }
 
   return debouncedWrite(char.id, () =>
     setDoc(doc(db, CHARACTERS_COLLECTION, char.id), data, { merge: true }),

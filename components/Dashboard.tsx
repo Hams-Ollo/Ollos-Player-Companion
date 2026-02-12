@@ -26,7 +26,7 @@ import RestModal from './RestModal';
 import PartyRoster from './PartyRoster';
 import ErrorBoundary from './ErrorBoundary';
 import { useCampaign } from '../contexts/CampaignContext';
-import { Heart, Sword, Brain, Edit2, MessageSquare, Settings, LogOut, Book, ShoppingBag, Wand2, Users, Swords, Scroll, Shield } from 'lucide-react';
+import { Heart, Sword, Brain, Edit2, MessageSquare, Settings, LogOut, Book, ShoppingBag, Wand2, Users, Swords, Scroll, Shield, Moon, ArrowUpCircle, Store, Stethoscope } from 'lucide-react';
 
 interface DashboardProps {
   data: CharacterData;
@@ -161,6 +161,38 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
            onRollInitiative={() => handleRoll('Initiative', data.initiative, '1d20')}
            isCaster={isCaster}
          />
+
+         {/* ═══════════════════ UTILITY ACTION BAR ═══════════════════ */}
+         <div className="flex gap-2 overflow-x-auto no-scrollbar">
+           <button
+             onClick={() => setShowRest(true)}
+             className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-indigo-800/40 bg-indigo-950/20 text-indigo-300 hover:bg-indigo-900/30 hover:border-indigo-700/50 text-xs font-bold whitespace-nowrap shrink-0 active:scale-95 transition-all duration-200"
+           >
+             <Moon size={14} />
+             <span>Rest</span>
+           </button>
+           <button
+             onClick={() => setShowLevelUp(true)}
+             className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-amber-800/40 bg-amber-950/20 text-amber-300 hover:bg-amber-900/30 hover:border-amber-700/50 text-xs font-bold whitespace-nowrap shrink-0 active:scale-95 transition-all duration-200"
+           >
+             <ArrowUpCircle size={14} />
+             <span>Level Up</span>
+           </button>
+           <button
+             onClick={() => setShowShop(true)}
+             className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-800/40 bg-emerald-950/20 text-emerald-300 hover:bg-emerald-900/30 hover:border-emerald-700/50 text-xs font-bold whitespace-nowrap shrink-0 active:scale-95 transition-all duration-200"
+           >
+             <Store size={14} />
+             <span>Shop</span>
+           </button>
+           <button
+             onClick={() => setActiveStack('vitals')}
+             className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-800/40 bg-red-950/20 text-red-300 hover:bg-red-900/30 hover:border-red-700/50 text-xs font-bold whitespace-nowrap shrink-0 active:scale-95 transition-all duration-200"
+           >
+             <Stethoscope size={14} />
+             <span>Vitals</span>
+           </button>
+         </div>
 
          {/* ═══════════════════ QUICK ACTION BAR ═══════════════════ */}
          <QuickActionBar data={data} onRoll={handleRoll} />

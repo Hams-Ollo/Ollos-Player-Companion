@@ -106,6 +106,8 @@ export interface Campaign {
   description: string;
   joinCode: string;
   members: CampaignMember[];
+  /** Denormalized array of member UIDs for efficient array-contains queries */
+  memberUids: string[];
   status: CampaignStatus;
   currentSessionNumber: number;
   activeEncounterId?: string;

@@ -15,7 +15,7 @@ flowchart TB
     RA -->|"REST API calls"| GEM["🤖 Google Gemini API"]
 ```
 
-The app is a **fully client-side SPA** — no backend server. All state persists in `localStorage`. AI calls go directly from the browser to Google's Gemini API. Firebase handles authentication only.
+The app is a **fully client-side SPA** — no backend server. Character state persists in **Cloud Firestore** for signed-in users and `localStorage` for guests. AI calls go directly from the browser to Google's Gemini API. Firebase handles authentication.
 
 ---
 
@@ -185,17 +185,20 @@ See `types.ts` for all interfaces (`Stat`, `Skill`, `Attack`, `Feature`, `Spell`
 
 | Model | Purpose | Used By |
 |-------|---------|---------|
-| `gemini-2.5-flash` | Text generation (rules, level-up, DM chat) | `lib/gemini.ts`, `LevelUpModal`, `AskDMModal`, `ItemDetailModal`, `JournalDetail` |
-| `gemini-2.5-flash-image` | Image generation (portraits) | `CharacterCreationWizard`, `PortraitGenerator` |
+| `gemini-2.5-flash` | Text generation (rules, level-up, DM chat, quick roll) | `lib/gemini.ts` → `LevelUpModal`, `AskDMModal`, `ItemDetailModal`, `JournalDetail`, `QuickRollModal` |
+| `gemini-2.5-flash-image` | Image generation (portraits) | `lib/gemini.ts` → `CharacterCreationWizard`, `PortraitGenerator`, `QuickRollModal` |
 
 ### Gemini Client (`lib/gemini.ts`)
 
-Two exported functions:
+Three exported functions:
 
 - **`generateWithContext(prompt, config?)`** — Single-shot text generation
 - **`createChatWithContext(history, systemInstruction)`** — Multi-turn chat session
+- **`generatePortrait(prompt, parts?)`** — Image generation via `gemini-2.5-flash-image`, returns base64 data URI or null
 
-Both use the `GEMINI_API_KEY` injected by Vite at build time via `process.env.API_KEY`.
+All use the `GEMINI_API_KEY` injected by Vite at build time via `process.env.API_KEY`. The `getAI()` private factory validates the key exists before creating a `GoogleGenAI` instance.
+
+> ℹ️ All AI-powered components import from `lib/gemini.ts` — no component directly instantiates `GoogleGenAI`. The only exception is `TranscriptionButton.tsx` which uses the Gemini Live Audio API (streaming, not supported by the shared helpers).
 
 ### Rate Limiting (`utils.ts`)
 

@@ -15,9 +15,11 @@ import {
   subscribeToMyInvites,
   subscribeToActiveEncounter,
   subscribeToNotes,
+  migrateCampaignMemberUids,
   createCampaign as firestoreCreateCampaign,
   updateCampaign as firestoreUpdateCampaign,
   archiveCampaign as firestoreArchiveCampaign,
+  deleteCampaign as firestoreDeleteCampaign,
   joinCampaignByCode,
   leaveCampaign as firestoreLeaveCampaign,
   acceptInvite as firestoreAcceptInvite,
@@ -57,6 +59,7 @@ interface CampaignContextType {
   createCampaign: (name: string, description?: string) => Promise<Campaign>;
   updateCampaign: (updates: Partial<Pick<Campaign, 'name' | 'description' | 'settings' | 'currentSessionNumber'>>) => Promise<void>;
   archiveCampaign: () => Promise<void>;
+  deleteCampaign: (campaignId: string) => Promise<void>;
   joinByCode: (code: string, characterId?: string) => Promise<Campaign | null>;
   leaveCampaign: () => Promise<void>;
   acceptInvite: (inviteId: string, characterId?: string) => Promise<void>;
@@ -115,20 +118,30 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     setIsLoading(true);
-    const unsub = subscribeUserCampaigns(
-      user.uid,
-      (data) => {
-        setCampaigns(data);
-        setIsLoading(false);
-      },
-      (err) => {
-        console.error('[CampaignContext] campaigns error:', err);
-        setIsLoading(false);
-      },
-    );
 
-    unsubCampaignsRef.current = unsub;
-    return () => unsub();
+    // One-time migration: patch pre-memberUids campaigns, then subscribe
+    migrateCampaignMemberUids(user.uid).finally(() => {
+      const unsub = subscribeUserCampaigns(
+        user.uid,
+        (data) => {
+          setCampaigns(data);
+          setIsLoading(false);
+        },
+        (err) => {
+          console.error('[CampaignContext] campaigns error:', err);
+          setIsLoading(false);
+        },
+      );
+
+      unsubCampaignsRef.current = unsub;
+    });
+
+    return () => {
+      if (unsubCampaignsRef.current) {
+        unsubCampaignsRef.current();
+        unsubCampaignsRef.current = null;
+      }
+    };
   }, [user?.uid]);
 
   // ── Subscribe to active campaign details when selected ────────────
@@ -249,6 +262,14 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setActiveCampaignId(null);
   }, [activeCampaignId, setActiveCampaignId]);
 
+  const deleteCampaignAction = useCallback(async (campaignId: string) => {
+    if (!user?.uid) throw new Error('Must be signed in');
+    await firestoreDeleteCampaign(campaignId, user.uid);
+    if (activeCampaignId === campaignId) {
+      setActiveCampaignId(null);
+    }
+  }, [user?.uid, activeCampaignId, setActiveCampaignId]);
+
   const joinByCode = useCallback(
     async (code: string, characterId?: string) => {
       if (!user?.uid || !user.displayName) {
@@ -301,6 +322,7 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         createCampaign: createCampaignAction,
         updateCampaign: updateCampaignAction,
         archiveCampaign: archiveCampaignAction,
+        deleteCampaign: deleteCampaignAction,
         joinByCode,
         leaveCampaign: leaveCampaignAction,
         acceptInvite: acceptInviteAction,

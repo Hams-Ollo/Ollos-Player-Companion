@@ -11,6 +11,44 @@ export const checkRateLimit = () => {
 export const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
 
 /**
+ * Compress a base64 data-URI image to fit within Firestore's 1 MB doc limit.
+ * Resizes on a canvas and converts to JPEG at adjustable quality.
+ * Returns the original URL if it's not a base64 data URI.
+ */
+export const compressPortrait = (dataUri: string, maxDim = 512, quality = 0.8): Promise<string> => {
+  // Only compress base64 data URIs
+  if (!dataUri || !dataUri.startsWith('data:image')) return Promise.resolve(dataUri);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width;
+      let h = img.height;
+
+      // Scale down to maxDim while preserving aspect ratio
+      if (w > maxDim || h > maxDim) {
+        const scale = maxDim / Math.max(w, h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(dataUri); return; }
+
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', quality);
+      console.log(`[Portrait] Compressed: ${(dataUri.length / 1024).toFixed(0)}KB → ${(compressed.length / 1024).toFixed(0)}KB (${w}x${h})`);
+      resolve(compressed);
+    };
+    img.onerror = () => resolve(dataUri); // Fallback on error
+    img.src = dataUri;
+  });
+};
+
+/**
  * Recomputes all derived stats for a character sheet.
  * This function also acts as a "Sanitizer" to ensure data integrity and prevent crashes.
  */

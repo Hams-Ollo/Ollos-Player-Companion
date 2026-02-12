@@ -1,8 +1,8 @@
-# 📊 Project Tracker
+﻿﻿﻿# 📊 Project Tracker
 
 > Development tracking for The Player's Companion — organized by epics, features, user stories, and tasks.
 >
-> **Last updated:** 2026-02-13
+> **Last updated:** 2026-02-12
 
 ---
 
@@ -37,8 +37,9 @@
 | ✅ | Feature | Full PHB marketplace catalog | @Hams-Ollo | 160+ items: all PHB Ch.5 weapons, armor, gear, consumables |
 | ✅ | Feature | Character selection & deletion | @Hams-Ollo | |
 | ✅ | Task | localStorage persistence | @Hams-Ollo | `vesper_chars` key (guest fallback) |
-| ⬜ | User Story | As a player, I want to export/import my character as JSON | — | Download `.json`, import from file |
+| ⬜ | User Story | As a player, I want to export/import my character as JSON | — | See Epic 18: Character Export & Interoperability |
 | ✅ | User Story | As a player, I want my characters synced to the cloud | @Hams-Ollo | See Epic 6 — completed |
+| ⬜ | User Story | As a player, I want to assign any character to any campaign I belong to | — | Dropdown of user's characters on campaign membership; see Epic 9 |
 | ⬜ | Feature | Multiclass support | — | Split hit dice, merge spell slots |
 | ⬜ | Feature | Subclass selection UI | — | Choose at appropriate level |
 | ⬜ | Feature | Create character at any level (1–20) | — | See Epic 9: Higher-Level Character Creation |
@@ -82,7 +83,12 @@
 | ✅ | Task | Rate limiting (2s throttle) | @Hams-Ollo | Closure-based, tamper-resistant |
 | ✅ | Task | Gemini 3 API compatibility | @Hams-Ollo | `thinkingConfig: LOW`, removed incompatible temperature, `parseApiError()` helper |
 | ✅ | Feature | Quick Roll AI character gen | @Hams-Ollo | One-click AI character creation via `gemini-2.5-flash` with structured output |
-| ✅ | Feature | Voice-to-text transcription | @Hams-Ollo | `TranscriptionButton` component |
+| ✅ | Feature | Voice-to-text transcription | @Hams-Ollo | `TranscriptionButton` component via Gemini Live Audio API |
+| ✅ | Task | Centralized portrait generation | @Hams-Ollo | `generatePortrait()` in `lib/gemini.ts` — all portrait callers use shared helper |
+| ✅ | Task | Refactor QuickRollModal to shared helpers | @Hams-Ollo | Removed direct `GoogleGenAI` import, uses `generateWithContext` + `generatePortrait` |
+| ✅ | Task | Refactor CharacterCreationWizard to shared helpers | @Hams-Ollo | Removed direct SDK calls, uses shared `generateWithContext` + `generatePortrait` |
+| ✅ | Task | Refactor PortraitGenerator to shared helpers | @Hams-Ollo | Removed direct SDK calls, uses `generatePortrait` with optional parts array |
+| ✅ | Task | Improve error handling (`parseApiError`) | @Hams-Ollo | Numeric status codes instead of string matching, prevents false 405 detection |
 | 🟥 | User Story | As a developer, I want the API key not exposed in the bundle | — | Blocked: needs backend proxy |
 | ⬜ | Feature | Backend API proxy | — | Server-side Gemini key management |
 
@@ -200,7 +206,9 @@
 |--------|------|------|-------|-------|
 | ✅ | Task | Create `CampaignContext` provider | @Hams-Ollo | `useCampaign()` hook: `activeCampaign`, `myCampaigns`, `members`, `partyCharacters`, `myRole`, `pendingInvites` |
 | ⬜ | Task | Wire `CampaignProvider` into `App.tsx` | — | Remove localStorage campaign state, wrap app tree with provider, strip campaign props from CharacterSelection |
-| ⬜ | Feature | Rewrite `CampaignManager` component | — | Replace localStorage with `useCampaign()`, campaign creation, join flow, list with role badges |
+| ⬜ | User Story | As a user, I want to create a campaign as a DM or join as a Player | — | Role selector (DM/Player) at campaign creation; players who join via invite code default to player role |
+| ⬜ | User Story | As a player, I want to assign a character to a campaign | — | Character picker dropdown showing all user's characters; stored as `CampaignMember.characterId` |
+| ⬜ | Feature | Rewrite `CampaignManager` component | — | Replace localStorage with `useCampaign()`, campaign creation with role choice, join flow, list with role badges |
 | ⬜ | Feature | Build `PartyRoster` component | — | Grid of party member cards, read-only character overlay, character diff badges |
 | ⬜ | Feature | Build `DMPartyOverview` component | — | Live vitals grid, passive scores panel, party inventory summary |
 | ⬜ | Feature | Build `DMDashboard` layout | — | DM-specific layout replacing player Dashboard when `myRole === 'dm'` |
@@ -211,31 +219,44 @@
 
 ## 📌 Epic 10: Real-Time Combat & Initiative Tracker (Phase 3)
 
-> _Collaborative combat system with real-time initiative tracking, encounter builder, and AI encounter generation. **Depends on Epic 9.**_
+> _Collaborative combat system with real-time initiative tracking, encounter builder, NPC management in combat, and AI encounter generation. **Depends on Epic 9.**_
 
 | Status | Type | Item | Owner | Notes |
 |--------|------|------|-------|-------|
 | ⬜ | Task | Create `lib/combat.ts` service layer | — | `createEncounter`, `startEncounter`, `nextTurn`, `prevTurn`, `updateCombatant`, `endEncounter`, `subscribeToEncounter` |
 | ⬜ | Feature | Build `InitiativeTracker` component | — | Sorted combatant list, current turn highlight, DM controls (next/damage/heal/conditions), player read-only view, monster HP descriptors, lair/legendary action support, turn timer, combat log |
-| ⬜ | Feature | Build `EncounterBuilder` component | — | Monster picker (SRD data), party auto-population, difficulty meter (DMG XP budgets), save/load templates |
-| ⬜ | Feature | AI Encounter Generator integration | — | Gemini-powered: party level/size + difficulty + theme → structured encounter JSON |
+| ⬜ | User Story | As a DM, I want to track combat initiative, turns, status effects, and NPCs | — | Full turn-order management with condition tracking (all 15 5e conditions), NPC/monster combatants with stat blocks |
+| ⬜ | User Story | As a DM, I want to manage NPCs the party interacts with in combat | — | Add/remove NPC combatants mid-encounter, track NPC HP/AC/conditions, reference NPC stat blocks from NPC Registry |
+| ⬜ | User Story | As a DM, I want to quickly draft a combat encounter from a brief description | — | AI encounter drafting: DM provides area description + enemy types → Gemini generates structured `EncounterTemplate` with combatants, initiative, difficulty rating |
+| ⬜ | Feature | Build `EncounterBuilder` component | — | Monster picker (SRD data), NPC picker (from NPC Registry), party auto-population, difficulty meter (DMG XP budgets), save/load templates |
+| ⬜ | Feature | AI Encounter Generator integration | — | Gemini-powered: DM provides brief area/enemy description + auto-injected party level/size → structured encounter JSON with difficulty assessment |
+| ⬜ | Task | Batch initiative rolling | — | DM clicks "Roll All" to auto-roll initiative for NPCs/monsters via `rollBatch()` |
 | ⬜ | Feature | Keyboard shortcuts for combat | — | Space=next turn, N=add combatant, D=damage, H=heal, Esc=close |
 | ⬜ | Feature | Audio/visual combat feedback | — | Nat 20/1 animations, combat start/end transitions |
 
 ---
 
-## 📌 Epic 11: DM Notes & Campaign Management (Phase 4)
+## 📌 Epic 11: DM Notes, NPC Management & Campaign Journal (Phase 4)
 
-> _DM-only notes system with session grouping, NPC registry, quest tracker, and AI-powered summarization. **Depends on Epic 9.**_
+> _DM campaign journal for lore, story arcs, quests, factions, and plot hooks. First-class NPC management with stat blocks and AI-assisted generation. **Depends on Epic 9.**_
 
 | Status | Type | Item | Owner | Notes |
 |--------|------|------|-------|-------|
 | ⬜ | Task | Create `lib/notes.ts` service layer | — | CRUD for `DMNote` docs, real-time subscriptions with type/tag/session filtering |
-| ⬜ | Feature | Build `DMNotesPanel` component | — | Tabbed views (Session/Event/NPC/Location/Lore/Quest), Markdown editor, tag system, linked entities, session grouping, quick-capture button |
+| ⬜ | Task | Create `lib/npcs.ts` service layer | — | CRUD for `NPC` docs in `campaigns/{id}/npcs` subcollection, real-time subscriptions |
+| ⬜ | Task | Add `NPC` interface to `types.ts` | — | First-class NPC type: name, race, class, stat block (abilities, HP, AC, attacks), backstory, disposition, faction, location, portrait, relationships to PCs |
+| ⬜ | Task | Expand `DMNoteType` enum | — | Add `'faction'`, `'plot_hook'`, `'story_arc'` to existing Session/Event/NPC/Location/Lore/Quest types |
+| ⬜ | User Story | As a DM, I want a campaign journal to track lore, story arcs, quests, NPCs, plot hooks, factions, and organizations | — | `DMNotesPanel` with expanded tab categories; Markdown editor, tag system, linked entities, session grouping |
+| ⬜ | Feature | Build `DMNotesPanel` / Campaign Journal component | — | Tabbed views (Session/Event/NPC/Location/Lore/Quest/Faction/Plot Hook/Story Arc), Markdown editor, tag system, linked entities, session grouping, quick-capture button |
 | ⬜ | Feature | AI session summarization | — | "Summarize Session" button → Gemini narrative recap |
-| ⬜ | Feature | Build `NPCRegistry` component | — | NPC cards with name/role/location/disposition, AI dialogue generator, portrait generation |
+| ⬜ | User Story | As a DM, I want to manage NPCs the party interacts with | — | Full NPC registry with stat blocks, backstories, portraits, faction affiliations, and relationships to party members |
+| ⬜ | Feature | Build `NPCRegistry` component | — | NPC cards with name/role/stat block/location/disposition/faction, AI dialogue generator, portrait generation, link to combat encounters |
+| ⬜ | User Story | As a DM, I want to quickly draft NPC characters with stat blocks and backstories | — | AI NPC generation pulling context from party journal entries and DM campaign notes for contextually-aware NPCs |
+| ⬜ | Feature | AI NPC Generator | — | Gemini-powered: DM provides brief NPC concept → generates stat block, backstory, motivations, connections to existing NPCs/factions; injects party journals + DM notes as context |
 | ⬜ | Feature | Build `QuestTracker` component | — | Quest list with status (Active/Completed/Failed/Hidden), objectives, rewards, linked NPCs/locations |
-| ⬜ | Feature | AI cross-reference suggestions | — | Auto-suggest links to existing NPCs/locations when saving notes |
+| ⬜ | Feature | Build `FactionManager` component | — | Faction cards with name, goals, members (linked NPCs), disposition toward party, territory/locations, political relationships |
+| ⬜ | Feature | AI cross-reference suggestions | — | Auto-suggest links to existing NPCs/locations/factions when saving notes |
+| ⬜ | Feature | Bidirectional entity linking | — | NPC notes link to factions, factions link to locations, quests link to NPCs — navigable wiki-style browsing |
 
 ---
 
@@ -245,12 +266,14 @@
 
 | Status | Type | Item | Owner | Notes |
 |--------|------|------|-------|-------|
-| ⬜ | Feature | Build `DMAssistant` component | — | Context-injected AI chat with party/encounter/notes state in system prompt |
-| ⬜ | Feature | Suggested prompt quick-actions | — | "Suggest a plot twist", "What would [NPC] do?", "Describe this environment", "Generate random encounter" |
-| ⬜ | Feature | Structured output mode | — | JSON schema output for encounters, NPCs, loot tables — directly importable |
+| ⬜ | Feature | Build `DMAssistant` component | — | Context-injected AI chat with party/encounter/notes/NPC/faction state in system prompt |
+| ⬜ | Feature | Suggested prompt quick-actions | — | "Suggest a plot twist", "What would [NPC] do?", "Describe this environment", "Generate random encounter", "Draft an NPC", "Create a magic item" |
+| ⬜ | Feature | Structured output mode | — | JSON schema output for encounters, NPCs, loot tables, custom items — directly importable into respective registries |
+| ⬜ | User Story | As a DM, I want AI to draft NPCs using context from player journals and my campaign notes | — | Gemini ingests DM notes (lore, quests, factions) + party member journal entries to generate contextually-aware NPCs with stat blocks and backstories |
+| ⬜ | Task | Context window management for AI generation | — | Summarize older notes, allow DM to select which notes/journals to include, handle 50K+ token campaigns gracefully |
 | ⬜ | Feature | Conversation persistence | — | Save DM-AI chats to Firestore, tagged by session |
 | ⬜ | Task | Enhance player `AskDMModal` | — | Inject character data into system prompt for context-aware rules answers |
-| ⬜ | task | Route AI through Cloud Function proxy | — | `geminiProxy` for server-side API key management |
+| ⬜ | Task | Route AI through Cloud Function proxy | — | `geminiProxy` for server-side API key management |
 
 ---
 
@@ -302,27 +325,85 @@
 
 ---
 
-## � Progress Summary
+## 📌 Epic 17: Custom Items & Loot System (Phase 4b)
+
+> _DM item creation tools, SRD magic item catalog, and loot award flow to players. **Depends on Epic 9 (campaign context) and Epic 13 (DM-to-player communication).**_
+
+| Status | Type | Item | Owner | Notes |
+|--------|------|------|-------|-------|
+| ⬜ | Task | Add `CustomItem` interface to `types.ts` | — | Extends `Item` with: rarity (Common→Artifact), attunement, stat block (bonus to hit, bonus damage, spell charges, special abilities), lore text, homebrew flag |
+| ⬜ | Task | Create `lib/items.ts` service layer | — | CRUD for custom items in `campaigns/{id}/items` subcollection, real-time subscriptions |
+| ⬜ | Task | Add SRD magic item catalog to constants | — | ~200 SRD magic items with name, rarity, type, attunement, description, mechanical effects |
+| ⬜ | User Story | As a DM, I want to create custom magic items with stat blocks and descriptions | — | Item builder form: name, type, rarity, attunement, description, mechanical effects (bonus, charges, properties), lore text |
+| ⬜ | Feature | Build `ItemBuilder` component | — | Form-based + AI-assisted item creation; supports weapons, armor, wondrous items, potions, scrolls, artifacts |
+| ⬜ | Feature | AI Item Generator | — | Gemini-powered: DM provides brief concept → generates full item with stats, lore, and balanced mechanics |
+| ⬜ | User Story | As a DM, I want to award both homebrew and standard 5e magic items to players | — | Item picker (custom + SRD catalog), assign to specific party member(s) |
+| ⬜ | Feature | Build `LootSession` component | — | DM selects items → assigns to party members → players receive notification with item details auto-added to inventory |
+| ⬜ | Feature | Build `DM Item Vault` component | — | DM's personal library of created/saved items, searchable by name/type/rarity, reusable across campaigns |
+| ⬜ | User Story | As a player, I want to receive loot awards from the DM with full item details | — | Push notification with item card; item auto-added to character inventory with full stat block and description |
+| ⬜ | Task | Extend `Item` type for magic item display | — | Inventory detail view shows rarity color coding, attunement status, charge tracking, item card with full description |
+
+---
+
+## 📌 Epic 18: Character Export & Interoperability
+
+> _Allow players to export their characters for use with other D&D platforms. **No dependencies — can ship independently.**_
+
+| Status | Type | Item | Owner | Notes |
+|--------|------|------|-------|-------|
+| ⬜ | User Story | As a player, I want to export my character for use with other D&D platforms | — | Download character data in portable formats |
+| ⬜ | Feature | Native JSON export/import | — | Download `CharacterData` as `.json`, import from file on character selection screen |
+| ⬜ | Feature | PDF character sheet export | — | Generate filled standard 5e character sheet PDF using `jspdf` or PDF template filling |
+| ⬜ | Feature | FoundryVTT export | — | Transform `CharacterData` to FoundryVTT actor JSON schema |
+| ⬜ | Feature | D&D Beyond format export | — | Transform `CharacterData` to D&D Beyond-compatible JSON |
+| ⬜ | Task | Export button on character selection & settings | — | "Export Character" option with format picker (JSON / PDF / FoundryVTT / D&D Beyond) |
+
+---
+
+## 📌 Epic 16: Character UI Overhaul (v0.3.2)
+
+> _Complete visual overhaul of the Dashboard and character views — class-themed styling, component extraction, and bug fixes. **DONE.**_
+
+| Status | Type | Item | Owner | Notes |
+|--------|------|------|-------|-------|
+| ✅ | Feature | Dynamic class theming | @Hams-Ollo | Color borders, gradients, glow effects keyed to D&D class |
+| ✅ | Task | `AbilityScoreBar` component | @Hams-Ollo | Horizontal ability score display with modifiers |
+| ✅ | Task | `CombatStrip` component | @Hams-Ollo | AC, initiative, speed in compact top bar |
+| ✅ | Task | `QuickActionBar` component | @Hams-Ollo | One-tap actions: Rest, Dice, Level Up, DM, Shop |
+| ✅ | Feature | Dashboard rewrite | @Hams-Ollo | Class-themed header with portrait, ability bar, combat strip, quick actions |
+| ✅ | Task | CardStack class theming | @Hams-Ollo | Cards inherit class accent colors and gradients |
+| ✅ | Task | DetailOverlay class theming | @Hams-Ollo | Detail views inherit class accent colors |
+| ✅ | Task | VitalsDetail inline HP editing | @Hams-Ollo | Tap-to-edit current HP directly |
+| ✅ | Task | Fix Sneak Attack dice scaling | @Hams-Ollo | `getSneakAttackDice()` formula corrected |
+| ✅ | Task | Fix AC calculation for armor types | @Hams-Ollo | Half Plate, Ring Mail, Chain Mail, Splint, Plate added |
+| ✅ | Task | Fix attack type comma formatting | @Hams-Ollo | Properties list no longer has trailing comma |
+
+---
+
+## 📊 Progress Summary
 
 | Epic | Done | In Progress | Not Started | Total |
 |------|------|-------------|-------------|-------|
-| 1. Core Character Management | 14 | 0 | 4 | 18 |
+| 1. Core Character Management | 14 | 0 | 5 | 19 |
 | 2. Dashboard & Gameplay | 7 | 0 | 6 | 13 |
-| 3. AI Integration | 10 | 0 | 2 | 12 |
+| 3. AI Integration | 15 | 0 | 2 | 17 |
 | 4. Auth & Multiplayer | 4 | 0 | 2 | 6 |
 | 5. Deployment & Infrastructure | 9 | 0 | 1 | 10 |
 | 5b. Developer Experience | 7 | 0 | 4 | 11 |
 | 6. Cloud Persistence (Phase 1) | 8 | 0 | 1 | 9 |
 | 7. Foundation Cleanup (Phase 0) | 5 | 0 | 1 | 6 |
 | 8. Firestore Campaign Foundation (Phase 1) | 5 | 0 | 2 | 7 |
-| 9. Campaign Context & Party UI (Phase 2) | 1 | 0 | 7 | 8 |
-| 10. Combat & Initiative Tracker (Phase 3) | 0 | 0 | 6 | 6 |
-| 11. DM Notes & Campaign Mgmt (Phase 4) | 0 | 0 | 6 | 6 |
-| 12. AI DM Co-Pilot (Phase 5) | 0 | 0 | 6 | 6 |
+| 9. Campaign Context & Party UI (Phase 2) | 1 | 0 | 9 | 10 |
+| 10. Combat & Initiative Tracker (Phase 3) | 0 | 0 | 10 | 10 |
+| 11. DM Notes, NPC Mgmt & Journal (Phase 4) | 0 | 0 | 15 | 15 |
+| 12. AI DM Co-Pilot (Phase 5) | 0 | 0 | 8 | 8 |
 | 13. Multiplayer Communication (Phase 6) | 0 | 0 | 4 | 4 |
 | 14. Higher-Level Char Creation (Phase 7) | 0 | 0 | 10 | 10 |
 | 15. Polish & Extras | 0 | 0 | 7 | 7 |
-| **Total** | **70** | **0** | **69** | **139** |
+| 16. Character UI Overhaul (v0.3.2) | 11 | 0 | 0 | 11 |
+| 17. Custom Items & Loot System (Phase 4b) | 0 | 0 | 11 | 11 |
+| 18. Character Export & Interoperability | 0 | 0 | 6 | 6 |
+| **Total** | **86** | **0** | **104** | **190** |
 
 ---
 

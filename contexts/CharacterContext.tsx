@@ -22,6 +22,8 @@ interface CharacterContextType {
   deleteCharacter: (id: string) => void;
   isCloudUser: boolean;
   isLoading: boolean;
+  /** Last save error — cleared on successful save */
+  saveError: string | null;
   // Migration
   pendingMigration: CharacterData[] | null;
   acceptMigration: () => Promise<void>;
@@ -64,6 +66,7 @@ export const CharacterProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [activeCharacterId, setActiveCharacterId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingMigration, setPendingMigration] = useState<CharacterData[] | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const isCloud = isCloudUid(user?.uid);
   const unsubRef = useRef<(() => void) | null>(null);
@@ -147,16 +150,20 @@ export const CharacterProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updatedAt: now,
       };
 
+      // Optimistic update
+      setCharacters((prev) => [...prev, enriched]);
+      setActiveCharacterId(enriched.id);
+
       if (isCloud) {
-        // Optimistic update — Firestore snapshot will reconcile
-        setCharacters((prev) => [...prev, enriched]);
-        setActiveCharacterId(enriched.id);
-        firestoreSave(enriched).catch((err) =>
-          console.error('[CharacterContext] Failed to save new character:', err),
-        );
-      } else {
-        setCharacters((prev) => [...prev, enriched]);
-        setActiveCharacterId(enriched.id);
+        firestoreSave(enriched)
+          .then(() => {
+            console.log(`[CharacterContext] Saved new character "${enriched.name}" to Firestore`);
+            setSaveError(null);
+          })
+          .catch((err) => {
+            console.error('[CharacterContext] Failed to save new character:', err);
+            setSaveError(`Failed to save "${enriched.name}": ${err.message}`);
+          });
       }
     },
     [isCloud, user?.uid],
@@ -164,18 +171,26 @@ export const CharacterProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateCharacter = useCallback(
     (partial: Partial<CharacterData>) => {
+      let charToSave: CharacterData | null = null;
+
       setCharacters((prev) =>
         prev.map((c) => {
           if (c.id !== activeCharacterId) return c;
           const updated = recalculateCharacterStats({ ...c, ...partial, updatedAt: Date.now() });
-          if (isCloud) {
-            firestoreSave(updated).catch((err) =>
-              console.error('[CharacterContext] Failed to update character:', err),
-            );
-          }
+          charToSave = updated;
           return updated;
         }),
       );
+
+      // Save to Firestore OUTSIDE the state updater (React 19 concurrent safety)
+      if (isCloud && charToSave) {
+        firestoreSave(charToSave)
+          .then(() => setSaveError(null))
+          .catch((err) => {
+            console.error('[CharacterContext] Failed to update character:', err);
+            setSaveError(`Save failed: ${err.message}`);
+          });
+      }
     },
     [activeCharacterId, isCloud],
   );
@@ -233,6 +248,7 @@ export const CharacterProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         deleteCharacter: deleteChar,
         isCloudUser: isCloud,
         isLoading,
+        saveError,
         pendingMigration,
         acceptMigration,
         dismissMigration,

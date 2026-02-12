@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useCampaign } from '../contexts/CampaignContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Plus, Hash, Copy, Crown, ChevronRight, LogOut, Loader2, Check, AlertTriangle, Mail, X, Shield } from 'lucide-react';
+import { Users, Plus, Hash, Copy, Crown, ChevronRight, LogOut, Loader2, Check, AlertTriangle, Mail, X, Shield, Trash2 } from 'lucide-react';
 
 const CampaignManager: React.FC = () => {
   const { user } = useAuth();
@@ -18,6 +18,7 @@ const CampaignManager: React.FC = () => {
     joinByCode,
     leaveCampaign,
     archiveCampaign,
+    deleteCampaign,
     acceptInvite,
     declineInvite,
   } = useCampaign();
@@ -86,6 +87,15 @@ const CampaignManager: React.FC = () => {
       await archiveCampaign();
     } catch (e: any) {
       setError(e.message || 'Failed to archive campaign');
+    }
+  };
+
+  const handleDeleteCampaign = async (campaignId: string, campaignName: string) => {
+    if (!confirm(`Permanently delete "${campaignName}"? This cannot be undone.`)) return;
+    try {
+      await deleteCampaign(campaignId);
+    } catch (e: any) {
+      setError(e.message || 'Failed to delete campaign');
     }
   };
 
@@ -290,11 +300,11 @@ const CampaignManager: React.FC = () => {
                         )}
                         {userIsDM && (
                           <button
-                            onClick={handleArchiveCampaign}
-                            className="p-2 bg-zinc-800 rounded-full text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
-                            title="Archive campaign"
+                            onClick={() => handleDeleteCampaign(camp.id, camp.name)}
+                            className="p-2 bg-zinc-800 rounded-full text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-colors"
+                            title="Delete campaign"
                           >
-                            <Shield size={16} />
+                            <Trash2 size={16} />
                           </button>
                         )}
                         <button
@@ -305,13 +315,24 @@ const CampaignManager: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setActiveCampaignId(camp.id)}
-                        className="p-2 bg-zinc-800 rounded-full text-zinc-400 group-hover:bg-zinc-700 group-hover:text-white transition-colors"
-                        aria-label="Enter campaign"
-                      >
-                        <ChevronRight size={18} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {userIsDM && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteCampaign(camp.id, camp.name); }}
+                            className="p-2 bg-zinc-800 rounded-full text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-colors opacity-0 group-hover:opacity-100"
+                            title="Delete campaign"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setActiveCampaignId(camp.id)}
+                          className="p-2 bg-zinc-800 rounded-full text-zinc-400 group-hover:bg-zinc-700 group-hover:text-white transition-colors"
+                          aria-label="Enter campaign"
+                        >
+                          <ChevronRight size={18} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

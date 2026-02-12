@@ -2,7 +2,7 @@
 
 > Living document tracking planned features, enhancements, and community requests for The Player's Companion.
 >
-> **Last updated:** 2026-02-11
+> **Last updated:** 2026-02-12
 
 ---
 
@@ -22,23 +22,28 @@
 
 ```
 Phase 0: Foundation Cleanup           ████████████████████████████████████████  ✅ DONE
-Phase 1: Firestore Campaign Foundation    ████████████████████████████░░░░░░░░░░  ~70% DONE
-Phase 2: Campaign Context & Party UI          ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ← NOW
+Phase 1: Firestore Campaign Foundation    ████████████████████████████████████████  ✅ DONE (backend)
+UI Overhaul & API Cleanup                ████████████████████████████████████████  ✅ DONE
+Phase 2: Campaign Context & Party UI          ██████████░░░░░░░░░░░░░░░░░░░░░░░░  ← NOW
 Phase 3: Combat & Initiative Tracker                  ░░░░░░░░████████░░░░░░░░░░
-Phase 4: DM Notes & Campaign Mgmt                    ░░░░░░░░████████░░░░░░░░░░
+Phase 4: DM Journal, NPCs & Items                    ░░░░░░░░████████░░░░░░░░░░
+Phase 4b: Custom Items & Loot                        ░░░░░░░░░░██████░░░░░░░░░░
 Phase 5: AI DM Co-Pilot                                      ░░░░░░░░████████░░
 Phase 6: Multiplayer Communication                            ░░░░░░░░████████░░
 Phase 7: Higher-Level Char Creation                                   ░░████████
-                                       v0.3.1   v0.4.0   v0.5.0   v0.6.0  v0.7.0
+Character Export (independent)         ░░░░░░░░░░░░░░ (can ship anytime)
+                                       v0.3.1   v0.4.0   v0.5.0  v0.5.5  v0.6.0  v0.7.0
 ```
 
 ### Phase Dependencies
 
 ```
 Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ Phase 3 (Combat)
-                                ├→ Phase 4 (Notes)     ─┬→ Phase 5 (AI Co-Pilot)
-                                └→ Phase 6 (Comms)      │
-                                                         └→ Phase 7 (Char Creation)
+                                ├→ Phase 4 (Journal/NPCs) ─┬→ Phase 4b (Items & Loot)
+                                ├→ Phase 6 (Comms)        │
+                                │                          └→ Phase 5 (AI Co-Pilot)
+                                └→ Phase 7 (Char Creation)
+Character Export (no deps) ─→ can ship independently at any time
 ```
 
 ### Release Targets
@@ -46,9 +51,12 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ Phase 3 (Combat)
 | Version | Phase | Target | Status |
 |---------|-------|--------|--------|
 | v0.3.1 | Phase 0: Foundation Cleanup | Foundation utilities, dice extraction, conditions data | ✅ Done |
-| v0.4.0 | Phase 1-2: Campaign Foundation + Party UI | Firestore campaigns, party roster, DM overview, join/invite flow | 🟨 In Progress |
-| v0.5.0 | Phase 3-4: Combat + DM Tools | Initiative tracker, encounter builder, DM notes, NPC registry, quest tracker | ⬜ Not Started |
-| v0.6.0 | Phase 5-6: AI Co-Pilot + Communication | Context-aware DM assistant, whispers, roll requests, shared handouts | ⬜ Not Started |
+| v0.3.2 | UI Overhaul & API Cleanup | Class theming, Dashboard rewrite, centralized AI helpers, error handling | ✅ Done |
+| v0.4.0 | Phase 1-2: Campaign Foundation + Party UI | Firestore campaigns, party roster, DM overview, DM/Player roles, character assignment, join/invite flow | 🟨 In Progress |
+| v0.4.x | Character Export (independent) | Native JSON export/import, PDF sheet, FoundryVTT/D&D Beyond format adapters | ⬜ Not Started |
+| v0.5.0 | Phase 3-4: Combat + DM Journal + NPCs | Initiative tracker, encounter builder, AI encounter drafting, DM campaign journal, NPC registry with AI generation, quest & faction tracking | ⬜ Not Started |
+| v0.5.5 | Phase 4b: Custom Items & Loot | DM item builder, SRD magic item catalog, loot award sessions, homebrew items | ⬜ Not Started |
+| v0.6.0 | Phase 5-6: AI Co-Pilot + Communication | Context-aware DM assistant with journal/NPC context injection, whispers, roll requests, shared handouts | ⬜ Not Started |
 | v0.7.0 | Phase 7: Higher-Level Characters | Create characters at levels 1-20, multiclass support | ⬜ Not Started |
 
 ---
@@ -91,6 +99,8 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ Phase 3 (Combat)
 
 ### 🟠 High
 
+- [ ] **DM/Player role selection at campaign creation** — Users choose to create a campaign as DM or join as a Player; role selector in creation UI, players joining via invite code default to player role
+- [ ] **Character-to-campaign assignment** — Players can assign any of their characters to campaigns they've created or joined; dropdown picker stored as `CampaignMember.characterId`
 - [ ] **Build `PartyRoster` component** — Grid of party member cards (portrait, name, class, level, HP, AC), read-only character overlay
 - [ ] **Build `DMPartyOverview` component** — Live vitals grid, passive scores panel, party inventory summary
 - [ ] **Build `DMDashboard` layout** — DM-specific layout replacing player Dashboard when `myRole === 'dm'`
@@ -113,15 +123,23 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ Phase 3 (Combat)
 
 - [ ] **Create `lib/combat.ts` service layer** — `createEncounter`, `startEncounter`, `nextTurn`, `prevTurn`, `updateCombatant`, `endEncounter`, `subscribeToEncounter` (all Firestore transaction-based)
 - [ ] **Build `InitiativeTracker` component** — Sorted combatant list, current turn highlight, DM controls (next/damage/heal/conditions), player read-only view, monster HP descriptors (Uninjured/Wounded/Bloodied/Near Death), combat log
-- [ ] **Build `EncounterBuilder` component** — Monster picker from SRD data, party auto-population, DMG difficulty meter, save/load encounter templates
+- [ ] **DM combat initiative, turns, status effects & NPC tracking** — Full turn-order management with all 15 5e conditions, add/remove NPC combatants mid-encounter, track NPC HP/AC/conditions, reference NPC stat blocks from NPC Registry
+- [ ] **AI encounter drafting from brief description** — DM provides area description + enemy types → Gemini generates structured `EncounterTemplate` with combatants, initiative, difficulty rating; auto-injects party level/size as context
+- [ ] **Build `EncounterBuilder` component** — Monster picker from SRD data, NPC picker from NPC Registry, party auto-population, DMG difficulty meter, save/load encounter templates
 - [ ] **Batch initiative rolling** — DM clicks "Roll All" to auto-roll initiative for NPCs/monsters via `rollBatch()`
 
-### 🟠 High — DM Notes & Campaign Management
+### 🟠 High — DM Campaign Journal, NPC Management & Factions
 
 - [ ] **Create `lib/notes.ts` service layer** — CRUD for `DMNote` docs, real-time subs with type/tag/session filtering
-- [ ] **Build `DMNotesPanel` component** — Tabbed views (Session/Event/NPC/Location/Lore/Quest), Markdown editor, tag system, linked entities, session grouping
-- [ ] **Build `NPCRegistry` component** — NPC cards (name/role/location/disposition), AI dialogue generator, portrait generation
+- [ ] **Create `lib/npcs.ts` service layer** — CRUD for `NPC` docs in `campaigns/{id}/npcs` subcollection, real-time subscriptions
+- [ ] **Add `NPC` interface to `types.ts`** — First-class NPC type: name, race, class, stat block (abilities, HP, AC, attacks), backstory, disposition, faction, location, portrait, relationships to PCs
+- [ ] **Expand `DMNoteType` enum** — Add `'faction'`, `'plot_hook'`, `'story_arc'` to existing types for full campaign journal coverage
+- [ ] **Build `DMNotesPanel` / Campaign Journal** — Tabbed views (Session/Event/NPC/Location/Lore/Quest/Faction/Plot Hook/Story Arc), Markdown editor, tag system, linked entities, session grouping, quick-capture button
+- [ ] **Build `NPCRegistry` component** — NPC cards with name/role/stat block/location/disposition/faction, AI dialogue generator, portrait generation, link to combat encounters
+- [ ] **AI NPC drafting with context** — DM provides brief NPC concept → Gemini generates stat block, backstory, motivations, connections; pulls context from party journal entries + DM campaign notes for contextually-aware NPCs
 - [ ] **Build `QuestTracker` component** — Quest list with status (Active/Completed/Failed/Hidden), objectives, rewards
+- [ ] **Build `FactionManager` component** — Faction cards with name, goals, members (linked NPCs), disposition toward party, territory/locations, political relationships
+- [ ] **Bidirectional entity linking** — NPC notes link to factions, factions link to locations, quests link to NPCs — navigable wiki-style browsing
 
 ### 🟡 Medium
 
@@ -129,13 +147,12 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ Phase 3 (Combat)
 - [ ] **Turn timer** — Configurable countdown (30s/60s/90s) with visual + audio alert
 - [ ] **Quick-capture notes during combat** — Floating button creates timestamped note tagged with current encounter
 - [ ] **AI session summarization** — "Summarize Session" sends notes to Gemini for narrative recap
-- [ ] **AI Encounter Generator** — Gemini-powered: party level/size + difficulty + theme → structured encounter JSON
+- [ ] **AI cross-reference note suggestions** — Auto-suggest links to existing NPCs/locations/factions when saving notes
 
 ### 🟢 Low
 
 - [ ] **Keyboard shortcuts for combat** — Space=next turn, N=add combatant, D=damage, H=heal, Esc=close
 - [ ] **Audio/visual combat feedback** — Nat 20/1 animations, combat transition effects
-- [ ] **AI cross-reference note suggestions** — Auto-link NPC/location mentions when saving notes
 
 ---
 
@@ -145,9 +162,11 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ Phase 3 (Combat)
 
 ### 🟠 High
 
-- [ ] **Build `DMAssistant` component** — Context-injected AI chat; injects party composition, encounter state, session notes, active quests, NPC registry into system prompt
-- [ ] **Suggested prompt quick-actions** — "Suggest a plot twist", "What would [NPC] do?", "Describe this environment", "Generate random encounter", "Recap last session"
-- [ ] **Structured output mode** — JSON schema output for encounters/NPCs/loot tables, directly importable into encounter builder and NPC registry
+- [ ] **Build `DMAssistant` component** — Context-injected AI chat; injects party composition, encounter state, session notes, active quests, NPC registry, faction data into system prompt
+- [ ] **Suggested prompt quick-actions** — "Suggest a plot twist", "What would [NPC] do?", "Describe this environment", "Generate random encounter", "Draft an NPC", "Create a magic item", "Recap last session"
+- [ ] **Structured output mode** — JSON schema output for encounters/NPCs/loot tables/custom items, directly importable into encounter builder, NPC registry, and item vault
+- [ ] **AI NPC generation using journal & note context** — Gemini ingests DM notes (lore, quests, factions) + party member journal entries to generate contextually-aware NPCs with stat blocks and backstories
+- [ ] **Context window management** — Summarize older notes rather than including verbatim, allow DM to select which notes/journals to include, handle 50K+ token campaigns gracefully
 - [ ] **Enhance player `AskDMModal`** — Inject character data into system prompt for context-aware rules answers
 
 ### 🟡 Medium
@@ -156,6 +175,46 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ Phase 3 (Combat)
 - [ ] **Roll request system** — DM initiates group rolls ("Everyone make a Wisdom save"), players get pre-configured prompts, results stream back live
 - [ ] **Shared handouts** — DM pushes read-only content (descriptions, lore, images) to players
 - [ ] **AI conversation persistence** — Save DM-AI chat history to Firestore, tagged by session
+
+---
+
+## 📦 v0.5.5 — Custom Items & Loot System (Phase 4b)
+
+> _DM item creation tools, SRD magic item catalog, and loot award flow to players. **Depends on v0.4.0 (campaign context) and v0.6.0 (DM-to-player comms for loot push).**_
+
+### 🟠 High
+
+- [ ] **Add `CustomItem` interface to `types.ts`** — Extends `Item` with: rarity (Common→Artifact), attunement, stat block (bonus to hit, bonus damage, spell charges, special abilities), lore text, homebrew flag
+- [ ] **Create `lib/items.ts` service layer** — CRUD for custom items in `campaigns/{id}/items` subcollection, real-time subscriptions
+- [ ] **DM custom item creation** — Item builder form: name, type (weapon/armor/wondrous/potion/scroll/artifact), rarity, attunement, description, mechanical effects, lore text
+- [ ] **Build `ItemBuilder` component** — Form-based + AI-assisted item creation; covers weapons, armor, wondrous items, potions, scrolls, artifacts
+- [ ] **AI Item Generator** — Gemini-powered: DM provides brief concept → generates full item with stats, lore, and balanced mechanics
+- [ ] **DM awards homebrew AND standard 5e magic items** — Item picker combining custom items + SRD magic item catalog, assign to specific party member(s)
+- [ ] **Build `LootSession` component** — DM selects items → assigns to party members → players receive notification with item details auto-added to inventory
+
+### 🟡 Medium
+
+- [ ] **Add SRD magic item catalog to constants** — ~200 SRD magic items with name, rarity, type, attunement, description, mechanical effects
+- [ ] **Build `DM Item Vault` component** — DM's personal library of created/saved items, searchable by name/type/rarity, reusable across campaigns
+- [ ] **Extend `Item` type for magic item display** — Inventory detail view shows rarity color coding, attunement status, charge tracking, full item card
+- [ ] **Player loot notification** — Push notification with item card; item auto-added to character inventory with full stat block and description
+
+---
+
+## 📦 v0.4.x — Character Export & Interoperability (Independent)
+
+> _Allow players to export their characters for use with other D&D platforms. No dependencies — can ship anytime._
+
+### 🟠 High
+
+- [ ] **Native JSON export/import** — Download `CharacterData` as `.json`, import from file on character selection screen
+- [ ] **PDF character sheet export** — Generate filled standard 5e character sheet PDF using `jspdf` or PDF template filling
+
+### 🟡 Medium
+
+- [ ] **FoundryVTT export** — Transform `CharacterData` to FoundryVTT actor JSON schema
+- [ ] **D&D Beyond format export** — Transform `CharacterData` to D&D Beyond-compatible JSON
+- [ ] **Export UI** — "Export Character" button on character selection & settings with format picker (JSON / PDF / FoundryVTT / D&D Beyond)
 
 ---
 
@@ -217,6 +276,10 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ Phase 3 (Combat)
 
 - [x] **Foundation Cleanup (Phase 0)** — Extracted dice rolling to `lib/dice.ts` (`parseDiceExpression`, `rollDice`, `rollBatch`), refactored Dashboard + RestModal to use shared module, added 15 CONDITIONS to constants, added encounter difficulty thresholds (DMG XP budgets) _(v0.3.1 — 2026-02-11)_
 - [x] **Firestore Campaign Foundation** — Expanded `types.ts` with all campaign/combat/notes types, built `lib/campaigns.ts` (25+ Firestore functions), `CampaignContext` provider with real-time subscriptions, Firestore security rules for all campaign collections, 9 composite indexes _(v0.3.1 — 2026-02-11)_
+- [x] **Character UI Overhaul** — Dynamic class theming (color borders, gradients, glow), `AbilityScoreBar` component, `CombatStrip` (AC/initiative/speed), `QuickActionBar`, Dashboard rewrite with class-themed header and portrait _(v0.3.2 — 2026-02-12)_
+- [x] **Centralized AI helpers** — Added `generatePortrait()` to `lib/gemini.ts`, refactored QuickRollModal, CharacterCreationWizard, and PortraitGenerator to use shared helpers instead of direct `GoogleGenAI` SDK calls _(v0.3.2 — 2026-02-12)_
+- [x] **Error handling improvements** — Refactored `parseApiError()` to use numeric status codes instead of string matching, fixed false 405 detection _(v0.3.2 — 2026-02-12)_
+- [x] **Bug fixes** — CardStack/DetailOverlay class-themed colors, VitalsDetail inline HP editing, Sneak Attack dice scaling (`getSneakAttackDice`), AC calculation for armor types, attack type comma formatting _(v0.3.2 — 2026-02-12)_
 - [x] **Gemini 3 API compatibility** — Added `thinkingConfig: { thinkingLevel: 'LOW' }` to all Gemini calls, removed incompatible `temperature: 0.8`, added `parseApiError()` helper for user-friendly error messages _(v0.3.1 — 2026-02-13)_
 - [x] **Full PHB marketplace overhaul** — Expanded shop from 6 items to 160+ (37 weapons, 14 armor, 100+ gear, 9 consumables), added search bar, `formatCost()` for gp/sp/cp display, `useMemo` filtering _(v0.3.1 — 2026-02-13)_
 - [x] **Cloud Run deployment infrastructure** — Dockerfile (multi-stage), nginx.conf, .dockerignore, env var handling, deployment guide _(v0.2.3 — 2026-02-11)_

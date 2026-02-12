@@ -28,7 +28,7 @@ console.log(result); // string response
 | `config` | `Partial<GenerateContentParameters['config']>` | Optional Gemini config (response format, temperature, etc.) |
 | **Returns** | `string \| undefined` | Generated text response |
 
-**Used by:** `LevelUpModal`, `ItemDetailModal`, `JournalDetail`
+**Used by:** `LevelUpModal`, `ItemDetailModal`, `JournalDetail`, `QuickRollModal`, `CharacterCreationWizard`
 
 ---
 
@@ -59,18 +59,33 @@ const response = await chat.sendMessage({ message: 'What does Magic Missile do?'
 
 ## 🎨 Portrait Generation
 
-Portrait generation uses `gemini-2.5-flash-image` directly (not via the shared client, since image generation doesn't support context caching).
+### `generatePortrait(prompt, parts?)`
+
+Generates an AI portrait using `gemini-2.5-flash-image`. All portrait generation is centralized through this shared helper in `lib/gemini.ts`.
 
 ```typescript
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-const response = await ai.models.generateContent({
-  model: 'gemini-2.5-flash-image',
-  contents: { parts: [{ text: 'D&D Portrait: Drow Elf Rogue...' }] },
-});
-// Extract base64 image from response.candidates[0].content.parts
+import { generatePortrait } from '../lib/gemini';
+
+// Text-only portrait (from description)
+const dataUri = await generatePortrait(
+  'D&D Portrait: Drow Elf Rogue with silver hair and violet eyes'
+);
+// Returns "data:image/png;base64,..." or null
+
+// Image-to-image portrait (with reference image)
+const dataUri = await generatePortrait('Repaint in watercolor style', [
+  { text: 'Repaint in watercolor style' },
+  { inlineData: { mimeType: 'image/png', data: base64ImageData } }
+]);
 ```
 
-**Used by:** `CharacterCreationWizard` (forge step), `PortraitGenerator`
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `prompt` | `string` | Text description of the portrait |
+| `parts` | `any[]` | Optional content parts array (for image-to-image mode) |
+| **Returns** | `Promise<string \| null>` | Base64 data URI on success, `null` if no image produced |
+
+**Used by:** `CharacterCreationWizard` (forge step), `PortraitGenerator`, `QuickRollModal`
 
 ---
 
