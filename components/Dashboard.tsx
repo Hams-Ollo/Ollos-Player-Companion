@@ -17,6 +17,7 @@ import JournalDetail from './details/JournalDetail';
 import SpellsDetail from './details/SpellsDetail';
 import DiceRollModal from './DiceRollModal';
 import PortraitGenerator from './PortraitGenerator';
+import PortraitLightbox from './PortraitLightbox';
 import AskDMModal from './AskDMModal';
 import SettingsModal from './SettingsModal';
 import ShopModal from './ShopModal';
@@ -40,7 +41,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
   const [activeStack, setActiveStack] = useState<StackType | null>(null);
   const [rollResult, setRollResult] = useState<RollResult | null>(null);
   const [rollMode, setRollMode] = useState<RollMode>('normal');
+  const [showPortraitLightbox, setShowPortraitLightbox] = useState(false);
   const [showPortraitGen, setShowPortraitGen] = useState(false);
+  const [portraitGenInitialTab, setPortraitGenInitialTab] = useState<'text' | 'image'>('text');
   const [showAskDM, setShowAskDM] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showShop, setShowShop] = useState(false);
@@ -93,8 +96,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                 <LogOut size={22} className="rotate-180" />
             </button>
 
-            {/* Portrait */}
-            <div className="relative group cursor-pointer" onClick={() => setShowPortraitGen(true)}>
+            {/* Portrait — click opens fullscreen lightbox */}
+            <div className="relative group cursor-pointer" onClick={() => setShowPortraitLightbox(true)}>
               <div className={`w-18 h-18 lg:w-24 lg:h-24 rounded-2xl overflow-hidden border-2 border-white/5 shadow-2xl ring-1 ${theme.ring} group-hover:ring-2 transition-all duration-500`}>
                  <img src={data.portraitUrl} alt={data.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -324,7 +327,34 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
 
        {/* ═══════════════════ UTILITY MODALS ═══════════════════ */}
        <DiceRollModal result={rollResult} onClose={() => setRollResult(null)} />
-       {showPortraitGen && <PortraitGenerator currentPortrait={data.portraitUrl} onUpdate={onUpdatePortrait} onClose={() => setShowPortraitGen(false)} characterDescription={`${data.race} ${data.class}`} />}
+
+       {/* Portrait lightbox — fullscreen view with edit CTAs */}
+       {showPortraitLightbox && (
+         <PortraitLightbox
+           portraitUrl={data.portraitUrl}
+           characterName={data.name}
+           onClose={() => setShowPortraitLightbox(false)}
+           onEdit={(tab) => {
+             setPortraitGenInitialTab(tab);
+             setShowPortraitLightbox(false);
+             setShowPortraitGen(true);
+           }}
+         />
+       )}
+
+       {showPortraitGen && (
+         <PortraitGenerator
+           currentPortrait={data.portraitUrl}
+           onUpdate={onUpdatePortrait}
+           onClose={() => setShowPortraitGen(false)}
+           initialTab={portraitGenInitialTab}
+           characterDescription={[
+             `${data.race} ${data.class}`,
+             data.subclass ? `(${data.subclass})` : null,
+             data.background ? `${data.background} background` : null,
+           ].filter(Boolean).join(', ')}
+         />
+       )}
        {showAskDM && <AskDMModal onClose={() => setShowAskDM(false)} />}
        {showSettings && <SettingsModal data={data} onSave={onUpdateData} onClose={() => setShowSettings(false)} />}
        {showShop && <ShopModal data={data} onUpdate={onUpdateData} onClose={() => setShowShop(false)} />}

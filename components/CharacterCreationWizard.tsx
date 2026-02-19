@@ -1044,7 +1044,7 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ onCreate, onClose }) =
         features: detailedResult.features || [],
         spells: detailedResult.spells || [],
         spellSlots: getSpellSlotsForLevel(state.charClass, level).map(s => ({ level: s.level, current: s.max, max: s.max })),
-        inventory: { gold: STARTING_GOLD_BY_LEVEL[level] || 150, items: [], load: "Light" },
+        inventory: { gold: STARTING_GOLD_BY_LEVEL[level] || 200, items: [], load: "Light" },
         motivations: state.motivations || undefined,
         keyNPCs: state.keyNPCs || undefined,
         journal: [{

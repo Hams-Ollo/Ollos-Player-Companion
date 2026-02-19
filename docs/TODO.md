@@ -208,6 +208,15 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 - [ ] **Passive Investigation & Passive Insight** — Compute `10 + skill modifier` for Investigation and Insight; display alongside Passive Perception in `SkillsDetail.tsx`
 - [ ] **XP tracking & progress display** — Add `xp: number` to `CharacterData`; show XP / XP-to-next-level progress bar in `SettingsModal` or Dashboard header
 
+### 🟡 Medium — Portrait Experience
+
+- [x] **Portrait fullscreen lightbox** — New `PortraitLightbox.tsx`; clicking the portrait in `Dashboard` opens a fullscreen overlay with ESC/click-outside dismiss and "Regenerate Portrait" / "Change Image" CTA buttons; portrait generator no longer opens directly on portrait click
+- [x] **Richer regeneration description default** — `PortraitGenerator` now builds its default description from `race`, `class`, `subclass`, and `background` (where available); previously only used `race class`
+- [x] **Camera selfie as portrait base** — Dedicated `capture="user"` file input in `PortraitGenerator`'s Image to Image tab renders as a "Use Camera / Take Selfie" button; image is passed to Gemini for fantasy redraw and is never persisted directly
+- [x] **Privacy disclosure (one-time consent)** — Inline `ShieldCheck` notice in Image to Image tab explains upload data use; dismissed with "I Understand" and remembered in `localStorage` as `portrait_image_consent_v1`
+- [x] **Client-side upload size guard** — `handleFileSelect` rejects files over 10 MB before base64 conversion with a user-facing error message
+- [x] **Lift camera Permissions-Policy block** — `server/index.js` updated from `camera=()` to `camera=(self)` so the browser camera API is available to same-origin pages; required for `<input capture>` and future `getUserMedia` use
+
 ### 🟡 Medium — Character Management
 
 - [ ] **Character cloning ("Duplicate")** — Deep-clone `CharacterData` with new ID, clear `campaignId`/`campaign`, append "(Copy)" to name; option in character card menu on `CharacterSelection.tsx`

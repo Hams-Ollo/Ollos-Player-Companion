@@ -107,7 +107,8 @@
 | 5.11 | Responsive mobile layout | ✅ | Touch-friendly |
 | 5.12 | Portrait regeneration | ✅ | `PortraitGenerator.tsx` |
 | 5.13 | Heroic Inspiration toggle | 🔲 | v0.4.x — boolean toggle near portrait in Dashboard header |
-| 5.14 | Rest dropdown UX refinement | 🔲 | v0.5.0 — contextual popover instead of full-screen modal |
+| 5.14 | Portrait Experience (lightbox + selfie + privacy) | ✅ | `PortraitLightbox.tsx` (fullscreen view), `PortraitGenerator` selfie input + privacy notice, `camera=(self)` Permissions-Policy |
+| 5.15 | Rest dropdown UX refinement | 🔲 | v0.5.0 — contextual popover instead of full-screen modal |
 
 ---
 
@@ -471,7 +472,7 @@
 | Epic 2: Auth & Cloud | 6 | 0 | 0 | 6 |
 | Epic 3: Character Persistence | 8 | 0 | 0 | 8 |
 | Epic 4: Character Creation | 11 | 0 | 1 | 12 |
-| Epic 5: Dashboard & UI | 12 | 0 | 2 | 14 |
+| Epic 5: Dashboard & UI | 13 | 0 | 2 | 15 |
 | Epic 6: Marketplace | 8 | 0 | 3 | 11 |
 | Epic 7: AI Integration | 11 | 0 | 3 | 14 |
 | Epic 8: Campaign System | 26 | 0 | 0 | 26 |
@@ -488,7 +489,7 @@
 | Epic 19: Security Hardening | 14 | 0 | 12 | 26 |
 | Epic 20: Premade Templates | 0 | 0 | 6 | 6 |
 | Epic 21: SRD Content Browser | 0 | 0 | 7 | 7 |
-| **TOTALS** | **145** | **1** | **71** | **217** |
+| **TOTALS** | **146** | **1** | **71** | **218** |
 
 ---
 

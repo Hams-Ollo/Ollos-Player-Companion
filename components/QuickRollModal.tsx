@@ -220,7 +220,7 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
             features: charResult.features || [],
             spells: charResult.spells || [],
             spellSlots: [], 
-            inventory: { gold: STARTING_GOLD_BY_LEVEL[quickLevel] || 150, items: [], load: "Light" },
+            inventory: { gold: STARTING_GOLD_BY_LEVEL[quickLevel] || 200, items: [], load: "Light" },
             journal: [{ 
                 id: 'origin', 
                 timestamp: Date.now(), 

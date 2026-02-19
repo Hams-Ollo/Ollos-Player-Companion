@@ -58,7 +58,9 @@ app.use((_req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'microphone=(self), camera=(), geolocation=()');
+  // camera=(self) allows the portrait selfie feature to access the device camera
+  // via <input capture> and getUserMedia within same-origin pages only
+  res.setHeader('Permissions-Policy', 'microphone=(self), camera=(self), geolocation=()');
   next();
 });
 

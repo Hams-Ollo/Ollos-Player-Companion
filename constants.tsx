@@ -1222,7 +1222,7 @@ export const SUBCLASS_FEATURES: Record<string, Record<string, Record<number, Cla
 // Starting Gold by Level (DMG guidelines)
 // ==========================================
 export const STARTING_GOLD_BY_LEVEL: Record<number, number> = {
-  1: 150, 2: 200, 3: 300, 4: 400,
+  1: 200, 2: 200, 3: 300, 4: 400,
   5: 500, 6: 600, 7: 750, 8: 900,
   9: 1100, 10: 1300, 11: 1700, 12: 2100,
   13: 2600, 14: 3200, 15: 3900, 16: 4700,
@@ -1654,6 +1654,6 @@ export const VESPER_DATA: CharacterData = {
     { level: 1, current: 2, max: 2 },
     { level: 2, current: 0, max: 0 }
   ],
-  inventory: { gold: 150.00, items: [], load: "Light" },
+  inventory: { gold: 200, items: [], load: "Light" },
   journal: []
 };
