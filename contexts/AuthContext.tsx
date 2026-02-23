@@ -4,8 +4,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { 
   getAuth, 
   onAuthStateChanged, 
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   GoogleAuthProvider, 
   signInAnonymously, 
   signOut
@@ -58,14 +57,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [signInError, setSignInError] = useState<string | null>(null);
 
-  // Handle the result after Google redirect returns to the page
-  useEffect(() => {
-    getRedirectResult(auth).catch((error: any) => {
-      console.error('Redirect sign-in error:', error);
-      setSignInError(error?.message ?? 'Sign-in failed. Check Firebase authorized domains.');
-    });
-  }, []);
-
   useEffect(() => {
     return onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
@@ -85,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithGoogle = async () => {
     try {
       setSignInError(null);
-      await signInWithRedirect(auth, googleProvider);
+      await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
       setSignInError(error?.message ?? 'Sign-in failed.');
