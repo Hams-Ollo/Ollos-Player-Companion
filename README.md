@@ -45,10 +45,10 @@ Whether you are a battle-scarred veteran of a hundred campaigns or a wide-eyed n
 | 🔐 **Authentication** | Firebase Google sign-in + anonymous guest mode |
 | ☁️ **Cloud Sync** | Firestore character persistence — real-time sync across devices |
 | 🎨 **AI Portraits** | Gemini 2.5 Flash image model conjures character portraits from description |
-| 🎲 **Quick Roll** | One-click AI-generated character from a vibe prompt — stats, backstory, portrait |
+| 🎲 **Quick Roll** | One-click AI-generated character from a vibe prompt — stats, backstory, portrait; optional name input or AI-generated name |
 | 🎭 **Class Theming** | Dynamic color themes per D&D class — borders, gradients, and arcane glow effects |
-| 🎙️ **Voice Input** | Live audio transcription via Gemini Native Audio for hands-free DM chat |
-| 🛡️ **DM Dashboard** | Tabbed DM view with live party overview + campaign settings; combat tracker and DM notes tabs are scaffolded for upcoming phases |
+| 🎙️ **Voice Input** | Live audio transcription via Gemini Native Audio for hands-free DM chat (proxied via secure WS endpoint — API key never reaches browser) |
+| 🛡️ **DM Dashboard** | Full tabbed DM command centre — Party Overview, Combat Tracker (initiative order, HP, conditions, combat log), Encounter Generator (AI-drafted encounters with creature stat blocks), Campaign Journal (Markdown notes + tags), Roll Request system (DM creates group rolls; players respond inline), Campaign Settings |
 | 👥 **Party Roster** | Live party member cards with HP bars, AC, level, class info; DM can kick members |
 | ⚔️ **Combat Strip** | At-a-glance combat status bar with initiative display and roll hook |
 | 🎯 **Quick Action Bar** | Context-sensitive shortcut buttons for common actions |
@@ -268,12 +268,14 @@ Signed-in users (Google Auth) receive **automatic Firestore synchronization**:
 
 The Companion employs a **defense-in-depth** strategy to protect the Gemini API key and prevent abuse:
 
-- **Server-side API proxy:** All Gemini requests route through an Express server (`server/index.js`). The API key **never** reaches the browser.
-- **Firebase token verification:** Every proxy request requires a valid Firebase ID token — unauthenticated requests receive `401`.
-- **Per-user rate limiting:** 20 requests/minute per Firebase UID (server-side, tamper-proof).
-- **Global rate limiting:** 200 requests/minute across all users — prevents runaway if user pool spikes.
-- **Google Cloud Secret Manager:** API key stored as a managed secret, injected at Cloud Run runtime.
+- **Server-side API proxy:** All Gemini requests route through an Express server (`server/index.js`). The API key **never** reaches the browser — including the Gemini Live Audio WebSocket, which is tunnelled through a `/api/gemini/live` WS proxy with token verification.
+- **Firebase Admin SDK token verification:** Every `/api/*` request requires a valid Firebase ID token. Tokens are cryptographically verified with revocation checking (`verifyIdToken(token, true)`) via the Firebase Admin SDK. A UID-keyed cache (4-min TTL, 500-entry LRU cap) keeps auth fast.
+- **Redis-backed rate limiting:** Per-user 20 req/min (atomic pipeline INCR+EXPIRE) with automatic in-memory fallback when Redis is unavailable. Global cap of 200 req/min across all users. Responses include `X-RateLimit-Remaining` and `Retry-After` headers.
+- **Security headers:** Full header suite on every response — CSP (13 directives including `frame-ancestors 'none'` and `upgrade-insecure-requests`), HSTS preload (`max-age=31536000; includeSubDomains; preload`), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, COOP `same-origin`, CORP `same-origin`, Permissions-Policy microphone=(self).
+- **Input validation:** Every route validates and caps payload sizes — prompts ≤20 KB, chat history ≤50 turns/10 KB per message, portrait parts ≤2/5 MB each, encounter fields capped.
+- **Google Cloud Secret Manager:** API key stored as a managed secret, injected at Cloud Run runtime — not baked into the Docker image.
 - **Budget alert:** $20/month billing alert with thresholds at 50/90/100/150%.
+- **0 npm vulnerabilities:** `package.json` overrides pin `minimatch` and `glob` to patched versions.
 - **Client-side throttle:** 2-second minimum between AI requests as a UX safeguard.
 
 ---
@@ -298,9 +300,9 @@ The Companion employs a **defense-in-depth** strategy to protect the Gemini API 
 
 > *"A quick report from the war council, for those who need present-tense status at a glance."*
 
-- **v0.4.1 Security Hardening:** In progress — proxy/auth/rate-limiting complete; rules tightening, cloud key restrictions, and dependency hygiene remain.
-- **v0.5.0 Combat + DM Tooling:** In progress — UI polish has begun, while core combat tracker and DM journal/NPC systems are still pending.
-- **v0.6.0 Communication:** In progress — whispers are live in `PartyRoster`; roll-request backend exists, UI still pending.
+- **v0.5.1 (current):** Security hardening fully complete — Firebase Admin SDK cryptographic token verification, Redis-backed rate limiting, full CSP/HSTS header suite, WebSocket proxy for Live Audio, Firestore field-type validation + size caps, 0 npm vulnerabilities. DM suite UI complete — CombatTracker, EncounterGenerator, DMNotesPanel, RollRequestPanel, RollRequestBanner all live.
+- **v0.5.0 → v0.5.x remaining:** World-building layer not yet built — NPCRegistry, QuestTracker, FactionManager; `lib/combat.ts` service abstraction; premade character templates; save/load encounter templates from Firestore.
+- **v0.6.0 AI DM Co-Pilot:** DMAssistant (full campaign-context AI), shared handouts, SRD content browser.
 - **v0.7.0 Higher-Level Creation:** In progress — level 1–20 creation flow is live; multiclass support remains pending.
 
 For the authoritative live status, see [📋 Roadmap & TODO](docs/TODO.md) and [📊 Project Tracker](docs/PROJECT_TRACKER.md).

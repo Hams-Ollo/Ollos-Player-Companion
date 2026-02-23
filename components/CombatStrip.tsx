@@ -65,7 +65,7 @@ const CombatStrip: React.FC<CombatStripProps> = ({ data, onUpdate, onRollInitiat
           >
             Apply
           </button>
-          <button onClick={() => setHpInput(null)} title="Cancel" aria-label="Cancel" className="p-2 text-zinc-500 hover:text-white transition-colors">
+          <button type="button" title="Cancel" onClick={() => setHpInput(null)} className="p-2 text-zinc-500 hover:text-white transition-colors">
             <X size={16} />
           </button>
         </div>

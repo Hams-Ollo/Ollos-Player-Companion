@@ -24,6 +24,7 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
   const [race, setRace] = useState('');
   const [charClass, setCharClass] = useState('');
   const [quickLevel, setQuickLevel] = useState(1);
+  const [characterName, setCharacterName] = useState('');
   const [vibe, setVibe] = useState('');
   const [isForging, setIsForging] = useState(false);
   const [ritualMessage, setRitualMessage] = useState('');
@@ -119,7 +120,8 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
                           2. Apply these racial bonuses to the scores: ${race}.
                           3. Pick relevant features and spells appropriate for a Level ${quickLevel} ${charClass}.
                           4. ${quickLevel >= (getClassData(charClass)?.subclassLevel ?? 3) ? `Include a subclass from: ${(SUBCLASS_OPTIONS[charClass] || []).join(', ')}.` : 'No subclass needed at this level.'}
-                          5. Include a physical description and backstory.
+                          5. ${characterName.trim() ? `The character's name is "${characterName.trim()}". Use this exact name in the "name" field.` : 'Choose a fitting fantasy name for this character.'}
+                          6. Include a physical description and backstory.
                           
                           Return a JSON object with exactly this structure:
                           {
@@ -151,6 +153,11 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
 
         if (!charResult.stats || !charResult.name) {
             throw new Error("The spirit was incomplete. Vital stats were missing.");
+        }
+
+        // If the user supplied a name, always honour it over the AI-generated one
+        if (characterName.trim()) {
+            charResult.name = characterName.trim();
         }
 
         // 2. Generate Portrait via shared helper
@@ -334,6 +341,32 @@ const QuickRollModal: React.FC<QuickRollModalProps> = ({ onCreate, onClose }) =>
                     <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center ml-1">
+                  <label htmlFor="qr-name" className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Character Name</label>
+                  {characterName.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => setCharacterName('')}
+                      className="flex items-center gap-1 text-[10px] text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-widest transition-colors"
+                    >
+                      <Wand2 size={10} /> Let AI choose
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-zinc-600 italic">AI will generate a name</span>
+                  )}
+                </div>
+                <input
+                  id="qr-name"
+                  type="text"
+                  value={characterName}
+                  onChange={e => setCharacterName(e.target.value)}
+                  placeholder="Leave blank for AI-generated name..."
+                  maxLength={60}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl py-3.5 px-4 text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm"
+                />
               </div>
 
               <div className="space-y-2">

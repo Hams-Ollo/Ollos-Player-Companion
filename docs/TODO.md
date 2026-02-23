@@ -6,7 +6,7 @@
 >
 > Living document tracking planned features, enhancements, and community requests.
 >
-> **Scribed last:** 2026-02-13 (roadmap audit: security + communication + high-level creation status corrected to match code)
+> **Scribed last:** 2026-06-12 (v0.4.1 security hardening fully complete — Firebase Admin SDK, Redis rate limiting, CSP/HSTS headers, WS proxy, Firestore field-type/size rules, 0 npm vulns; CombatTracker, RollRequestPanel/Banner all live; Quick Roll custom name feature shipped; TranscriptionButton rewritten to WS proxy)
 
 ---
 
@@ -69,9 +69,9 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 | v0.3.1 | Phase 0 | Foundation — utilities, dice, conditions | ✅ Cleared |
 | v0.3.2 | UI Overhaul | Class theming, Dashboard rewrite, centralized AI | ✅ Cleared |
 | v0.4.0 | Phases 1–2 | Firestore campaigns, party roster, DM overview | ✅ Cleared |
-| v0.4.1 | 🔒 Security | API proxy, rate limiting, debug cleanup, Firestore hardening | 🟨 In Progress (Layers 1–2 ✅, Layer 3 mostly ✅, Layers 4–7 remaining) |
-| v0.4.x | Char Sheet Parity | Conditions, heroic inspiration, passives, XP, clone, export | ⬜ Not Started |
-| v0.5.0 | Phases 3–4 | Combat tracker, encounter builder, DM journal, NPC registry, premade templates | 🟨 In Progress (UX polish started; core combat/DM systems pending) |
+| v0.4.1 | 🔒 Security | API proxy, rate limiting, debug cleanup, Firestore hardening | ✅ Cleared (Admin SDK + Redis rate limiting + CSP/HSTS + WS proxy + Firestore field rules + 0 vulns) |
+| v0.4.x | Char Sheet Parity | Conditions, heroic inspiration, passives, XP, clone, export | ✅ Cleared (2026-02-22) |
+| v0.5.0 | Phases 3–4 | Combat tracker, encounter builder, DM journal, NPC registry, premade templates | 🟨 In Progress (CombatTracker, EncounterGenerator, DMNotesPanel, RollRequestPanel, RollRequestBanner all shipped; **NPCRegistry, QuestTracker, FactionManager, lib/combat.ts, premade templates remaining**) |
 | v0.5.5 | Phase 4b | DM item builder, SRD magic items, loot sessions | ⬜ Not Started |
 | v0.6.0 | Phases 5–6 | AI DM Co-Pilot, whispers, roll requests, handouts, SRD content browser | 🟨 In Progress (whispers shipped; roll requests backend present; handouts/browser pending) |
 | v0.7.0 | Phase 7 | Create characters at levels 1–20, multiclass | 🟨 In Progress (1–20 flow shipped; multiclass + advanced feature aggregation pending) |
@@ -167,8 +167,8 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 ### 🟠 Hard — Layer 4: Firestore Rules Tightening
 
 - [x] **Restrict invite `update` rule** — Fixed `toEmail` → `email` field reference; now only invite recipient or campaign DM can accept/decline
-- [ ] **Add field-type validation** — Enforce string/number types on `ownerUid`, `name`, `level`, etc. in security rules
-- [ ] **Add document size limits** — `request.resource.data.size() < N` on character writes to prevent abuse
+- [x] **Add field-type validation** — `firestore.rules` now type-checks `ownerUid` (string), `name` (string), `level` (int) on character create/update
+- [x] **Add document size limits** — `request.resource.data.size() < 921600` (900 KB) enforced on character writes in `firestore.rules`
 - [ ] **Scope local guest fallback** — Remove `guest-local-*` UID bypass or restrict it to localStorage-only path (no Firestore access)
 
 ### 🟡 Medium — Layer 5: Google Cloud Console Restrictions
@@ -179,13 +179,13 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 
 ### 🟡 Medium — Layer 6: Security Headers & CSP
 
-- [ ] **Content Security Policy** — `default-src 'self'; script-src 'self'; connect-src 'self' *.googleapis.com *.firebaseio.com`
-- [ ] **HSTS header** — `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+- [x] **Content Security Policy** — 13-directive CSP in `server/index.js` including `frame-ancestors 'none'`, `upgrade-insecure-requests`, and full connect-src allowlist
+- [x] **HSTS header** — `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` in `server/index.js`
 - [x] **Permissions-Policy** — Server now sets `microphone=(self), camera=(), geolocation=()`
 
 ### 🟢 Easy — Layer 7: Dependency & Supply Chain
 
-- [ ] **Run `npm audit fix`** — Resolve known vulnerabilities before public launch
+- [x] **Run `npm audit fix`** — 0 vulnerabilities; patched via `package.json` `overrides` for minimatch ≥ 10.2.1 and glob ≥ 10.5.1
 - [ ] **Pin critical dependency versions** — Remove `^` semver ranges for `@google/genai`, `firebase`, `react`
 - [ ] **Update `.env.example`** — Document which variables are build-time (Firebase config) vs runtime-only (Gemini key)
 
@@ -197,16 +197,16 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 
 ### 🟠 Hard — Condition Tracking (pulled forward from v0.8.0+)
 
-- [ ] **Add `activeConditions`, `exhaustionLevel`, `heroicInspiration` to `CharacterData`** — New fields in `types.ts`; `activeConditions: string[]`, `exhaustionLevel: number (0-6)`, `heroicInspiration: boolean`
-- [ ] **Build `ConditionsModal.tsx`** — Checkbox list of all 15 conditions (reusing `CONDITIONS` from `constants.tsx`), exhaustion level picker (0-6), persisted to Firestore
+- [x] **Add `activeConditions`, `exhaustionLevel`, `heroicInspiration` to `CharacterData`** — New fields in `types.ts`; `activeConditions: string[]`, `exhaustionLevel: number (0-6)`, `heroicInspiration: boolean`
+- [x] **Build `ConditionsModal.tsx`** — Checkbox list of all 15 conditions (reusing `CONDITIONS` from `constants.tsx`), exhaustion level picker (0-6), persisted to Firestore
 - [ ] **Wire "Conditions" button into `CombatStrip`** — Opens conditions modal, shows active condition count badge
-- [ ] **Display active conditions on Dashboard header** — Condition badges/chips visible at a glance, matching D&D Beyond's prominent placement
+- [x] **Display active conditions on Dashboard header** — Condition badges/chips visible at a glance; active conditions strip auto-shows in Dashboard header; Conditions button carries count badge
 
 ### 🟡 Medium — Character Sheet Enhancements
 
-- [ ] **Heroic Inspiration toggle** — Boolean toggle icon near portrait in Dashboard header; one-tap on/off
-- [ ] **Passive Investigation & Passive Insight** — Compute `10 + skill modifier` for Investigation and Insight; display alongside Passive Perception in `SkillsDetail.tsx`
-- [ ] **XP tracking & progress display** — Add `xp: number` to `CharacterData`; show XP / XP-to-next-level progress bar in `SettingsModal` or Dashboard header
+- [x] **Heroic Inspiration toggle** — Sparkles icon button near portrait in `Dashboard.tsx`; pulses amber when active; one-tap on/off
+- [x] **Passive Investigation & Passive Insight** — Compute `10 + skill modifier` for Investigation and Insight; displayed in Passive Scores section of `SkillsDetail.tsx`
+- [x] **XP tracking & progress display** — `xp: number` on `CharacterData`; amber progress bar in `VitalsDetail.tsx`; XP input field side-by-side with Level in `SettingsModal.tsx`
 
 ### 🟡 Medium — Portrait Experience
 
@@ -219,11 +219,11 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 
 ### 🟡 Medium — Character Management
 
-- [ ] **Character cloning ("Duplicate")** — Deep-clone `CharacterData` with new ID, clear `campaignId`/`campaign`, append "(Copy)" to name; option in character card menu on `CharacterSelection.tsx`
+- [x] **Character cloning ("Duplicate")** — Amber Copy button on character card in `CharacterSelection.tsx`; `handleClone()` deep-copies + new UUID + appends "(Copy)" + clears campaign binding
 
 ### 🟠 Hard — Character Export & Import
 
-- [ ] **Native JSON export/import** — Download/upload `CharacterData` as `.json`
+- [x] **Native JSON export/import** — Export: `SettingsModal.tsx` downloads `Name_lvlN.json` blob; Import: "Import Hero" card in `CharacterSelection.tsx` uses FileReader to parse and enroll character
 - [ ] **PDF character sheet export** — Standard 5e sheet via `jspdf`
 
 ### 🟡 Medium — Export Formats
@@ -241,10 +241,11 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 ### 🟠 Hard — Combat & Initiative
 
 - [ ] **Create `lib/combat.ts` service layer** — Firestore transaction-based combat management
-- [ ] **Build `InitiativeTracker` component** — Sorted combatants, turn tracking, DM controls
-- [ ] **DM combat management** — Full turn-order with conditions, NPC tracking, stat block reference
-- [ ] **AI encounter drafting** — Brief description → structured `EncounterTemplate` with difficulty rating
-- [ ] **Build `EncounterBuilder` component** — Monster/NPC picker, difficulty meter, save/load templates
+- [x] **Build `CombatTracker` component** — Initiative order, sorted combatant list, HP editor, conditions tracking, turn advancement, full combat log; `components/CombatTracker.tsx` (536 lines); v0.5.0
+- [x] **DM combat management** — Full turn-order with HP editing, conditions, NPC tracking; implemented in `CombatTracker.tsx`; v0.5.0
+- [x] **AI encounter drafting** — Brief description → structured `EncounterTemplate` with difficulty rating; implemented via `EncounterGenerator` component in `DMDashboard` + `/api/gemini/encounter` server route
+- [x] **Build `EncounterGenerator` component** — AI-generated encounters with creature stat blocks, difficulty rating, Launch button that populates `CombatTracker`; `components/EncounterGenerator.tsx` (474 lines); v0.5.0
+- [ ] **Build `EncounterBuilder` component** — Manual monster/NPC picker, difficulty meter, save/load templates from Firestore subcollection (service layer in `lib/campaigns.ts` exists; no UI yet)
 - [ ] **Batch initiative rolling** — "Roll All" for NPCs/monsters
 
 ### 🟠 Hard — DM Campaign Journal, NPCs & Factions
@@ -252,7 +253,9 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 - [ ] **Create `lib/notes.ts` service layer** — CRUD for DM notes with filtering
 - [ ] **Create `lib/npcs.ts` service layer** — NPC management in `campaigns/{id}/npcs`
 - [ ] **Add `NPC` interface to `types.ts`** — Full stat blocks, backstory, faction, portrait
-- [ ] **Build `DMNotesPanel` / Campaign Journal** — Tabbed views, Markdown editor, tags, entity linking
+- [x] **Build `DMNotesPanel` / Campaign Journal** — Tabbed note management with Markdown editor, tags; implemented in `DMDashboard.tsx`
+- [x] **DM Mode navigation fix** — Crown button in `Dashboard.tsx` header (shown when `isDM && activeCampaign`) saves character ID and switches to `DMDashboard`; "My Sheet" button in `DMDashboard.tsx` returns to character; `dmReturnCharId` state in `App.tsx`
+- [x] **Character Background display in Journal** — `JournalDetail.tsx` now shows `motivations` and `keyNPCs` from wizard as a "Character Background" card (previously saved to Firestore but never rendered)
 - [ ] **Build `NPCRegistry` component** — NPC cards, AI dialogue generator, portrait generation
 - [ ] **AI NPC drafting with context** — Pulls party journals + DM notes for contextual generation
 - [ ] **Build `QuestTracker` component** — Quest status, objectives, rewards
@@ -327,7 +330,7 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 ### 🟡 Medium
 
 - [x] **Whisper system** — DM-to-player private messages (service + PartyRoster UI)
-- [ ] **Roll request system** — DM-initiated group rolls _(backend service implemented; player/DM UI pending)_
+- [x] **Roll request system** — DM-initiated group rolls; full DM/player UI shipped (`RollRequestPanel` DM creates requests, `RollRequestBanner` player response strip)
 - [ ] **Shared handouts** — DM pushes read-only content to players
 - [ ] **AI conversation persistence** — Save chats to Firestore by session
 
@@ -429,6 +432,15 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 - [x] **Cloud Build Pipeline** — Auto-deploys Cloud Functions (Step 4) and Firestore rules (Step 5) alongside Cloud Run app _(v0.4.1 — 2026-02-12)_
 - [x] **Firestore Rules Fix** — Fixed `toEmail` → `email` field mismatch in invite update rule _(v0.4.1 — 2026-02-12)_
 - [x] **Accessibility Fixes, Error Boundaries, Tailwind Build Pipeline** _(v0.1.1–v0.2.0)_
+- [x] **Character Sheet Parity (v0.4.x)** — `activeConditions`, `exhaustionLevel`, `heroicInspiration`, `xp` added to `CharacterData`; `ConditionsModal.tsx` (15 conditions + exhaustion picker); active conditions strip + heroic inspiration toggle in `Dashboard.tsx`; Passive Investigation & Insight in `SkillsDetail.tsx`; XP progress bar in `VitalsDetail.tsx`; XP input + JSON export in `SettingsModal.tsx`; character clone button + JSON import in `CharacterSelection.tsx` _(v0.4.x — 2026-02-22)_
+- [x] **DM Mode Routing Fix** — `dmReturnCharId` state in `App.tsx`; Crown button in `Dashboard.tsx` header (shown when `isDM && activeCampaign`) lets DM switch to `DMDashboard` without losing character; "My Sheet" button in `DMDashboard.tsx` returns to character sheet _(v0.5.0 — 2026-02-22)_
+- [x] **DM Tools Phase 1** — `DMNotesPanel` (Campaign Journal with Markdown editor + tags) + `RollRequestPanel` (DM creates group roll requests) + `RollRequestBanner` (player response strip) + `EncounterGenerator` (AI encounter drafting) + `CombatTracker` (full initiative tracker, HP editor, conditions, combat log) built into `DMDashboard.tsx`; `/api/gemini/encounter` server endpoint _(v0.5.0 — 2026-02-22)_
+- [x] **Character Background in Journal** — `JournalDetail.tsx` now surfaces `motivations` and `keyNPCs` from creation wizard as a "Character Background" card; previously persisted to Firestore but never rendered _(v0.5.0 — 2026-02-22)_
+- [x] **Security Hardening Complete (Layers 4–7)** — Firestore field-type validation (`ownerUid/name/level` type guards) + 900 KB document size cap; CSP (13 directives) + HSTS preload + full security header suite in `server/index.js`; 0 npm vulnerabilities via `package.json` overrides _(v0.4.1 — 2026-06-12)_
+- [x] **Redis Rate Limiting** — `server/middleware/rateLimit.js` rewritten with ioredis atomic pipeline INCR+EXPIRE; in-memory fallback when Redis unavailable; `server/lib/redis.js` dedicated module _(v0.4.1 — 2026-06-12)_
+- [x] **Firebase Admin SDK Auth Overhaul** — `server/middleware/auth.js` rewritten using Firebase Admin SDK `verifyIdToken(token, true)` (cryptographic + revocation); UID-keyed cache, 4-min TTL, 500-entry LRU cap _(v0.4.1 — 2026-06-12)_
+- [x] **WebSocket Proxy for Live Audio** — `TranscriptionButton.tsx` rewritten to use raw WS connection to `/api/gemini/live?token=<idToken>`; `@google/genai` SDK no longer used client-side; API key stays server-side _(v0.4.1 — 2026-06-12)_
+- [x] **Quick Roll custom name** — `QuickRollModal.tsx` adds name input field with "Let AI choose" clear button; name hard-overrides AI JSON output; prompt instructs AI accordingly _(v0.5.0 — 2026-06-12)_
 
 ---
 

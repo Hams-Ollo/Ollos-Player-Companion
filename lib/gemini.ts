@@ -1,7 +1,6 @@
 
 import { getAuth } from 'firebase/auth';
 import { compressPortrait } from "../utils";
-import type { EncounterGenerationRequest, GeneratedEncounterResponse } from '../types';
 
 /** Primary text model — change here to update everywhere that uses this module. */
 export const TEXT_MODEL = 'gemini-2.5-flash';
@@ -98,11 +97,15 @@ export const generatePortrait = async (prompt: string, parts?: any[]): Promise<s
 };
 
 /**
- * Generate a combat encounter from a scenario description.
- * Grounds the request in the Monster Manual via the server-side PDF file URI.
+ * Generate a D&D 5e combat encounter via the server-side encounter builder.
+ * Sends the scenario description and party info; receives a structured encounter JSON.
  */
-export const generateEncounter = async (
-  req: EncounterGenerationRequest,
-): Promise<GeneratedEncounterResponse> => {
-  return proxyFetch('encounter', req as unknown as Record<string, unknown>);
+export const generateEncounter = async (params: {
+  scenarioDescription: string;
+  partyLevels: number[];
+  partyClasses?: string[];
+  difficulty?: 'easy' | 'medium' | 'hard' | 'deadly';
+  environment?: string;
+}): Promise<any> => {
+  return proxyFetch('encounter', params);
 };

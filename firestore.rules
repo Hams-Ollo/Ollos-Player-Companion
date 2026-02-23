@@ -26,11 +26,21 @@ service cloud.firestore {
                   && resource.data.ownerUid == request.auth.uid;
 
       allow create: if isSignedIn()
-                    && request.resource.data.ownerUid == request.auth.uid;
+                    && request.resource.data.ownerUid == request.auth.uid
+                    // Hard cap: 900 KB per character doc to prevent storage abuse
+                    && request.resource.size() < 921600
+                    // Core field type validation
+                    && request.resource.data.ownerUid is string
+                    && request.resource.data.name is string
+                    && request.resource.data.level is int;
 
       allow update: if isSignedIn()
                     && resource.data.ownerUid == request.auth.uid
-                    && request.resource.data.ownerUid == request.auth.uid;
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.size() < 921600
+                    && request.resource.data.ownerUid is string
+                    && request.resource.data.name is string
+                    && request.resource.data.level is int;
 
       allow delete: if isSignedIn()
                     && resource.data.ownerUid == request.auth.uid;
@@ -66,9 +76,13 @@ service cloud.firestore {
         allow create: if isSignedIn()
                       && (request.auth.uid == memberId || isCampaignDM(campaignId));
 
-        // Members can update their own doc; DM can update any member
-        allow update: if isSignedIn()
-                      && (request.auth.uid == memberId || isCampaignDM(campaignId));
+        // Members can update their own doc (restricted fields); DM can update any field
+        allow update: if isCampaignDM(campaignId)
+                      || (isSignedIn()
+                          && request.auth.uid == memberId
+                          // Members may only update their linked character and role — not e.g. uid
+                          && request.resource.data.diff(resource.data).affectedKeys()
+                               .hasOnly(['characterId', 'character', 'role', 'updatedAt']));
 
         // Members can remove themselves; DM can remove anyone
         allow delete: if isSignedIn()
@@ -155,8 +169,13 @@ service cloud.firestore {
         // Only DM can create roll requests
         allow create: if isCampaignDM(campaignId);
 
-        // Any member can update (to submit their response)
-        allow update: if isCampaignMember(campaignId);
+        // Members can only write their own response entry; DM can update anything
+        allow update: if isCampaignDM(campaignId)
+                      || (isCampaignMember(campaignId)
+                          // Only allow writing 'responses' and 'updatedAt' — prevents members
+                          // from altering the DM's roll request definition
+                          && request.resource.data.diff(resource.data).affectedKeys()
+                               .hasOnly(['responses', 'updatedAt']));
 
         allow delete: if isCampaignDM(campaignId);
       }
@@ -164,8 +183,11 @@ service cloud.firestore {
 
     // ── Invites collection (top-level) ───────────────────────────
     match /invites/{inviteId} {
-      // Users can read invites addressed to their email
-      allow read: if isSignedIn();
+      // Users can only read invites addressed to them or created by them
+      // (prevents harvesting email addresses of other users)
+      allow read: if isSignedIn()
+                  && (resource.data.email == request.auth.token.email
+                      || resource.data.invitedByUid == request.auth.uid);
 
       // Any signed-in user can create invites
       allow create: if isSignedIn()

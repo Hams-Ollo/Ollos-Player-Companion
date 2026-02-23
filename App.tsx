@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import LoginScreen from './components/LoginScreen';
 import CharacterSelection from './components/CharacterSelection';
 import Dashboard from './components/Dashboard';
@@ -22,6 +22,8 @@ const SaveErrorBanner: React.FC<{ message: string }> = ({ message }) => (
 const AppContent: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const { isDM, activeCampaign, setActiveCampaignId } = useCampaign();
+  const [dmReturnCharId, setDmReturnCharId] = useState<string | null>(null);
+
   const {
     characters,
     activeCharacter,
@@ -56,6 +58,7 @@ const AppContent: React.FC = () => {
           onUpdatePortrait={(url) => updatePortrait(url)}
           onUpdateData={(newData) => updateCharacter(newData)}
           onExit={() => setActiveCharacterId(null)}
+          onSwitchToDM={isDM && activeCampaign ? () => { setDmReturnCharId(activeCharacterId); setActiveCharacterId(null); } : undefined}
         />
       </ErrorBoundary>
     );
@@ -64,7 +67,10 @@ const AppContent: React.FC = () => {
   if (!activeCharacter && isDM && activeCampaign) {
     return (
       <ErrorBoundary fallbackTitle="The DM Screen has collapsed">
-        <DMDashboard onExit={() => setActiveCampaignId(null)} />
+        <DMDashboard
+          onExit={() => { setDmReturnCharId(null); setActiveCampaignId(null); }}
+          onReturnToCharacter={dmReturnCharId ? () => { setActiveCharacterId(dmReturnCharId); setDmReturnCharId(null); } : undefined}
+        />
       </ErrorBoundary>
     );
   }

@@ -2,15 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import {
   Campaign,
   CampaignMember,
-  CampaignMemberCharacterSummary,
   CampaignInvite,
   CombatEncounter,
-  Combatant,
-  CombatLogEntry,
   DMNote,
-  DMNoteType,
-  RollRequest,
-  RollRequestResponse,
   CampaignRole,
 } from '../types';
 import { useAuth } from './AuthContext';
@@ -29,21 +23,11 @@ import {
   deleteCampaign as firestoreDeleteCampaign,
   joinCampaignByCode,
   leaveCampaign as firestoreLeaveCampaign,
-  removeMember as firestoreRemoveMember,
   acceptInvite as firestoreAcceptInvite,
   declineInvite as firestoreDeclineInvite,
   createInvite as firestoreCreateInvite,
   updateMemberCharacter as firestoreUpdateMemberCharacter,
   regenerateJoinCode as firestoreRegenerateJoinCode,
-  createEncounter as firestoreCreateEncounter,
-  updateEncounter as firestoreUpdateEncounter,
-  endEncounter as firestoreEndEncounter,
-  createNote as firestoreCreateNote,
-  updateNote as firestoreUpdateNote,
-  deleteNote as firestoreDeleteNote,
-  createRollRequest as firestoreCreateRollRequest,
-  submitRollResponse as firestoreSubmitRollResponse,
-  subscribeToRollRequests,
 } from '../lib/campaigns';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -86,25 +70,7 @@ interface CampaignContextType {
   declineInvite: (inviteId: string) => Promise<void>;
   sendInvite: (email: string) => Promise<void>;
   updateMemberCharacter: (characterId: string | null) => Promise<void>;
-  removeMember: (targetUid: string) => Promise<void>;
   regenerateJoinCode: () => Promise<string>;
-
-  // ── Combat Actions ────────────────────────────────────────────────
-  startEncounter: (name: string, combatants: Combatant[]) => Promise<string>;
-  updateCombatant: (combatantId: string, patch: Partial<Combatant>) => Promise<void>;
-  nextTurn: () => Promise<void>;
-  endCombat: () => Promise<void>;
-  addCombatLogEntry: (entry: CombatLogEntry) => Promise<void>;
-
-  // ── Notes Actions ─────────────────────────────────────────────────
-  createNote: (note: Omit<DMNote, 'id' | 'createdAt' | 'updatedAt' | 'campaignId' | 'authorUid'>) => Promise<string>;
-  updateNote: (noteId: string, updates: Partial<DMNote>) => Promise<void>;
-  deleteNote: (noteId: string) => Promise<void>;
-
-  // ── Roll Request Actions ───────────────────────────────────────────
-  rollRequests: RollRequest[];
-  sendRollRequest: (type: string, targetUids: string[], dc?: number) => Promise<string>;
-  submitRollResponse: (requestId: string, response: RollRequestResponse) => Promise<void>;
 }
 
 const CampaignContext = createContext<CampaignContextType | undefined>(undefined);
@@ -125,7 +91,6 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [members, setMembers] = useState<CampaignMember[]>([]);
   const [activeEncounter, setActiveEncounter] = useState<CombatEncounter | null>(null);
   const [notes, setNotes] = useState<DMNote[]>([]);
-  const [rollRequests, setRollRequests] = useState<RollRequest[]>([]);
   const [pendingInvites, setPendingInvites] = useState<CampaignInvite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -135,7 +100,6 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const unsubMembersRef = useRef<(() => void) | null>(null);
   const unsubEncounterRef = useRef<(() => void) | null>(null);
   const unsubNotesRef = useRef<(() => void) | null>(null);
-  const unsubRollRequestsRef = useRef<(() => void) | null>(null);
   const unsubInvitesRef = useRef<(() => void) | null>(null);
 
   // Persist active campaign selection
@@ -203,7 +167,6 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setMembers([]);
       setActiveEncounter(null);
       setNotes([]);
-      setRollRequests([]);
       return;
     }
 
@@ -239,15 +202,8 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setNotes,
     );
 
-    // Subscribe to roll requests (DM sends, players respond)
-    if (unsubRollRequestsRef.current) unsubRollRequestsRef.current();
-    unsubRollRequestsRef.current = subscribeToRollRequests(
-      activeCampaignId,
-      setRollRequests,
-    );
-
     return () => {
-      [unsubCampaignRef, unsubMembersRef, unsubEncounterRef, unsubNotesRef, unsubRollRequestsRef, unsubRollRequestsRef].forEach(ref => {
+      [unsubCampaignRef, unsubMembersRef, unsubEncounterRef, unsubNotesRef].forEach(ref => {
         if (ref.current) {
           ref.current();
           ref.current = null;
@@ -281,38 +237,6 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const myMembership = members.find(m => m.uid === user?.uid);
   const myRole = myMembership?.role ?? null;
   const isDM = myRole === 'dm';
-
-  const buildCharacterSummary = useCallback(
-    (characterId?: string): CampaignMemberCharacterSummary | undefined => {
-      if (!characterId) return undefined;
-      const character = characters.find(c => c.id === characterId);
-      if (!character) return undefined;
-
-      const sortedSkills = [...(character.skills || [])]
-        .sort((left, right) => right.modifier - left.modifier)
-        .slice(0, 3)
-        .map(skill => ({ name: skill.name, modifier: skill.modifier }));
-
-      return {
-        id: character.id,
-        name: character.name,
-        race: character.race,
-        class: character.class,
-        level: character.level,
-        portraitUrl: character.portraitUrl,
-        hpCurrent: character.hp?.current ?? 0,
-        hpMax: character.hp?.max ?? 0,
-        ac: character.ac ?? 10,
-        initiative: character.initiative ?? 0,
-        passivePerception: character.passivePerception ?? 10,
-        keySkills: sortedSkills,
-        topFeatures: (character.features || []).slice(0, 3).map(feature => feature.name),
-        primaryAttack: character.attacks?.[0]?.name,
-        journalPreview: character.journal?.[0]?.content,
-      };
-    },
-    [characters],
-  );
 
   // ── Actions ───────────────────────────────────────────────────────
   const createCampaignAction = useCallback(
@@ -360,14 +284,7 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (!user?.uid || !user.displayName) {
         throw new Error('Must be signed in to join a campaign');
       }
-      const characterSummary = buildCharacterSummary(characterId);
-      const campaign = await joinCampaignByCode(
-        code,
-        user.uid,
-        user.displayName,
-        characterId,
-        characterSummary,
-      );
+      const campaign = await joinCampaignByCode(code, user.uid, user.displayName, characterId);
       if (campaign) {
         setActiveCampaignId(campaign.id);
         // Sync CharacterData.campaign/campaignId for the character being enrolled
@@ -377,7 +294,7 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
       return campaign;
     },
-    [user?.uid, user?.displayName, setActiveCampaignId, updateCharacterById, buildCharacterSummary],
+    [user?.uid, user?.displayName, setActiveCampaignId, updateCharacterById],
   );
 
   const leaveCampaignAction = useCallback(async () => {
@@ -393,23 +310,9 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const acceptInviteAction = useCallback(
     async (inviteId: string, characterId?: string) => {
       if (!user?.uid || !user.displayName) throw new Error('Must be signed in');
-      const characterSummary = buildCharacterSummary(characterId);
-      const accepted = await firestoreAcceptInvite(
-        inviteId,
-        user.uid,
-        user.displayName,
-        characterId,
-        characterSummary,
-      );
-      setActiveCampaignId(accepted.campaignId);
-      if (characterId) {
-        updateCharacterById(characterId, {
-          campaign: accepted.campaignName,
-          campaignId: accepted.campaignId,
-        });
-      }
+      await firestoreAcceptInvite(inviteId, user.uid, user.displayName, characterId);
     },
-    [user?.uid, user?.displayName, buildCharacterSummary, setActiveCampaignId, updateCharacterById],
+    [user?.uid, user?.displayName],
   );
 
   const declineInviteAction = useCallback(
@@ -437,162 +340,15 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const updateMemberCharacterAction = useCallback(
     async (characterId: string | null) => {
       if (!activeCampaignId || !user?.uid) throw new Error('No active campaign or not signed in');
-      await firestoreUpdateMemberCharacter(
-        activeCampaignId,
-        user.uid,
-        characterId,
-        buildCharacterSummary(characterId || undefined),
-      );
+      await firestoreUpdateMemberCharacter(activeCampaignId, user.uid, characterId);
     },
-    [activeCampaignId, user?.uid, buildCharacterSummary],
+    [activeCampaignId, user?.uid],
   );
 
-  const removeMemberAction = useCallback(
-    async (targetUid: string) => {
-      if (!activeCampaignId) throw new Error('No active campaign');
-      if (!isDM) throw new Error('Only the DM can remove members');
-      await firestoreRemoveMember(activeCampaignId, targetUid);
-    },
-    [activeCampaignId, isDM],
-  );
-
-  const regenerateJoinCodeAction = useCallback(
-    async () => {
-      if (!activeCampaignId) throw new Error('No active campaign');
-      if (!isDM) throw new Error('Only the DM can regenerate the join code');
-      return await firestoreRegenerateJoinCode(activeCampaignId);
-    },
-    [activeCampaignId, isDM],
-  );
-
-  // ── Combat Actions ─────────────────────────────────────────────────
-
-  const startEncounterAction = useCallback(
-    async (name: string, combatants: Combatant[]): Promise<string> => {
-      if (!activeCampaignId) throw new Error('No active campaign');
-      if (!isDM) throw new Error('Only the DM can start encounters');
-      const id = await firestoreCreateEncounter(activeCampaignId, {
-        campaignId: activeCampaignId,
-        name,
-        active: true,
-        round: 1,
-        currentTurnIndex: 0,
-        combatants,
-        log: [{
-          timestamp: Date.now(),
-          type: 'encounter_start',
-          description: `Encounter "${name}" has begun! Round 1 starts.`,
-        }],
-      });
-      return id;
-    },
-    [activeCampaignId, isDM],
-  );
-
-  const updateCombatantAction = useCallback(
-    async (combatantId: string, patch: Partial<Combatant>): Promise<void> => {
-      if (!activeCampaignId || !activeEncounter) throw new Error('No active encounter');
-      const combatants = activeEncounter.combatants.map(c =>
-        c.id === combatantId ? { ...c, ...patch } : c,
-      );
-      await firestoreUpdateEncounter(activeCampaignId, activeEncounter.id, { combatants });
-    },
-    [activeCampaignId, activeEncounter],
-  );
-
-  const nextTurnAction = useCallback(
-    async (): Promise<void> => {
-      if (!activeCampaignId || !activeEncounter) throw new Error('No active encounter');
-      const { combatants, currentTurnIndex, round } = activeEncounter;
-      const nextIndex = (currentTurnIndex + 1) % combatants.length;
-      const nextRound = nextIndex === 0 ? round + 1 : round;
-      const nextCombatant = combatants[nextIndex];
-      const logEntry: CombatLogEntry = {
-        timestamp: Date.now(),
-        type: 'turn_change',
-        actorName: nextCombatant?.name,
-        description: nextIndex === 0
-          ? `⚔ Round ${nextRound} begins — ${nextCombatant?.name}'s turn`
-          : `${nextCombatant?.name}'s turn`,
-      };
-      await firestoreUpdateEncounter(activeCampaignId, activeEncounter.id, {
-        currentTurnIndex: nextIndex,
-        round: nextRound,
-        log: [...activeEncounter.log, logEntry],
-      });
-    },
-    [activeCampaignId, activeEncounter],
-  );
-
-  const endCombatAction = useCallback(
-    async (): Promise<void> => {
-      if (!activeCampaignId || !activeEncounter) throw new Error('No active encounter');
-      await firestoreEndEncounter(activeCampaignId, activeEncounter.id);
-    },
-    [activeCampaignId, activeEncounter],
-  );
-
-  const addCombatLogEntryAction = useCallback(
-    async (entry: CombatLogEntry): Promise<void> => {
-      if (!activeCampaignId || !activeEncounter) throw new Error('No active encounter');
-      await firestoreUpdateEncounter(activeCampaignId, activeEncounter.id, {
-        log: [...activeEncounter.log, entry],
-      });
-    },
-    [activeCampaignId, activeEncounter],
-  );
-
-  // ── Notes Actions ─────────────────────────────────────────────────
-
-  const createNoteAction = useCallback(
-    async (note: Omit<DMNote, 'id' | 'createdAt' | 'updatedAt' | 'campaignId' | 'authorUid'>): Promise<string> => {
-      if (!activeCampaignId || !user?.uid) throw new Error('No active campaign or not signed in');
-      if (!isDM) throw new Error('Only DMs can create notes');
-      return firestoreCreateNote(activeCampaignId, {
-        ...note,
-        campaignId: activeCampaignId,
-        authorUid: user.uid,
-      });
-    },
-    [activeCampaignId, user?.uid, isDM],
-  );
-
-  const updateNoteAction = useCallback(
-    async (noteId: string, updates: Partial<DMNote>): Promise<void> => {
-      if (!activeCampaignId) throw new Error('No active campaign');
-      if (!isDM) throw new Error('Only DMs can update notes');
-      await firestoreUpdateNote(activeCampaignId, noteId, updates);
-    },
-    [activeCampaignId, isDM],
-  );
-
-  const deleteNoteAction = useCallback(
-    async (noteId: string): Promise<void> => {
-      if (!activeCampaignId) throw new Error('No active campaign');
-      if (!isDM) throw new Error('Only DMs can delete notes');
-      await firestoreDeleteNote(activeCampaignId, noteId);
-    },
-    [activeCampaignId, isDM],
-  );
-
-  // ── Roll Request Actions ───────────────────────────────────────────
-
-  const sendRollRequestAction = useCallback(
-    async (type: string, targetUids: string[], dc?: number): Promise<string> => {
-      if (!activeCampaignId || !user?.uid) throw new Error('No active campaign or not signed in');
-      if (!isDM) throw new Error('Only the DM can send roll requests');
-      return firestoreCreateRollRequest(activeCampaignId, user.uid, type, targetUids, dc);
-    },
-    [activeCampaignId, user?.uid, isDM],
-  );
-
-  const submitRollResponseAction = useCallback(
-    async (requestId: string, response: RollRequestResponse): Promise<void> => {
-      if (!activeCampaignId) throw new Error('No active campaign');
-      await firestoreSubmitRollResponse(activeCampaignId, requestId, response);
-    },
-    [activeCampaignId],
-  );
+  const regenerateJoinCodeAction = useCallback(async (): Promise<string> => {
+    if (!activeCampaignId) throw new Error('No active campaign');
+    return firestoreRegenerateJoinCode(activeCampaignId);
+  }, [activeCampaignId]);
 
   return (
     <CampaignContext.Provider
@@ -618,19 +374,7 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         declineInvite: declineInviteAction,
         sendInvite: sendInviteAction,
         updateMemberCharacter: updateMemberCharacterAction,
-        removeMember: removeMemberAction,
         regenerateJoinCode: regenerateJoinCodeAction,
-        startEncounter: startEncounterAction,
-        updateCombatant: updateCombatantAction,
-        nextTurn: nextTurnAction,
-        endCombat: endCombatAction,
-        addCombatLogEntry: addCombatLogEntryAction,
-        createNote: createNoteAction,
-        updateNote: updateNoteAction,
-        deleteNote: deleteNoteAction,
-        rollRequests,
-        sendRollRequest: sendRollRequestAction,
-        submitRollResponse: submitRollResponseAction,
       }}
     >
       {children}

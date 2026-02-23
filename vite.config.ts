@@ -16,12 +16,13 @@ export default defineConfig(({ mode }) => {
     return {
       server: {
         port: 3000,
-        host: '0.0.0.0',
+        host: 'localhost', // bind to loopback only in dev; was '0.0.0.0' which exposed to LAN
         // Proxy API calls to the Express server during development
         proxy: {
           '/api': {
             target: 'http://localhost:3001',
             changeOrigin: true,
+            ws: true, // forward WebSocket upgrades (required for /api/gemini/live)
           },
         },
       },

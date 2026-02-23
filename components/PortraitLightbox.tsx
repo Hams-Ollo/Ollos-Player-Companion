@@ -1,86 +1,65 @@
-import React, { useEffect } from 'react';
-import { X, Wand2, Image as ImageIcon } from 'lucide-react';
+import React from 'react';
+import { X, Edit2, Image as ImageIcon } from 'lucide-react';
 
 interface PortraitLightboxProps {
   portraitUrl: string;
   characterName: string;
   onClose: () => void;
-  /** Open the portrait editor pre-set to a specific tab */
-  onEdit: (initialTab: 'text' | 'image') => void;
+  onEdit: (tab: 'text' | 'image') => void;
 }
 
-const PortraitLightbox: React.FC<PortraitLightboxProps> = ({
-  portraitUrl,
-  characterName,
-  onClose,
-  onEdit,
-}) => {
-  // Close on Escape key
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose]);
-
+const PortraitLightbox: React.FC<PortraitLightboxProps> = ({ portraitUrl, characterName, onClose, onEdit }) => {
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
       onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${characterName}'s portrait`}
     >
-      {/* ── Header bar ── */}
       <div
-        className="absolute top-0 left-0 right-0 flex justify-between items-center px-5 py-4 bg-gradient-to-b from-black/80 to-transparent z-10"
-        onClick={(e) => e.stopPropagation()}
+        className="relative max-w-lg w-full mx-4 rounded-2xl overflow-hidden shadow-2xl"
+        onClick={e => e.stopPropagation()}
       >
-        <span className="text-white font-display font-bold text-lg truncate drop-shadow-md">
-          {characterName}
-        </span>
-        <button
-          onClick={onClose}
-          className="text-zinc-400 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
-          aria-label="Close portrait"
-        >
-          <X size={26} />
-        </button>
-      </div>
-
-      {/* ── Portrait image ── */}
-      <div
-        className="relative max-w-xs sm:max-w-sm w-full mx-6 rounded-2xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.9)] ring-1 ring-white/10"
-        onClick={(e) => e.stopPropagation()}
-      >
+        {/* Portrait image */}
         <img
           src={portraitUrl}
-          alt={`${characterName}'s portrait`}
-          className="w-full h-auto object-cover"
-          draggable={false}
+          alt={characterName}
+          className="w-full object-cover block"
+          style={{ maxHeight: '70vh' }}
         />
-      </div>
 
-      {/* ── Action buttons ── */}
-      <div
-        className="absolute bottom-0 left-0 right-0 px-6 pb-10 pt-28 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex justify-center gap-3"
-        onClick={(e) => e.stopPropagation()}
-      >
+        {/* Overlay controls */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30 pointer-events-none" />
+
+        {/* Close */}
         <button
-          onClick={() => onEdit('text')}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white text-sm font-bold rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95"
+          onClick={onClose}
+          className="absolute top-3 right-3 p-2 bg-black/50 hover:bg-black/70 text-white rounded-xl transition-colors backdrop-blur-sm"
+          title="Close"
         >
-          <Wand2 size={15} />
-          Regenerate Portrait
+          <X size={18} />
         </button>
-        <button
-          onClick={() => onEdit('image')}
-          className="flex items-center gap-2 px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-bold rounded-xl shadow-lg border border-zinc-700 transition-all hover:scale-105 active:scale-95"
-        >
-          <ImageIcon size={15} />
-          Change Image
-        </button>
+
+        {/* Bottom bar */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between gap-3">
+          <span className="font-black text-white text-lg drop-shadow-lg">{characterName}</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onEdit('image')}
+              className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800/80 hover:bg-zinc-700/90 text-zinc-200 text-xs font-bold rounded-xl transition-colors backdrop-blur-sm border border-zinc-700/50"
+              title="Replace with photo"
+            >
+              <ImageIcon size={13} />
+              Upload
+            </button>
+            <button
+              onClick={() => onEdit('text')}
+              className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/80 hover:bg-amber-500/90 text-white text-xs font-bold rounded-xl transition-colors backdrop-blur-sm"
+              title="Generate new portrait with AI"
+            >
+              <Edit2 size={13} />
+              Regenerate
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

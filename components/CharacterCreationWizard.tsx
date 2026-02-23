@@ -33,7 +33,6 @@ import {
   calculateMultiLevelHP,
   getASILevelsUpTo,
   STARTING_GOLD_BY_LEVEL,
-  CLASS_STARTING_EQUIPMENT,
 } from '../constants';
 import { checkRateLimit, recalculateCharacterStats, calculateModifier } from '../utils';
 import { generateWithContext, generatePortrait } from '../lib/gemini';
@@ -67,9 +66,7 @@ interface WizardState {
   // Step 4: Initial Spells & Powers
   selectedPowers: string[];
   higherLevelSpells: Record<number, string[]>;
-  // Step 5: Starting Equipment
-  selectedEquipmentPackIndex: number;
-  // Step 6: Character Concept
+  // Step 5: Character Concept
   appearance: string;
   backstory: string;
   motivations: string;
@@ -95,7 +92,6 @@ const INITIAL_STATE: WizardState = {
   selectedTools: [],
   selectedPowers: [],
   higherLevelSpells: {},
-  selectedEquipmentPackIndex: 0,
   appearance: '',
   backstory: '',
   motivations: '',
@@ -110,7 +106,6 @@ const STEPS = [
   { label: 'Ability Scores', icon: Dices },
   { label: 'Proficiencies', icon: ShieldCheck },
   { label: 'Spells & Powers', icon: Zap },
-  { label: 'Equipment', icon: ShieldCheck },
   { label: 'Concept', icon: BookOpen },
   { label: 'Review', icon: Sparkles },
 ];
@@ -182,8 +177,6 @@ const StepIdentity: React.FC<{
               id="wizard-race"
               value={state.race}
               onChange={e => onChange({ race: e.target.value })}
-              title="Select Race"
-              aria-label="Select Race"
               className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-amber-500"
             >
               <option value="">Select Race...</option>
@@ -196,8 +189,6 @@ const StepIdentity: React.FC<{
               id="wizard-class"
               value={state.charClass}
               onChange={e => onChange({ charClass: e.target.value })}
-              title="Select Class"
-              aria-label="Select Class"
               className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-amber-500"
             >
               <option value="">Select Class...</option>
@@ -357,10 +348,7 @@ const StepAbilityScores: React.FC<{
           {(['standard', 'pointbuy', 'manual'] as StatMethod[]).map(m => (
             <button
               key={m}
-              type="button"
               onClick={() => onChange({ statMethod: m })}
-              aria-label={`Select ${m} ability score method`}
-              title={`Select ${m} ability score method`}
               className={`px-3 py-1.5 text-[10px] font-bold rounded-full border uppercase tracking-widest transition-all ${
                 state.statMethod === m 
                 ? 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-900/20' 
@@ -410,13 +398,11 @@ const StepAbilityScores: React.FC<{
                 {state.statMethod === 'standard' ? (
                   <select
                     aria-label={`Select score for ${key}`}
-                    title={`Select ability score for ${key}`}
-                    id={`standard-score-${key}`}
                     value={state.standardAssignment[key] ?? ''}
                     onChange={e => handleStandardAssignment(key, e.target.value ? parseInt(e.target.value) : null)}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-2 text-sm font-bold text-white focus:outline-none focus:border-amber-500 text-center"
                   >
-                    <option value="" aria-label={`No score selected for ${key}`}>--</option>
+                    <option value="">--</option>
                     {STANDARD_ARRAY.map(val => {
                       const isUsedByOther = Object.entries(state.standardAssignment).some(([k, v]) => v === val && k !== key);
                       return (
@@ -430,36 +416,31 @@ const StepAbilityScores: React.FC<{
                   <div className="flex items-center justify-between w-full">
                     <button 
                       onClick={() => handlePointBuyChange(key, false)}
+                      aria-label={`Decrease ${key}`}
                       className="p-1.5 rounded-lg bg-zinc-900 text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors"
                       disabled={baseScore <= POINT_BUY_MIN}
-                      aria-label={`Decrease ${key} score`}
-                      title={`Decrease ${key} score`}
                     >
-                      <Minus size={14} aria-hidden="true" />
+                      <Minus size={14} />
                     </button>
                     <div className="text-center">
                         <span className="text-2xl font-display font-bold text-white">{baseScore}</span>
                         <div className="text-[9px] text-zinc-500 font-bold uppercase">Cost: {POINT_BUY_COSTS[baseScore]}</div>
                     </div>
                     <button 
-                      type="button"
                       onClick={() => handlePointBuyChange(key, true)}
+                      aria-label={`Increase ${key}`}
                       className="p-1.5 rounded-lg bg-zinc-900 text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors"
                       disabled={baseScore >= POINT_BUY_MAX || pointsRemaining < (POINT_BUY_COSTS[baseScore + 1] - POINT_BUY_COSTS[baseScore])}
-                      aria-label={`Increase ${key} score`}
-                      title={`Increase ${key} score`}
                     >
-                      <Plus size={14} aria-hidden="true" />
+                      <Plus size={14} />
                     </button>
                   </div>
                 ) : (
                    <input 
                       type="number"
                       value={baseScore}
+                      aria-label={`${key} score`}
                       onChange={(e) => handleManualStatChange(key, e.target.value)}
-                      aria-label={`${key} ability score`}
-                      title={`${key} ability score`}
-                      placeholder={`${key}`}
                       className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-2 text-xl font-display font-bold text-white focus:outline-none focus:border-amber-500 text-center"
                    />
                 )}
@@ -509,7 +490,6 @@ const StepAbilityScores: React.FC<{
                         value={alloc?.[idx] || 'STR'}
                         onChange={e => handleAsiChange(lvl, idx, e.target.value as StatKey)}
                         aria-label={`Level ${lvl} ASI bonus ${idx + 1}`}
-                        title={`Level ${lvl} ASI bonus ${idx + 1}`}
                         className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-xs font-bold text-white focus:outline-none focus:border-amber-500"
                       >
                         {STAT_KEYS.map(s => <option key={s} value={s}>{s} +1</option>)}
@@ -694,17 +674,14 @@ const StepPowers: React.FC<{
       </div>
 
       {maxSpellLevel > 1 && (
-        <label className="sr-only" htmlFor="spell-search">Search spells</label>
-      )}
-      {maxSpellLevel > 1 && (
         <input
-          id="spell-search"
           type="text"
           value={spellSearch}
           onChange={e => setSpellSearch(e.target.value)}
-          placeholder="Search spells..."
-          aria-label="Search spells"
-          title="Search spells"
+          placeholder="Search spells by name..."
+          aria-label="Search spells by name"
+          title="Search spells by name"
+          id="spell-search"
           className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
         />
       )}
@@ -722,7 +699,7 @@ const StepPowers: React.FC<{
           <div className="flex flex-wrap gap-2 min-h-[32px]">
             {[...state.selectedPowers, ...allHigherSelections].map(p => (
               <span key={p} className={`${cantrips.includes(p) ? 'bg-cyan-900/30 text-cyan-200 border-cyan-500/30' : 'bg-purple-900/30 text-purple-200 border-purple-500/30'} border px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2`}>
-                {p} <button aria-label={`Remove ${p}`} onClick={() => {
+                {p} <button type="button" aria-label={`Remove ${p}`} title={`Remove ${p} from selection`} onClick={() => {
                   if (cantrips.includes(p) || spells1st.includes(p) || racialSpellNames.includes(p)) {
                     toggleCantrip(p); // reuse toggle for selectedPowers
                     if (spells1st.includes(p)) toggleSpell(1, p);
@@ -821,92 +798,6 @@ const StepPowers: React.FC<{
             </div>
           </div>
         )}
-      </div>
-    </div>
-  );
-};
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Step 5: Starting Equipment
-// ──────────────────────────────────────────────────────────────────────────────
-const StepEquipment: React.FC<{
-  state: WizardState;
-  onChange: (updates: Partial<WizardState>) => void;
-}> = ({ state, onChange }) => {
-  const packs = CLASS_STARTING_EQUIPMENT[state.charClass] || [];
-  const baseGold = STARTING_GOLD_BY_LEVEL[state.startingLevel] || 200;
-
-  if (packs.length === 0) {
-    return (
-      <div className="p-4 sm:p-6 md:p-8 space-y-4">
-        <div className="text-center">
-          <h2 className="text-xl font-display font-bold text-white mb-1">Starting Equipment</h2>
-          <p className="text-zinc-500 text-sm">No preset packs for this class — you'll start with {baseGold} gp to spend at the market.</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-5">
-      <div className="text-center">
-        <h2 className="text-xl font-display font-bold text-white mb-1">Starting Equipment</h2>
-        <p className="text-zinc-500 text-sm">Choose your starting gear pack. Gold cost is deducted from your starting gold ({baseGold} gp).</p>
-      </div>
-
-      <div className="space-y-3">
-        {packs.map((pack, idx) => {
-          const isSelected = state.selectedEquipmentPackIndex === idx;
-          const remaining = Math.max(0, baseGold - pack.goldCost);
-          return (
-            <button
-              key={idx}
-              onClick={() => onChange({ selectedEquipmentPackIndex: idx })}
-              className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
-                isSelected
-                  ? 'border-amber-500 bg-amber-500/10'
-                  : 'border-zinc-700 bg-zinc-900/50 hover:border-zinc-600'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      isSelected ? 'border-amber-500 bg-amber-500' : 'border-zinc-600'
-                    }`}>
-                      {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
-                    </div>
-                    <span className={`font-bold text-sm ${isSelected ? 'text-amber-400' : 'text-white'}`}>{pack.label}</span>
-                  </div>
-                  <p className="text-zinc-500 text-xs ml-6 mb-2">{pack.description}</p>
-                  <div className="ml-6 flex flex-wrap gap-1">
-                    {pack.items.map((item, i) => (
-                      <span key={i} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
-                        item.equipped
-                          ? 'bg-blue-900/40 text-blue-300 border border-blue-700/30'
-                          : 'bg-zinc-800 text-zinc-400'
-                      }`}>
-                        {item.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''}
-                        {item.equipped && <span className="text-blue-400 text-[9px]">EQUIPPED</span>}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-amber-400 font-bold text-sm">{pack.goldCost} gp</div>
-                  <div className="text-zinc-500 text-xs">{remaining} gp left</div>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg">
-        <p className="text-zinc-500 text-xs text-center">
-          💡 You can buy additional gear from the marketplace after your character is created.
-          Equipped items automatically compute your AC and attacks.
-        </p>
       </div>
     </div>
   );
@@ -1044,9 +935,8 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ onCreate, onClose }) =
         return true;
       case 2: return state.selectedSkills.length >= (classData?.skillsToPick || 2);
       case 3: return true;
-      case 4: return true; // equipment — always can advance
-      case 5: return true;
-      case 6: return !forging;
+      case 4: return true;
+      case 5: return !forging;
       default: return false;
     }
   }, [step, state, forging, classData]);
@@ -1161,29 +1051,8 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ onCreate, onClose }) =
         features: detailedResult.features || [],
         spells: detailedResult.spells || [],
         spellSlots: getSpellSlotsForLevel(state.charClass, level).map(s => ({ level: s.level, current: s.max, max: s.max })),
-        inventory: (() => {
-          const packs = CLASS_STARTING_EQUIPMENT[state.charClass];
-          const pack = packs ? packs[state.selectedEquipmentPackIndex] ?? packs[0] : null;
-          const baseGold = STARTING_GOLD_BY_LEVEL[level] || 200;
-          if (pack) {
-            const remaining = Math.max(0, baseGold - pack.goldCost);
-            return { gold: remaining, items: pack.items, load: 'Light' };
-          }
-          return { gold: baseGold, items: [], load: 'Light' };
-        })(),
-        motivations: state.motivations || undefined,
-        keyNPCs: state.keyNPCs || undefined,
-        journal: [{
-          id: 'creation',
-          timestamp: Date.now(),
-          type: 'note',
-          content: [
-            `Created ${state.name}, the Level ${level} ${state.race} ${state.charClass}${state.subclass ? ` (${state.subclass})` : ''}. Background: ${state.background}.`,
-            state.backstory?.trim() ? `Backstory: ${state.backstory.trim()}` : null,
-            state.motivations?.trim() ? `Motivations: ${state.motivations.trim()}` : null,
-            state.keyNPCs?.trim() ? `Key NPCs: ${state.keyNPCs.trim()}` : null,
-          ].filter(Boolean).join('\n\n'),
-        }]
+        inventory: { gold: STARTING_GOLD_BY_LEVEL[level] || 150, items: [], load: "Light" },
+        journal: [{ id: 'creation', timestamp: Date.now(), type: 'note', content: `Created ${state.name}, the Level ${level} ${state.race} ${state.charClass}${state.subclass ? ` (${state.subclass})` : ''}. Background: ${state.background}.` }]
       };
 
       onCreate(recalculateCharacterStats(character));
@@ -1213,20 +1082,21 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ onCreate, onClose }) =
           {step === 1 && <StepAbilityScores state={state} onChange={handleChange} />}
           {step === 2 && <StepSkills state={state} onChange={handleChange} />}
           {step === 3 && <StepPowers state={state} onChange={handleChange} />}
-          {step === 4 && <StepEquipment state={state} onChange={handleChange} />}
-          {step === 5 && <StepConcept state={state} onChange={handleChange} />}
-          {step === 6 && <StepReview state={state} forging={forging} forgeError={forgeError} />}
+          {step === 4 && <StepConcept state={state} onChange={handleChange} />}
+          {step === 5 && <StepReview state={state} forging={forging} forgeError={forgeError} />}
         </div>
 
         <div className="p-4 sm:p-5 border-t border-zinc-800 bg-zinc-950/50 flex gap-3 shrink-0">
           {step > 0 && !forging && (
-            <button onClick={() => setStep(s => s - 1)} className="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl flex items-center gap-1 transition-all">
+            <button type="button" title="Go to previous step" onClick={() => setStep(s => s - 1)} className="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl flex items-center gap-1 transition-all">
               <ChevronLeft size={18} /> Back
             </button>
           )}
           <div className="flex-grow" />
-          {step < 6 && (
+          {step < 5 && (
             <button 
+                type="button"
+                title="Go to next step"
                 onClick={() => setStep(s => s + 1)} 
                 disabled={!canAdvance} 
                 className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl flex items-center gap-1 disabled:opacity-30 transition-all shadow-lg shadow-amber-900/20"
@@ -1234,8 +1104,8 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ onCreate, onClose }) =
               Next <ChevronRight size={18} />
             </button>
           )}
-          {step === 6 && !forging && (
-            <button onClick={handleForge} className="px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold rounded-xl flex items-center gap-2 transition-all shadow-xl shadow-orange-900/40 active:scale-95">
+          {step === 5 && !forging && (
+            <button type="button" title="Forge your character" onClick={handleForge} className="px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold rounded-xl flex items-center gap-2 transition-all shadow-xl shadow-orange-900/40 active:scale-95">
               <Sparkles size={18} /> Forge Character
             </button>
           )}

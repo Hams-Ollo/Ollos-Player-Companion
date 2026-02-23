@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Wand2, Camera, Loader2, Image as ImageIcon, Upload, ShieldCheck } from 'lucide-react';
+import { X, Wand2, Camera, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
 import { checkRateLimit } from '../utils';
 import { generatePortrait } from '../lib/gemini';
 
@@ -8,7 +8,6 @@ interface PortraitGeneratorProps {
   onUpdate: (url: string) => void;
   onClose: () => void;
   characterDescription: string;
-  /** Pre-select a tab when opened from the lightbox */
   initialTab?: 'text' | 'image';
 }
 
@@ -18,32 +17,17 @@ const PortraitGenerator: React.FC<PortraitGeneratorProps> = ({ currentPortrait, 
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'text' | 'image'>(initialTab ?? 'text');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  // Privacy consent — stored in localStorage so users aren't shown it on every visit
-  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(
-    () => localStorage.getItem('portrait_image_consent_v1') === 'granted'
-  );
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const selfieInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    // Reject unexpectedly large files before sending to AI (10 MB guard)
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Image is too large. Please choose a file under 10 MB.');
-      e.target.value = '';
-      return;
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setSelectedImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleAcknowledgePrivacy = () => {
-    localStorage.setItem('portrait_image_consent_v1', 'granted');
-    setPrivacyAcknowledged(true);
   };
 
   const handleGenerate = async () => {
@@ -119,85 +103,29 @@ const PortraitGenerator: React.FC<PortraitGeneratorProps> = ({ currentPortrait, 
 
         <div className="p-6 overflow-y-auto flex-grow">
           {activeTab === 'image' && (
-            <div className="mb-6 space-y-4">
-
-              {/* ── Privacy consent notice (shown once per device) ── */}
-              {!privacyAcknowledged && (
-                <div className="flex gap-3 p-3 bg-zinc-800/80 border border-zinc-600 rounded-xl text-xs text-zinc-300">
-                  <ShieldCheck className="shrink-0 text-blue-400 mt-0.5" size={18} />
-                  <div>
-                    <p className="font-bold text-zinc-200 mb-1">Before you upload a photo</p>
-                    <p className="text-zinc-400 leading-relaxed">
-                      Your image is sent securely to Google Gemini solely to generate your character portrait.
-                      It is <span className="text-zinc-200 font-semibold">never stored on our servers</span> or
-                      saved to your character — only the AI-generated result is kept.
-                    </p>
-                    <button
-                      onClick={handleAcknowledgePrivacy}
-                      className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors"
-                    >
-                      I Understand
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Image preview / upload target ── */}
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="aspect-square bg-zinc-800 rounded-xl border-2 border-dashed border-zinc-600 hover:border-purple-500 hover:bg-zinc-800/50 transition-colors flex flex-col items-center justify-center cursor-pointer overflow-hidden relative"
-              >
-                {selectedImage ? (
-                  <img src={selectedImage} alt="Reference" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="text-center p-4">
-                    <Upload className="mx-auto mb-2 text-zinc-500" size={32} />
-                    <span className="text-zinc-400 text-sm font-bold">Tap to Upload Image</span>
-                    <span className="block text-zinc-600 text-xs mt-1">PNG, JPG, WEBP · max 10 MB</span>
-                  </div>
-                )}
-                {/* Hidden file input — gallery / filesystem */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                  aria-label="Upload reference photo from library"
-                />
-              </div>
-
-              {/* ── OR divider + selfie button ── */}
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-zinc-700" />
-                <span className="text-zinc-600 text-xs font-bold uppercase tracking-widest">or</span>
-                <div className="flex-1 h-px bg-zinc-700" />
-              </div>
-
-              <button
-                onClick={() => selfieInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-sm font-bold rounded-xl transition-colors"
-                aria-label="Use device camera to take a selfie"
-              >
-                <Camera size={16} />
-                Use Camera / Take Selfie
-              </button>
-              {/* Hidden file input — device camera (front-facing on mobile) */}
-              <input
-                ref={selfieInputRef}
-                type="file"
-                accept="image/*"
-                capture="user"
-                className="hidden"
-                onChange={handleFileSelect}
-                aria-label="Take a selfie with your camera"
-              />
-
-              {selectedImage && (
-                <p className="text-xs text-zinc-500 text-center">
-                  AI will redraw this image in a high-fantasy art style
-                </p>
-              )}
+            <div className="mb-6">
+               <div 
+                 onClick={() => fileInputRef.current?.click()}
+                 className="aspect-square bg-zinc-800 rounded-xl border-2 border-dashed border-zinc-600 hover:border-purple-500 hover:bg-zinc-800/50 transition-colors flex flex-col items-center justify-center cursor-pointer overflow-hidden relative"
+               >
+                 {selectedImage ? (
+                   <img src={selectedImage} alt="Reference" className="w-full h-full object-cover" />
+                 ) : (
+                   <div className="text-center p-4">
+                     <Camera className="mx-auto mb-2 text-zinc-500" size={32} />
+                     <span className="text-zinc-400 text-sm font-bold">Upload or Take Photo</span>
+                   </div>
+                 )}
+                 <input 
+                   ref={fileInputRef}
+                   type="file" 
+                   accept="image/*" 
+                   className="hidden" 
+                   onChange={handleFileSelect}
+                   aria-label="Upload reference photo"
+                 />
+               </div>
+               <p className="text-xs text-zinc-500 mt-2 text-center">Reference for the AI to redraw</p>
             </div>
           )}
 

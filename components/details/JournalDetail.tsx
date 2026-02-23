@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CharacterData, JournalEntry } from '../../types';
-import { Plus, PenTool, MapPin, User, FileText, Sparkles, Loader2, Trash2 } from 'lucide-react';
+import { Plus, PenTool, MapPin, User, FileText, Sparkles, Loader2, Trash2, Heart, Users } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { checkRateLimit } from '../../utils';
 import { generateWithContext } from '../../lib/gemini';
@@ -69,6 +69,31 @@ const JournalDetail: React.FC<JournalDetailProps> = ({ data, onUpdate }) => {
 
   return (
     <div className="space-y-6">
+      {/* Character Background — motivations & key NPCs from wizard */}
+      {(data.motivations || data.keyNPCs) && (
+        <div className="bg-zinc-800/60 border border-zinc-700/60 rounded-xl p-4 space-y-3">
+          <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Character Background</h3>
+          {data.motivations && (
+            <div className="flex gap-3">
+              <Heart size={14} className="text-rose-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Motivations</span>
+                <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{data.motivations}</p>
+              </div>
+            </div>
+          )}
+          {data.keyNPCs && (
+            <div className="flex gap-3">
+              <Users size={14} className="text-indigo-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Key NPCs</span>
+                <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{data.keyNPCs}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Input Area */}
       <div className="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
         <textarea

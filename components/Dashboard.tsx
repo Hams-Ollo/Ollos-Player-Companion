@@ -28,16 +28,17 @@ import ConditionsModal from './ConditionsModal';
 import PartyRoster from './PartyRoster';
 import ErrorBoundary from './ErrorBoundary';
 import { useCampaign } from '../contexts/CampaignContext';
-import { Heart, Sword, Brain, Edit2, MessageSquare, Settings, LogOut, Book, ShoppingBag, Wand2, Users, Swords, Scroll, Shield, Moon, ArrowUpCircle, Store, Stethoscope, Sparkles, Activity } from 'lucide-react';
+import { Heart, Sword, Brain, Edit2, MessageSquare, Settings, LogOut, Book, ShoppingBag, Wand2, Users, Swords, Scroll, Shield, Moon, ArrowUpCircle, Store, Stethoscope, Sparkles, Activity, Crown } from 'lucide-react';
 
 interface DashboardProps {
   data: CharacterData;
   onUpdatePortrait: (url: string) => void;
   onUpdateData: (newData: Partial<CharacterData>) => void;
   onExit: () => void;
+  onSwitchToDM?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateData, onExit }) => {
+const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateData, onExit, onSwitchToDM }) => {
   const { activeCampaign, members, isDM, activeEncounter } = useCampaign();
   const [activeStack, setActiveStack] = useState<StackType | null>(null);
   const [rollResult, setRollResult] = useState<RollResult | null>(null);
@@ -164,6 +165,18 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
                 <button onClick={() => setShowSettings(true)} className="p-2.5 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-xl hover:text-white transition-all" title="Settings">
                     <Settings size={18} />
                 </button>
+                {onSwitchToDM && (
+                  <>
+                    <div className="h-10 w-px bg-zinc-800 mx-1" />
+                    <button
+                      onClick={onSwitchToDM}
+                      className="p-2.5 bg-amber-950/20 text-amber-600 border border-amber-500/20 rounded-xl hover:bg-amber-900/40 hover:text-amber-400 transition-all"
+                      title="Switch to DM Screen"
+                    >
+                      <Crown size={18} />
+                    </button>
+                  </>
+                )}
             </div>
          </header>
 

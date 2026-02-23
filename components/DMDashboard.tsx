@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useCampaign } from '../contexts/CampaignContext';
-import { CampaignMemberCharacterSummary } from '../types';
+import { CharacterData } from '../types';
 import { Crown, Users, Eye, Swords, ScrollText, Settings, LogOut, Hash, Copy, Check, RefreshCw } from 'lucide-react';
 import DMPartyOverview from './DMPartyOverview';
 import EncounterGenerator from './EncounterGenerator';
@@ -10,16 +10,15 @@ import RollRequestPanel from './RollRequestPanel';
 
 interface DMDashboardProps {
   onExit: () => void;
+  onReturnToCharacter?: () => void;
 }
 
-const DMDashboard: React.FC<DMDashboardProps> = ({ onExit }) => {
+const DMDashboard: React.FC<DMDashboardProps> = ({ onExit, onReturnToCharacter }) => {
   const {
     activeCampaign,
     members,
     activeEncounter,
     updateCampaign,
-    archiveCampaign,
-    setActiveCampaignId,
     regenerateJoinCode,
   } = useCampaign();
 
@@ -28,10 +27,11 @@ const DMDashboard: React.FC<DMDashboardProps> = ({ onExit }) => {
   const [regeneratingCode, setRegeneratingCode] = useState(false);
 
   const partyCharacters = useMemo(() => {
-    const map = new Map<string, CampaignMemberCharacterSummary>();
+    const map = new Map<string, CharacterData>();
     members.forEach((member) => {
-      if (member.characterSummary) {
-        map.set(member.uid, member.characterSummary);
+      const charData = (member as any).character as CharacterData | undefined;
+      if (charData) {
+        map.set(member.uid, charData);
       }
     });
     return map;
@@ -100,9 +100,21 @@ const DMDashboard: React.FC<DMDashboardProps> = ({ onExit }) => {
           </div>
 
           <div className="flex-1" />
-          <div className="flex items-center gap-2 text-xs text-zinc-600">
-            <Users size={14} />
-            <span>{members.length} member{members.length !== 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-3">
+            {onReturnToCharacter && (
+              <button
+                onClick={onReturnToCharacter}
+                className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700 rounded-xl text-xs font-bold transition-all"
+                title="Return to your character sheet"
+              >
+                <LogOut size={13} className="rotate-180" />
+                My Sheet
+              </button>
+            )}
+            <div className="flex items-center gap-2 text-xs text-zinc-600">
+              <Users size={14} />
+              <span>{members.length} member{members.length !== 1 ? 's' : ''}</span>
+            </div>
           </div>
         </header>
 

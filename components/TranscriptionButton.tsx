@@ -1,8 +1,6 @@
 
 import React, { useState, useRef } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
-// Correct import: Modality is required for Live API responseModalities configuration
-import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
 import { getAuth } from 'firebase/auth';
 
 interface TranscriptionButtonProps {
@@ -10,14 +8,17 @@ interface TranscriptionButtonProps {
   className?: string;
 }
 
+const LIVE_MODEL = 'models/gemini-2.5-flash-native-audio-preview-12-2025';
+
 const TranscriptionButton: React.FC<TranscriptionButtonProps> = ({ onTranscription, className }) => {
   const [isListening, setIsListening] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
-  const sessionRef = useRef<any>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
-  // Manual implementation of base64 encoding as per @google/genai guidelines
-  const encode = (bytes: Uint8Array) => {
+  // Base64-encode raw bytes (avoids btoa string-from-codePoint issues with high bytes)
+  const encode = (bytes: Uint8Array): string => {
     let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) {
       binary += String.fromCharCode(bytes[i]);
@@ -25,127 +26,112 @@ const TranscriptionButton: React.FC<TranscriptionButtonProps> = ({ onTranscripti
     return btoa(binary);
   };
 
-  // Convert microphone Float32Array to raw 16-bit PCM Blob for the Live API
-  const createBlob = (data: Float32Array) => {
-    const l = data.length;
-    const int16 = new Int16Array(l);
-    for (let i = 0; i < l; i++) {
-      int16[i] = data[i] * 32768;
+  // Convert microphone Float32Array to raw 16-bit PCM, return base64 string
+  const float32ToPcmBase64 = (data: Float32Array): string => {
+    const int16 = new Int16Array(data.length);
+    for (let i = 0; i < data.length; i++) {
+      int16[i] = Math.max(-32768, Math.min(32767, data[i] * 32768));
     }
-    return {
-      data: encode(new Uint8Array(int16.buffer)),
-      // Supported audio MIME type for Gemini Live API
-      mimeType: 'audio/pcm;rate=16000',
-    };
-  };
-
-  /**
-   * Fetch a short-lived API key from our proxy for the Live Audio session.
-   * The proxy verifies the Firebase ID token before returning the key.
-   */
-  const getEphemeralApiKey = async (): Promise<string | null> => {
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (!user) return null;
-      const idToken = await user.getIdToken();
-
-      const response = await fetch('/api/gemini/live-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
-        },
-      });
-
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data.apiKey || null;
-    } catch {
-      return null;
-    }
-  };
-
-  const startListening = async () => {
-    const apiKey = await getEphemeralApiKey();
-    if (!apiKey) return;
-    setIsInitializing(true);
-
-    try {
-      // Create a fresh GoogleGenAI instance with the short-lived key from our proxy
-      const ai = new GoogleGenAI({
-        apiKey: apiKey,
-        httpOptions: { baseUrl: 'https://generativelanguage.googleapis.com' },
-      });
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      const inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-      audioContextRef.current = inputAudioContext;
-
-      const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
-        callbacks: {
-          onopen: () => {
-            const source = inputAudioContext.createMediaStreamSource(stream);
-            const scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
-            
-            scriptProcessor.onaudioprocess = (e) => {
-              const inputData = e.inputBuffer.getChannelData(0);
-              const pcmBlob = createBlob(inputData);
-              // Ensure data is sent only after the session promise resolves to prevent race conditions
-              sessionPromise.then((session) => {
-                session.sendRealtimeInput({ media: pcmBlob });
-              });
-            };
-            
-            source.connect(scriptProcessor);
-            scriptProcessor.connect(inputAudioContext.destination);
-            
-            setIsListening(true);
-            setIsInitializing(false);
-          },
-          // Explicitly type the message as LiveServerMessage
-          onmessage: async (message: LiveServerMessage) => {
-            if (message.serverContent?.inputTranscription) {
-              const text = message.serverContent.inputTranscription.text;
-              if (text) onTranscription(text);
-            }
-            // Note: Even if only transcription is desired, any returned audio output must still be processed if it arrives.
-          },
-          onerror: (e) => {
-            console.error('Transcription error:', e);
-            stopListening();
-          },
-          onclose: () => {
-            stopListening();
-          },
-        },
-        config: {
-          // Fix: responseModalities must be an array containing exactly one Modality.AUDIO element
-          responseModalities: [Modality.AUDIO],
-          inputAudioTranscription: {},
-          systemInstruction: 'You are transcribing the user. Do not respond verbally. Just transcribe accurately.'
-        },
-      });
-
-      sessionRef.current = await sessionPromise;
-    } catch (err) {
-      console.error('Failed to start transcription:', err);
-      setIsInitializing(false);
-    }
+    return encode(new Uint8Array(int16.buffer));
   };
 
   const stopListening = () => {
-    if (sessionRef.current) {
-      sessionRef.current.close();
-      sessionRef.current = null;
+    if (wsRef.current) {
+      if (wsRef.current.readyState === WebSocket.OPEN ||
+          wsRef.current.readyState === WebSocket.CONNECTING) {
+        wsRef.current.close();
+      }
+      wsRef.current = null;
     }
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
+    }
     setIsListening(false);
     setIsInitializing(false);
+  };
+
+  const startListening = async () => {
+    setIsInitializing(true);
+
+    try {
+      // Get Firebase ID token — the key never leaves the server
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) { setIsInitializing(false); return; }
+      const idToken = await user.getIdToken();
+
+      // Request microphone before opening WS to detect permission errors early
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      // Connect to our server-side WS proxy; it forwards to Gemini with the real key
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(
+        `${wsProtocol}//${window.location.host}/api/gemini/live?token=${encodeURIComponent(idToken)}`
+      );
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        // 1. Send Gemini Live setup — request TEXT modality so we only get transcription back
+        ws.send(JSON.stringify({
+          setup: {
+            model: LIVE_MODEL,
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+            },
+            inputAudioTranscription: {},
+            systemInstruction: {
+              parts: [{ text: 'You are a transcription service. Transcribe the user\'s speech accurately. Do not respond verbally.' }],
+            },
+          },
+        }));
+
+        // 2. Start audio capture pipeline
+        const inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        audioContextRef.current = inputAudioContext;
+
+        const source = inputAudioContext.createMediaStreamSource(stream);
+        const scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
+
+        scriptProcessor.onaudioprocess = (e) => {
+          if (ws.readyState !== WebSocket.OPEN) return;
+          const pcmB64 = float32ToPcmBase64(e.inputBuffer.getChannelData(0));
+          ws.send(JSON.stringify({
+            realtimeInput: {
+              mediaChunks: [{ data: pcmB64, mimeType: 'audio/pcm;rate=16000' }],
+            },
+          }));
+        };
+
+        source.connect(scriptProcessor);
+        scriptProcessor.connect(inputAudioContext.destination);
+
+        setIsListening(true);
+        setIsInitializing(false);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data as string);
+          const text = msg?.serverContent?.inputTranscription?.text;
+          if (text) onTranscription(text);
+        } catch {
+          // ignore non-JSON frames
+        }
+      };
+
+      ws.onerror = () => stopListening();
+      ws.onclose = () => stopListening();
+
+    } catch (err) {
+      console.error('Failed to start transcription:', err);
+      stopListening();
+    }
   };
 
   const toggleListening = () => {
