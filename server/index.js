@@ -66,12 +66,13 @@ app.use((_req, res, next) => {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
-      "style-src 'self' 'unsafe-inline'",
+      "script-src 'self' 'unsafe-inline' https://apis.google.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com wss://*.googleapis.com",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",
-      "font-src 'self' data:",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "frame-src https://accounts.google.com https://*.firebaseapp.com",
       "frame-ancestors 'none'",
       "upgrade-insecure-requests",
     ].join('; ')
@@ -82,8 +83,9 @@ app.use((_req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  // Prevent cross-origin opener attacks (e.g. tabnapping)
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  // same-origin-allow-popups required for Firebase signInWithPopup —
+  // 'same-origin' severs the popup↔opener channel that Firebase Auth relies on.
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   // camera=(self) allows the portrait selfie feature within same-origin pages only
   res.setHeader('Permissions-Policy', 'microphone=(self), camera=(self), geolocation=()');
