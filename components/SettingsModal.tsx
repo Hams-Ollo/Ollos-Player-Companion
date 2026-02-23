@@ -250,7 +250,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose, on
             </button>
           )}
           {importError && <p className="text-xs text-red-400 text-center">{importError}</p>}
-          <input ref={fileInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleImportFile} />
+          <input ref={fileInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleImportFile} aria-label="Import character from JSON file" />
         </div>
       </div>
     </div>
