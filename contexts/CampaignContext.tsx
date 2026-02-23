@@ -27,6 +27,7 @@ import {
   declineInvite as firestoreDeclineInvite,
   createInvite as firestoreCreateInvite,
   updateMemberCharacter as firestoreUpdateMemberCharacter,
+  regenerateJoinCode as firestoreRegenerateJoinCode,
 } from '../lib/campaigns';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -69,6 +70,7 @@ interface CampaignContextType {
   declineInvite: (inviteId: string) => Promise<void>;
   sendInvite: (email: string) => Promise<void>;
   updateMemberCharacter: (characterId: string | null) => Promise<void>;
+  regenerateJoinCode: () => Promise<string>;
 }
 
 const CampaignContext = createContext<CampaignContextType | undefined>(undefined);
@@ -343,6 +345,11 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     [activeCampaignId, user?.uid],
   );
 
+  const regenerateJoinCodeAction = useCallback(async (): Promise<string> => {
+    if (!activeCampaignId) throw new Error('No active campaign');
+    return firestoreRegenerateJoinCode(activeCampaignId);
+  }, [activeCampaignId]);
+
   return (
     <CampaignContext.Provider
       value={{
@@ -367,6 +374,7 @@ export const CampaignProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         declineInvite: declineInviteAction,
         sendInvite: sendInviteAction,
         updateMemberCharacter: updateMemberCharacterAction,
+        regenerateJoinCode: regenerateJoinCodeAction,
       }}
     >
       {children}

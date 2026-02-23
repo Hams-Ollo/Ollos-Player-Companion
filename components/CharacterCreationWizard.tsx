@@ -416,6 +416,7 @@ const StepAbilityScores: React.FC<{
                   <div className="flex items-center justify-between w-full">
                     <button 
                       onClick={() => handlePointBuyChange(key, false)}
+                      aria-label={`Decrease ${key}`}
                       className="p-1.5 rounded-lg bg-zinc-900 text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors"
                       disabled={baseScore <= POINT_BUY_MIN}
                     >
@@ -427,6 +428,7 @@ const StepAbilityScores: React.FC<{
                     </div>
                     <button 
                       onClick={() => handlePointBuyChange(key, true)}
+                      aria-label={`Increase ${key}`}
                       className="p-1.5 rounded-lg bg-zinc-900 text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors"
                       disabled={baseScore >= POINT_BUY_MAX || pointsRemaining < (POINT_BUY_COSTS[baseScore + 1] - POINT_BUY_COSTS[baseScore])}
                     >
@@ -437,6 +439,7 @@ const StepAbilityScores: React.FC<{
                    <input 
                       type="number"
                       value={baseScore}
+                      aria-label={`${key} score`}
                       onChange={(e) => handleManualStatChange(key, e.target.value)}
                       className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-2 text-xl font-display font-bold text-white focus:outline-none focus:border-amber-500 text-center"
                    />
@@ -486,6 +489,7 @@ const StepAbilityScores: React.FC<{
                         key={idx}
                         value={alloc?.[idx] || 'STR'}
                         onChange={e => handleAsiChange(lvl, idx, e.target.value as StatKey)}
+                        aria-label={`Level ${lvl} ASI bonus ${idx + 1}`}
                         className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-xs font-bold text-white focus:outline-none focus:border-amber-500"
                       >
                         {STAT_KEYS.map(s => <option key={s} value={s}>{s} +1</option>)}
@@ -674,7 +678,10 @@ const StepPowers: React.FC<{
           type="text"
           value={spellSearch}
           onChange={e => setSpellSearch(e.target.value)}
-          placeholder="Search spells..."
+          placeholder="Search spells by name..."
+          aria-label="Search spells by name"
+          title="Search spells by name"
+          id="spell-search"
           className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
         />
       )}
@@ -692,7 +699,7 @@ const StepPowers: React.FC<{
           <div className="flex flex-wrap gap-2 min-h-[32px]">
             {[...state.selectedPowers, ...allHigherSelections].map(p => (
               <span key={p} className={`${cantrips.includes(p) ? 'bg-cyan-900/30 text-cyan-200 border-cyan-500/30' : 'bg-purple-900/30 text-purple-200 border-purple-500/30'} border px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2`}>
-                {p} <button aria-label={`Remove ${p}`} onClick={() => {
+                {p} <button type="button" aria-label={`Remove ${p}`} title={`Remove ${p} from selection`} onClick={() => {
                   if (cantrips.includes(p) || spells1st.includes(p) || racialSpellNames.includes(p)) {
                     toggleCantrip(p); // reuse toggle for selectedPowers
                     if (spells1st.includes(p)) toggleSpell(1, p);
@@ -1081,13 +1088,15 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ onCreate, onClose }) =
 
         <div className="p-4 sm:p-5 border-t border-zinc-800 bg-zinc-950/50 flex gap-3 shrink-0">
           {step > 0 && !forging && (
-            <button onClick={() => setStep(s => s - 1)} className="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl flex items-center gap-1 transition-all">
+            <button type="button" title="Go to previous step" onClick={() => setStep(s => s - 1)} className="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl flex items-center gap-1 transition-all">
               <ChevronLeft size={18} /> Back
             </button>
           )}
           <div className="flex-grow" />
           {step < 5 && (
             <button 
+                type="button"
+                title="Go to next step"
                 onClick={() => setStep(s => s + 1)} 
                 disabled={!canAdvance} 
                 className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl flex items-center gap-1 disabled:opacity-30 transition-all shadow-lg shadow-amber-900/20"
@@ -1096,7 +1105,7 @@ const CharacterCreationWizard: React.FC<WizardProps> = ({ onCreate, onClose }) =
             </button>
           )}
           {step === 5 && !forging && (
-            <button onClick={handleForge} className="px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold rounded-xl flex items-center gap-2 transition-all shadow-xl shadow-orange-900/40 active:scale-95">
+            <button type="button" title="Forge your character" onClick={handleForge} className="px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold rounded-xl flex items-center gap-2 transition-all shadow-xl shadow-orange-900/40 active:scale-95">
               <Sparkles size={18} /> Forge Character
             </button>
           )}

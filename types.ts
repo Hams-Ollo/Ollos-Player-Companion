@@ -98,6 +98,9 @@ export interface CharacterData {
   journal: JournalEntry[];
   motivations?: string;
   keyNPCs?: string;
+  heroicInspiration?: boolean;
+  activeConditions?: string[];
+  exhaustionLevel?: number;
 }
 
 export interface Campaign {

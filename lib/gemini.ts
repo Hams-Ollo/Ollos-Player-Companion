@@ -95,3 +95,17 @@ export const generatePortrait = async (prompt: string, parts?: any[]): Promise<s
   }
   return null;
 };
+
+/**
+ * Generate a D&D 5e combat encounter via the server-side encounter builder.
+ * Sends the scenario description and party info; receives a structured encounter JSON.
+ */
+export const generateEncounter = async (params: {
+  scenarioDescription: string;
+  partyLevels: number[];
+  partyClasses?: string[];
+  difficulty?: 'easy' | 'medium' | 'hard' | 'deadly';
+  environment?: string;
+}): Promise<any> => {
+  return proxyFetch('encounter', params);
+};

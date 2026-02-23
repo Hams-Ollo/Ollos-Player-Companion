@@ -8,13 +8,14 @@ interface PortraitGeneratorProps {
   onUpdate: (url: string) => void;
   onClose: () => void;
   characterDescription: string;
+  initialTab?: 'text' | 'image';
 }
 
-const PortraitGenerator: React.FC<PortraitGeneratorProps> = ({ currentPortrait, onUpdate, onClose, characterDescription }) => {
+const PortraitGenerator: React.FC<PortraitGeneratorProps> = ({ currentPortrait, onUpdate, onClose, characterDescription, initialTab }) => {
   const [prompt, setPrompt] = useState(characterDescription);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'text' | 'image'>('text');
+  const [activeTab, setActiveTab] = useState<'text' | 'image'>(initialTab ?? 'text');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

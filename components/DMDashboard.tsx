@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useCampaign } from '../contexts/CampaignContext';
-import { CampaignMemberCharacterSummary } from '../types';
+import { CharacterData } from '../types';
 import { Crown, Users, Eye, Swords, ScrollText, Settings, LogOut, Hash, Copy, Check, RefreshCw } from 'lucide-react';
 import DMPartyOverview from './DMPartyOverview';
 import EncounterGenerator from './EncounterGenerator';
@@ -19,8 +19,6 @@ const DMDashboard: React.FC<DMDashboardProps> = ({ onExit, onReturnToCharacter }
     members,
     activeEncounter,
     updateCampaign,
-    archiveCampaign,
-    setActiveCampaignId,
     regenerateJoinCode,
   } = useCampaign();
 
@@ -29,10 +27,11 @@ const DMDashboard: React.FC<DMDashboardProps> = ({ onExit, onReturnToCharacter }
   const [regeneratingCode, setRegeneratingCode] = useState(false);
 
   const partyCharacters = useMemo(() => {
-    const map = new Map<string, CampaignMemberCharacterSummary>();
+    const map = new Map<string, CharacterData>();
     members.forEach((member) => {
-      if (member.characterSummary) {
-        map.set(member.uid, member.characterSummary);
+      const charData = (member as any).character as CharacterData | undefined;
+      if (charData) {
+        map.set(member.uid, charData);
       }
     });
     return map;
