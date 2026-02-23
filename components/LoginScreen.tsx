@@ -23,11 +23,11 @@ const LoginScreen: React.FC = () => {
             <Crown size={48} className="text-white drop-shadow-lg" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-6xl font-display font-black text-white tracking-tighter drop-shadow-2xl">
-              VESPER
+            <h1 className="text-5xl font-display font-black text-white tracking-tighter drop-shadow-2xl leading-tight">
+              Ollo's Player Companion
             </h1>
             <p className="text-zinc-500 text-lg font-medium max-w-[280px] mx-auto leading-tight">
-              The next generation digital grimoire for D&D 5e.
+              Your digital grimoire for D&amp;D 5e.
             </p>
           </div>
         </div>
