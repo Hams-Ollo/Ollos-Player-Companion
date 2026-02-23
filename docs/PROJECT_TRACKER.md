@@ -6,7 +6,7 @@
 >
 > Comprehensive task tracking by epic. Updated as work is completed.
 >
-> **Last audited:** 2026-06-12 (v0.4.1 security hardening complete; v0.5.0 DM suite UI complete; Quick Roll name + WS proxy shipped; 169/220 tasks complete)
+> **Last audited:** 2026-02-23 (e0300c3 — CombatTracker fully wired; DMNotesPanel full CRUD; SettingsModal import; CampaignContext `removeMember`/`rollRequests`/`submitRollResponse`; `types.ts` duplicate cleanup; 169/220 tasks complete)
 
 ---
 
@@ -177,7 +177,7 @@
 | 8.11 | Party roster component | ✅ | `PartyRoster.tsx` — card grid with character fetching |
 | 8.12 | DM party overview | ✅ | `DMPartyOverview.tsx` — vitals grid, passive scores |
 | 8.13 | Invite management (email + code) | ✅ | Join code sharing panel + email invites + accept/decline; 7-day expiry; duplicate prevention |
-| 8.14 | DM remove members | ✅ | `removeMember` in context + kick button on PartyRoster |
+| 8.14 | DM remove members | ✅ | `removeMember` in `CampaignContext` + `lib/campaigns.ts` + kick button on `PartyRoster`; `subscribeToRollRequests` and `submitRollResponse` also wired in context (2026-02-23) |
 | 8.15 | Wire `CampaignProvider` into `App.tsx` | ✅ | Provider wraps `AppContent`, no localStorage |
 | 8.16 | Rewrite `CampaignManager` with `useCampaign()` | ✅ | Fully Firestore-backed |
 | 8.17 | `DMDashboard` layout | ✅ | Tabbed DM view (overview/combat/notes/settings) |
@@ -223,7 +223,7 @@
 | 10.2 | Journal detail panel | ✅ | `JournalDetail.tsx` |
 | 10.3 | AI quick summaries | ✅ | One-click session recap |
 | 10.4 | Timestamped entries | ✅ | Auto-dated |
-| 10.5 | DM campaign journal | ✅ | `DMNotesPanel` in `DMDashboard.tsx` — tabbed note management with Markdown editor, tags; v0.5.0 |
+| 10.5 | DM campaign journal | ✅ | `DMNotesPanel.tsx` — full CRUD: slide-in drawer for create/edit (title, type, content, tags, optional session #); per-card pencil (edit) + trash (two-tap confirm delete); `createNote`/`updateNote`/`deleteNote` from `CampaignContext`; type filter chips; expand/collapse cards; v0.5.0 (2026-02-23) |
 | 10.6 | Entity linking (wiki-style) | 🔲 | v0.5.0 |
 | 10.7 | AI session summarization | 🔲 | v0.5.0 |
 | 10.8 | Character Background display in Journal | ✅ | `JournalDetail.tsx` — "Character Background" card shows `motivations` (Heart icon) and `keyNPCs` (Users icon) saved by wizard; previously unrendered; v0.5.0 |
@@ -292,7 +292,7 @@
 | # | Task | Status | Notes |
 |:--|:-----|:------:|:------|
 | 14.1 | JSON export | ✅ | `SettingsModal.tsx` — `handleExport()` downloads `CharacterData` as `Name_lvlN.json` blob; v0.4.x |
-| 14.2 | JSON import | ✅ | `CharacterSelection.tsx` — "Import Hero" card + hidden file input + `handleImport()` FileReader; new UUID + cleared ownership on import; v0.4.x |
+| 14.2 | JSON import | ✅ | Two entry points: (a) `CharacterSelection.tsx` — "Import Hero" card + hidden file input + `handleImport()` FileReader; new UUID + cleared ownership; v0.4.x; (b) `SettingsModal.tsx` — "Import Character from JSON" button; same validation + fresh id + `createCharacter()` + navigate to selection; v0.5.0 (2026-02-23) |
 | 14.3 | PDF character sheet export | 🔲 | v0.4.x |
 | 14.4 | FoundryVTT export | 🔲 | v0.4.x |
 | 14.5 | D&D Beyond export | 🔲 | v0.4.x |
@@ -307,8 +307,8 @@
 | # | Task | Status | Notes |
 |:--|:-----|:------:|:------|
 | 15.1 | `lib/combat.ts` service layer | 🔲 | v0.5.0 — no Firestore transaction service layer yet; combat state managed via `CampaignContext` → `lib/campaigns.ts` |
-| 15.2 | Initiative tracker component | ✅ | `CombatTracker.tsx` (536 lines) — sorted initiative list, HP editor, conditions, turn advancement, combat log; wired into `DMDashboard` Combat tab; v0.5.0 |
-| 15.3 | DM combat management | ✅ | `CombatTracker.tsx` — HP editing, condition tracking, NPC support, `nextTurn`/`endCombat` via `CampaignContext`; v0.5.0 |
+| 15.2 | Initiative tracker component | ✅ | `CombatTracker.tsx` — sorted initiative list, type badges (PC/NPC/Monster), colour-coded HP (green/yellow/red), +/−1 HP per combatant (Firestore-synced), Next Turn → `advanceTurn()` with auto-round-wrap, End Combat → two-tap confirm + `endCombat()`, loading spinners; wired into `DMDashboard` Combat tab; v0.5.0 (2026-02-23) |
+| 15.3 | DM combat management | ✅ | `CombatTracker.tsx` — HP editing (clamp 0→maxHp, writes to Firestore via `updateEncounter`), condition display, NPC/monster support, confirmed `advanceTurn`/`endCombat` via `CampaignContext`; bug fix: `c.currentHp` → `c.hp` (Combatant interface field name); v0.5.0 (2026-02-23) |
 | 15.4 | Encounter builder | ✅ | `EncounterGenerator.tsx` (474 lines) — AI-drafted encounters, creature stat blocks, difficulty rating, Launch → `CombatTracker`; v0.5.0 |
 | 15.5 | Batch initiative rolling | 🔲 | v0.5.0 |
 | 15.6 | Lair/legendary actions | 🔲 | v0.5.0 |
@@ -323,7 +323,7 @@
 | # | Task | Status | Notes |
 |:--|:-----|:------:|:------|
 | 16.1 | Whisper system (DM ↔ player) | ✅ | `PartyRoster.tsx` + `lib/campaigns.ts` (thread subscriptions, send, mark read) |
-| 16.2 | Roll request system | ✅ | Full UI shipped — `RollRequestPanel` (DM creates requests) + `RollRequestBanner` (player response strip); backend in `lib/campaigns.ts`; v0.5.0 |
+| 16.2 | Roll request system | ✅ | Full UI shipped — `RollRequestPanel` (DM creates requests) + `RollRequestBanner` (player response strip); backend in `lib/campaigns.ts`; `subscribeToRollRequests` + `submitRollResponse` wired into `CampaignContext` (2026-02-23); v0.5.0 |
 | 16.3 | Shared handouts | 🔲 | v0.6.0 |
 
 ---
@@ -485,7 +485,7 @@
 | Epic 11: Skills | 7 | 0 | 1 | 8 |
 | Epic 12: Level-Up | 10 | 0 | 0 | 10 |
 | Epic 13: Combat Stats | 8 | 0 | 2 | 10 |
-| Epic 14: Data Export | 3 | 0 | 3 | 6 |
+| Epic 14: Data Export | 4 | 0 | 2 | 6 |
 | Epic 15: Combat Tracker | **3** | 0 | 4 | 7 |
 | Epic 16: Communication | 2 | 0 | 1 | 3 |
 | Epic 17: Infrastructure | 7 | 0 | 1 | 8 |
@@ -493,7 +493,7 @@
 | Epic 19: Security Hardening | **19** | 0 | **7** | 26 |
 | Epic 20: Premade Templates | 0 | 0 | 6 | 6 |
 | Epic 21: SRD Content Browser | 0 | 0 | 7 | 7 |
-| **TOTALS** | **169** | **0** | **51** | **220** |
+| **TOTALS** | **170** | **0** | **50** | **220** |
 
 ---
 

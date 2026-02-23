@@ -48,7 +48,7 @@ Whether you are a battle-scarred veteran of a hundred campaigns or a wide-eyed n
 | 🎲 **Quick Roll** | One-click AI-generated character from a vibe prompt — stats, backstory, portrait; optional name input or AI-generated name |
 | 🎭 **Class Theming** | Dynamic color themes per D&D class — borders, gradients, and arcane glow effects |
 | 🎙️ **Voice Input** | Live audio transcription via Gemini Native Audio for hands-free DM chat (proxied via secure WS endpoint — API key never reaches browser) |
-| 🛡️ **DM Dashboard** | Full tabbed DM command centre — Party Overview, Combat Tracker (initiative order, HP, conditions, combat log), Encounter Generator (AI-drafted encounters with creature stat blocks), Campaign Journal (Markdown notes + tags), Roll Request system (DM creates group rolls; players respond inline), Campaign Settings |
+| 🛡️ **DM Dashboard** | Full tabbed DM command centre — Party Overview (live party vitals from Firestore), Combat Tracker (fully wired: initiative order, type badges, colour-coded HP, +/− HP per combatant, Next Turn / End Combat with two-tap confirm), Encounter Generator (AI-drafted encounters → Launch Combat auto-populates tracker), Campaign Journal (full CRUD: slide-in drawer, type filters, tags, expand/collapse), Roll Request system (DM creates group rolls; players respond inline), Campaign Settings |
 | 👥 **Party Roster** | Live party member cards with HP bars, AC, level, class info; DM can kick members |
 | ⚔️ **Combat Strip** | At-a-glance combat status bar with initiative display and roll hook |
 | 🎯 **Quick Action Bar** | Context-sensitive shortcut buttons for common actions |
@@ -300,8 +300,8 @@ The Companion employs a **defense-in-depth** strategy to protect the Gemini API 
 
 > *"A quick report from the war council, for those who need present-tense status at a glance."*
 
-- **v0.5.1 (current):** Security hardening fully complete — Firebase Admin SDK cryptographic token verification, Redis-backed rate limiting, full CSP/HSTS header suite, WebSocket proxy for Live Audio, Firestore field-type validation + size caps, 0 npm vulnerabilities. DM suite UI complete — CombatTracker, EncounterGenerator, DMNotesPanel, RollRequestPanel, RollRequestBanner all live.
-- **v0.5.0 → v0.5.x remaining:** World-building layer not yet built — NPCRegistry, QuestTracker, FactionManager; `lib/combat.ts` service abstraction; premade character templates; save/load encounter templates from Firestore.
+- **v0.5.0 (current):** Security hardening fully complete — Firebase Admin SDK cryptographic token verification, Redis-backed rate limiting, full CSP/HSTS header suite, WebSocket proxy for Live Audio, Firestore field-type validation + size caps, 0 npm vulnerabilities. DM tools fully functional — CombatTracker (HP ±, type badges, colour-coded HP rows, Next Turn / End Combat with two-tap confirm), DMNotesPanel (full CRUD slide-in drawer with type filters and tags), EncounterGenerator → Launch Combat handoff live, RollRequestPanel + RollRequestBanner fully wired. Character JSON import accessible from both CharacterSelection and SettingsModal.
+- **v0.5.x remaining:** World-building layer not yet built — NPCRegistry, QuestTracker, FactionManager; `lib/combat.ts` service abstraction; premade character templates; save/load encounter templates from Firestore.
 - **v0.6.0 AI DM Co-Pilot:** DMAssistant (full campaign-context AI), shared handouts, SRD content browser.
 - **v0.7.0 Higher-Level Creation:** In progress — level 1–20 creation flow is live; multiclass support remains pending.
 

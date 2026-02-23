@@ -83,7 +83,7 @@ flowchart TD
 | `App` | `App.tsx` | Auth gate, routing between selection and dashboard |
 | `AuthProvider` | `contexts/AuthContext.tsx` | Firebase auth state, sign-in/out methods, React context |
 | `CharacterProvider` | `contexts/CharacterContext.tsx` | Character CRUD, Firestore/localStorage dual-mode, migration, `updateCharacterById` for cross-context syncing |
-| `CampaignProvider` | `contexts/CampaignContext.tsx` | Campaign CRUD, real-time subscriptions, invites, member removal, join code regeneration, character–campaign membership sync |
+| `CampaignProvider` | `contexts/CampaignContext.tsx` | Campaign CRUD, real-time subscriptions, invites, member removal, join code regeneration, character–campaign membership sync; `partyCharacters` Map (DM view of party characters fetched from Firestore); `startCombat`/`advanceTurn`/`endCombat`; `createNote`/`updateNote`/`deleteNote`; `removeMember`; `rollRequests` subscription + `submitRollResponse` |
 
 ### 📜 The Selection Layer
 
@@ -111,7 +111,7 @@ flowchart TD
 
 | Component | File | Responsibility |
 |:----------|:-----|:---------------|
-| `DMDashboard` | `components/DMDashboard.tsx` | Tabbed DM view; overview + settings are live, combat/notes tabs are scaffolded placeholders; includes `allowPlayerInvites` toggle and join-code regeneration |
+| `DMDashboard` | `components/DMDashboard.tsx` | Tabbed DM view: Overview (live party vitals via `partyCharacters` from context), Combat (fully wired `CombatTracker`), Encounter Generator (`EncounterGenerator` → Launch Combat → auto-switches to Combat tab), Notes (full CRUD `DMNotesPanel`), Roll Requests (`RollRequestPanel`), Settings; `allowPlayerInvites` toggle + join-code regeneration |
 | `DMPartyOverview` | `components/DMPartyOverview.tsx` | Live party vitals grid with HP bars, AC, passive scores |
 | `PartyRoster` | `components/PartyRoster.tsx` | Party member card grid, DM kick button, campaign chat channels, and live DM↔player whispers |
 
@@ -137,7 +137,7 @@ flowchart TD
 | `ShopModal` | `components/ShopModal.tsx` | Shop button on inventory |
 | `AskDMModal` | `components/AskDMModal.tsx` | DM button on dashboard |
 | `ItemDetailModal` | `components/ItemDetailModal.tsx` | Tap any item/feature for AI rules lookup |
-| `SettingsModal` | `components/SettingsModal.tsx` | Settings gear icon |
+| `SettingsModal` | `components/SettingsModal.tsx` | Settings gear icon; also exposes JSON export (`handleExport`) and JSON import (`handleImportFile` FileReader) |
 | `PortraitGenerator` | `components/PortraitGenerator.tsx` | Tap portrait on dashboard |
 | `TranscriptionButton` | `components/TranscriptionButton.tsx` | Mic icon on text fields |
 | `QuickActionBar` | `components/QuickActionBar.tsx` | Context-sensitive shortcut action buttons |
@@ -165,23 +165,30 @@ interface CharacterData {
   background?: string;
   alignment?: string;
   level: number;
+  subclass?: string;
   campaign?: string;                     // display name (e.g. "Firestorm")
-  campaignId?: string;                   // Firestore campaign doc ID (synced with members subcollection)
+  campaignId?: string;                   // Firestore campaign doc ID
   portraitUrl: string;
-  stats: Record<StatKey, Stat>;       // STR, DEX, CON, INT, WIS, CHA
+  stats: Record<StatKey, Stat>;          // STR, DEX, CON, INT, WIS, CHA
   hp: { current: number; max: number };
   hitDice: { current: number; max: number; die: string };
   ac: number;
   initiative: number;
   speed: number;
   passivePerception: number;
-  skills: Skill[];                     // 18 D&D skills
+  activeConditions?: string[];           // D&D 5e condition names (e.g. "Poisoned")
+  exhaustionLevel?: number;              // 0–6
+  heroicInspiration?: boolean;           // one-time advantage on any roll
+  xp?: number;                           // experience points
+  skills: Skill[];                       // 18 D&D skills
   attacks: Attack[];
   features: Feature[];
   spells: Spell[];
   spellSlots: { level: number; current: number; max: number }[];
   inventory: { gold: number; items: Item[]; load: string };
   journal: JournalEntry[];
+  motivations?: string;                  // from creation wizard (rendered in JournalDetail)
+  keyNPCs?: string;                      // from creation wizard (rendered in JournalDetail)
 }
 ```
 
@@ -255,6 +262,7 @@ All AI calls route through the **Express API proxy** at `/api/gemini/*`. The cli
 | `POST /api/gemini/generate` | Single-shot text generation |
 | `POST /api/gemini/chat` | Multi-turn chat |
 | `POST /api/gemini/portrait` | Image generation |
+| `POST /api/gemini/encounter` | AI encounter drafting (description → `EncounterTemplate` with creature stat blocks) |
 | `POST /api/gemini/live-token` | Returns authenticated Live Audio session credential payload (currently proxy-issued API key) |
 | `GET /api/health` | Health check |
 | `GET /*` | Serves static `dist/` files (production) |

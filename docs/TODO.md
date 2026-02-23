@@ -6,7 +6,7 @@
 >
 > Living document tracking planned features, enhancements, and community requests.
 >
-> **Scribed last:** 2026-06-12 (v0.4.1 security hardening fully complete — Firebase Admin SDK, Redis rate limiting, CSP/HSTS headers, WS proxy, Firestore field-type/size rules, 0 npm vulns; CombatTracker, RollRequestPanel/Banner all live; Quick Roll custom name feature shipped; TranscriptionButton rewritten to WS proxy)
+> **Scribed last:** 2026-02-23 (e0300c3 — DM combat tracker fully wired, DMNotesPanel full CRUD drawer, character JSON import from SettingsModal, CampaignContext `removeMember`/`rollRequests`/`submitRollResponse` wired, `types.ts` duplicate field cleanup)
 
 ---
 
@@ -33,16 +33,16 @@ Phase 0: Foundation Cleanup           ██████████████
 Phase 1: Firestore Campaign Foundation    ████████████████████████████████████████  ✅ CLEARED
 UI Overhaul & API Cleanup                ████████████████████████████████████████  ✅ CLEARED
 Phase 2: Campaign Context & Party UI          ██████████████████████████████████  ✅ CLEARED
-🔒 Security Hardening (BLOCKS PUBLIC LAUNCH)   ██████████████████░░░░░░░░░░░░░░  ← PRIMARY FOCUS
-Character Sheet Parity (D&D Beyond-Inspired)           ░░░░░░░░████████░░░░░░░░░░
-Character Export & Import                              ░░░░░░░░████████░░░░░░░░░░
-Phase 3: Combat & Initiative Tracker                          ░░░░░░░░████████░░
+🔒 Security Hardening (v0.4.1)                ████████████████████████████████  ✅ CLEARED
+Character Sheet Parity (v0.4.x)                   ████████████████████████████  ✅ CLEARED
+Character Export & Import (v0.4.x)                ████████████████████████████  ✅ CLEARED
+Phase 3: Combat & Initiative Tracker (v0.5.0)          ████████████████████░░░░  ← IN PROGRESS
+Phase 4: DM Journal, NPCs & Items (v0.5.0)             ████████░░░░░░░░░░░░░░░░  ← IN PROGRESS
 Premade Character Templates                                   ░░░░░░░░████████░░
-Phase 4: DM Journal, NPCs & Items                            ░░░░░░░░████████░░
-Phase 4b: Custom Items & Loot                                ░░░░░░░░░░██████░░
-Phase 5: AI DM Co-Pilot                                              ░░░░░░████
-SRD Content Browser                                                  ░░░░░░████
-Phase 6: Multiplayer Communication                                   ████░░████  (whispers live; roll requests backend)
+Phase 4b: Custom Items & Loot (v0.5.5)                                   ░░░░████████░░
+Phase 5: AI DM Co-Pilot (v0.6.0)                                         ░░░░░░░░████
+SRD Content Browser (v0.6.0)                                             ░░░░░░░░████
+Phase 6: Multiplayer Communication                               ████████████░░░░  (whispers + roll requests fully live)
 Phase 7: Higher-Level Char Creation                                  ████████████░░  (1–20 flow live; multiclass pending)
                                        v0.3.1   v0.4.0  v0.4.1  v0.4.x  v0.5.0  v0.5.5  v0.6.0  v0.7.0
 ```
@@ -71,7 +71,7 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 | v0.4.0 | Phases 1–2 | Firestore campaigns, party roster, DM overview | ✅ Cleared |
 | v0.4.1 | 🔒 Security | API proxy, rate limiting, debug cleanup, Firestore hardening | ✅ Cleared (Admin SDK + Redis rate limiting + CSP/HSTS + WS proxy + Firestore field rules + 0 vulns) |
 | v0.4.x | Char Sheet Parity | Conditions, heroic inspiration, passives, XP, clone, export | ✅ Cleared (2026-02-22) |
-| v0.5.0 | Phases 3–4 | Combat tracker, encounter builder, DM journal, NPC registry, premade templates | 🟨 In Progress (CombatTracker, EncounterGenerator, DMNotesPanel, RollRequestPanel, RollRequestBanner all shipped; **NPCRegistry, QuestTracker, FactionManager, lib/combat.ts, premade templates remaining**) |
+| v0.5.0 | Phases 3–4 | Combat tracker, encounter builder, DM journal, NPC registry, premade templates | 🟨 In Progress (CombatTracker fully wired — type badges, coloured HP, +/− HP per combatant, Next Turn/End Combat with confirm; EncounterGenerator → Launch Combat → CombatTracker handoff live; DMNotesPanel full CRUD with slide-in drawer; RollRequestPanel + RollRequestBanner live; **NPCRegistry, QuestTracker, FactionManager, lib/combat.ts, premade templates remaining**) |
 | v0.5.5 | Phase 4b | DM item builder, SRD magic items, loot sessions | ⬜ Not Started |
 | v0.6.0 | Phases 5–6 | AI DM Co-Pilot, whispers, roll requests, handouts, SRD content browser | 🟨 In Progress (whispers shipped; roll requests backend present; handouts/browser pending) |
 | v0.7.0 | Phase 7 | Create characters at levels 1–20, multiclass | 🟨 In Progress (1–20 flow shipped; multiclass + advanced feature aggregation pending) |
@@ -441,6 +441,11 @@ Phase 0 ─→ Phase 1 ─→ Phase 2 ─┬→ 🔒 Security Hardening (MUST cl
 - [x] **Firebase Admin SDK Auth Overhaul** — `server/middleware/auth.js` rewritten using Firebase Admin SDK `verifyIdToken(token, true)` (cryptographic + revocation); UID-keyed cache, 4-min TTL, 500-entry LRU cap _(v0.4.1 — 2026-06-12)_
 - [x] **WebSocket Proxy for Live Audio** — `TranscriptionButton.tsx` rewritten to use raw WS connection to `/api/gemini/live?token=<idToken>`; `@google/genai` SDK no longer used client-side; API key stays server-side _(v0.4.1 — 2026-06-12)_
 - [x] **Quick Roll custom name** — `QuickRollModal.tsx` adds name input field with "Let AI choose" clear button; name hard-overrides AI JSON output; prompt instructs AI accordingly _(v0.5.0 — 2026-06-12)_
+- [x] **CombatTracker full wiring** — Fixed `c.currentHp` → `c.hp` bug (HP was always "?"); wired Next Turn button → `advanceTurn()` (auto-wraps round); End Combat button → two-tap confirm + `endCombat()`; per-combatant +/−1 HP buttons (clamp 0→maxHp, write to Firestore); type badges (PC/NPC/Monster); colour-coded HP (green/yellow/red); loading spinners throughout _(v0.5.0 — 2026-02-23)_
+- [x] **DMNotesPanel full CRUD** — Slide-in drawer for create/edit (title, type select, content textarea, comma-separated tags, optional session #); per-card pencil (edit) + trash (two-tap confirm delete) icons; `createNote`/`updateNote`/`deleteNote` wired from `CampaignContext` _(v0.5.0 — 2026-02-23)_
+- [x] **Character JSON import from SettingsModal** — "Import Character from JSON" button in `SettingsModal.tsx`; uses hidden FileReader input; validates `name`/`class`/`stats`; assigns fresh `id`; calls `createCharacter()`; navigates to character selection (complements the existing `CharacterSelection.tsx` "Import Hero" card) _(v0.5.0 — 2026-02-23)_
+- [x] **CampaignContext: removeMember/rollRequests/submitRollResponse wired** — `removeMember`, `subscribeToRollRequests`, and `submitRollResponse` from `lib/campaigns.ts` were unused by the context; added to `CampaignContextType` interface, subscriptions, and Provider value; fixes `PartyRoster.tsx` and `RollRequestBanner.tsx` TypeScript errors _(v0.5.0 — 2026-02-23)_
+- [x] **`types.ts` duplicate field cleanup** — Removed 3 duplicated `CharacterData` fields (`heroicInspiration`, `activeConditions`, `exhaustionLevel`) that caused TypeScript TS2300 duplicate identifier errors _(v0.5.0 — 2026-02-23)_
 
 ---
 
