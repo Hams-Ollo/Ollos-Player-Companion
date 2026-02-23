@@ -59,6 +59,7 @@ const AppContent: React.FC = () => {
           onUpdateData={(newData) => updateCharacter(newData)}
           onExit={() => setActiveCharacterId(null)}
           onSwitchToDM={isDM && activeCampaign ? () => { setDmReturnCharId(activeCharacterId); setActiveCharacterId(null); } : undefined}
+          onImportCharacter={(char) => { createCharacter(char); setActiveCharacterId(null); }}
         />
       </ErrorBoundary>
     );

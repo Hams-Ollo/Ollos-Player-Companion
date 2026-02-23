@@ -36,9 +36,10 @@ interface DashboardProps {
   onUpdateData: (newData: Partial<CharacterData>) => void;
   onExit: () => void;
   onSwitchToDM?: () => void;
+  onImportCharacter?: (char: CharacterData) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateData, onExit, onSwitchToDM }) => {
+const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateData, onExit, onSwitchToDM, onImportCharacter }) => {
   const { activeCampaign, members, isDM, activeEncounter } = useCampaign();
   const [activeStack, setActiveStack] = useState<StackType | null>(null);
   const [rollResult, setRollResult] = useState<RollResult | null>(null);
@@ -415,7 +416,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onUpdatePortrait, onUpdateD
          />
        )}
        {showAskDM && <AskDMModal onClose={() => setShowAskDM(false)} />}
-       {showSettings && <SettingsModal data={data} onSave={onUpdateData} onClose={() => setShowSettings(false)} />}
+       {showSettings && <SettingsModal data={data} onSave={onUpdateData} onClose={() => setShowSettings(false)} onImport={onImportCharacter} />}
        {showShop && <ShopModal data={data} onUpdate={onUpdateData} onClose={() => setShowShop(false)} />}
        {showLevelUp && <LevelUpModal data={data} onUpdate={onUpdateData} onClose={() => setShowLevelUp(false)} />}
        {showRest && <RestModal data={data} onUpdate={onUpdateData} onClose={() => setShowRest(false)} />}

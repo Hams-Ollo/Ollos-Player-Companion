@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { CharacterData } from '../types';
+import { CharacterData, Combatant } from '../types';
 import { Swords, Wand2, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { generateEncounter } from '../lib/gemini';
+import { useCampaign } from '../contexts/CampaignContext';
 
 interface EncounterGeneratorProps {
   partyCharacters: Map<string, CharacterData>;
+  onCombatStarted?: () => void;
 }
 
 const DIFFICULTIES = ['easy', 'medium', 'hard', 'deadly'] as const;
@@ -17,11 +19,13 @@ const DIFFICULTY_STYLES: Record<Difficulty, string> = {
   deadly: 'bg-red-900/30 text-red-400 border-red-500/20',
 };
 
-const EncounterGenerator: React.FC<EncounterGeneratorProps> = ({ partyCharacters }) => {
+const EncounterGenerator: React.FC<EncounterGeneratorProps> = ({ partyCharacters, onCombatStarted }) => {
+  const { startCombat } = useCampaign();
   const [description, setDescription] = useState('');
   const [environment, setEnvironment] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [loading, setLoading] = useState(false);
+  const [launchingCombat, setLaunchingCombat] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedCreature, setExpandedCreature] = useState<number | null>(null);
@@ -52,6 +56,56 @@ const EncounterGenerator: React.FC<EncounterGeneratorProps> = ({ partyCharacters
       setError(err.message ?? 'Failed to generate encounter.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLaunchCombat = async () => {
+    if (!result) return;
+    setLaunchingCombat(true);
+    setError(null);
+    try {
+      // Expand each creature by count into individual Combatants
+      const monsterCombatants: Combatant[] = (result.creatures ?? []).flatMap((c: any) => {
+        const sb = c.statBlock;
+        const dexScore = sb?.abilityScores?.DEX ?? 10;
+        const dexMod = Math.floor((dexScore - 10) / 2);
+        const count = c.count ?? 1;
+        return Array.from({ length: count }, (_, i) => ({
+          id: crypto.randomUUID(),
+          name: count > 1 ? `${c.name} ${i + 1}` : c.name,
+          initiative: Math.floor(Math.random() * 20) + 1 + dexMod,
+          hp: sb?.hp ?? 10,
+          maxHp: sb?.hp ?? 10,
+          ac: sb?.ac ?? 10,
+          type: 'monster' as const,
+          conditions: [],
+          statBlock: sb ?? undefined,
+        }));
+      });
+
+      // One Combatant per linked PC
+      const pcCombatants: Combatant[] = Array.from(partyCharacters.values()).map((char) => ({
+        id: crypto.randomUUID(),
+        name: char.name,
+        initiative: Math.floor(Math.random() * 20) + 1 + (char.initiative ?? 0),
+        hp: char.hp?.current ?? char.hp?.max ?? 1,
+        maxHp: char.hp?.max ?? 1,
+        ac: char.ac ?? 10,
+        type: 'pc' as const,
+        characterId: char.id,
+        conditions: char.activeConditions ?? [],
+      }));
+
+      const allCombatants = [...monsterCombatants, ...pcCombatants].sort(
+        (a, b) => b.initiative - a.initiative,
+      );
+
+      await startCombat(result.name ?? 'Encounter', allCombatants);
+      onCombatStarted?.();
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to start combat.');
+    } finally {
+      setLaunchingCombat(false);
     }
   };
 
@@ -223,9 +277,12 @@ const EncounterGenerator: React.FC<EncounterGeneratorProps> = ({ partyCharacters
             </div>
           )}
 
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-red-900/20 hover:bg-red-900/40 text-red-400 text-sm font-bold rounded-xl transition-colors border border-red-500/20">
-            <Swords size={14} />
-            Launch Combat
+          <button
+            onClick={handleLaunchCombat}
+            disabled={launchingCombat}
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-900/20 hover:bg-red-900/40 disabled:opacity-40 disabled:cursor-not-allowed text-red-400 text-sm font-bold rounded-xl transition-colors border border-red-500/20">
+            {launchingCombat ? <Loader2 size={14} className="animate-spin" /> : <Swords size={14} />}
+            {launchingCombat ? 'Starting…' : 'Launch Combat'}
           </button>
         </div>
       )}

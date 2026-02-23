@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, Settings, Wifi, WifiOff, ShieldCheck, ShieldAlert, Activity, Download } from 'lucide-react';
+import { X, Save, Settings, Wifi, WifiOff, ShieldCheck, ShieldAlert, Activity, Download, Upload } from 'lucide-react';
 import { CharacterData, StatKey } from '../types';
 import { recalculateCharacterStats } from '../utils';
 
@@ -7,9 +7,35 @@ interface SettingsModalProps {
   data: CharacterData;
   onSave: (newData: Partial<CharacterData>) => void;
   onClose: () => void;
+  onImport?: (char: CharacterData) => void;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose, onImport }) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [importError, setImportError] = React.useState<string | null>(null);
+
+  const handleImportClick = () => fileInputRef.current?.click();
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string) as CharacterData;
+        if (!parsed.name || !parsed.class || !parsed.stats) throw new Error('Invalid character file.');
+        // Give a fresh ID so this becomes a new character
+        const newChar: CharacterData = { ...parsed, id: `local-${Date.now()}` };
+        onImport?.(newChar);
+        onClose();
+      } catch (err) {
+        setImportError((err as Error).message ?? 'Could not parse file.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // reset so same file can be re-picked
+  };
   const [formData, setFormData] = useState({
     name: data.name,
     race: data.race,
@@ -214,6 +240,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ data, onSave, onClose }) 
             <Download size={15} />
             Export as JSON
           </button>
+          {onImport && (
+            <button
+              onClick={handleImportClick}
+              className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors text-sm"
+            >
+              <Upload size={15} />
+              Import Character from JSON
+            </button>
+          )}
+          {importError && <p className="text-xs text-red-400 text-center">{importError}</p>}
+          <input ref={fileInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleImportFile} />
         </div>
       </div>
     </div>

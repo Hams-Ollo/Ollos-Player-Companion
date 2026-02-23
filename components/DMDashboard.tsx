@@ -1,6 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useCampaign } from '../contexts/CampaignContext';
-import { CharacterData } from '../types';
 import { Crown, Users, Eye, Swords, ScrollText, Settings, LogOut, Hash, Copy, Check, RefreshCw } from 'lucide-react';
 import DMPartyOverview from './DMPartyOverview';
 import EncounterGenerator from './EncounterGenerator';
@@ -18,6 +17,7 @@ const DMDashboard: React.FC<DMDashboardProps> = ({ onExit, onReturnToCharacter }
     activeCampaign,
     members,
     activeEncounter,
+    partyCharacters,
     updateCampaign,
     regenerateJoinCode,
   } = useCampaign();
@@ -25,19 +25,6 @@ const DMDashboard: React.FC<DMDashboardProps> = ({ onExit, onReturnToCharacter }
   const [activeTab, setActiveTab] = useState<'overview' | 'combat' | 'notes' | 'settings'>('overview');
   const [copiedCode, setCopiedCode] = useState(false);
   const [regeneratingCode, setRegeneratingCode] = useState(false);
-
-  const partyCharacters = useMemo(() => {
-    const map = new Map<string, CharacterData>();
-    members.forEach((member) => {
-      const charData = (member as any).character as CharacterData | undefined;
-      if (charData) {
-        map.set(member.uid, charData);
-      }
-    });
-    return map;
-  }, [members]);
-
-  const loadingChars = false;
 
   const handleCopyCode = () => {
     if (activeCampaign?.joinCode) {
@@ -156,8 +143,14 @@ const DMDashboard: React.FC<DMDashboardProps> = ({ onExit, onReturnToCharacter }
             <div className="space-y-6">
               <DMPartyOverview
                 members={members}
-                partyCharacters={partyCharacters}
-                loadingChars={loadingChars}
+                partyCharacters={new Map(Array.from(partyCharacters.entries()).map(([id, c]) => [id, {
+                  hpCurrent: (c as any).hpCurrent ?? c.hp?.current ?? 0,
+                  hpMax: (c as any).hpMax ?? c.hp?.max ?? 0,
+                  keySkills: (c as any).keySkills ?? [],
+                  topFeatures: (c as any).topFeatures ?? [],
+                  ...c,
+                }]))}
+                loadingChars={partyCharacters.size === 0 && members.some(m => m.characterId)}
               />
               <RollRequestPanel members={members} />
             </div>
@@ -167,7 +160,16 @@ const DMDashboard: React.FC<DMDashboardProps> = ({ onExit, onReturnToCharacter }
             <div>
               {activeEncounter
                 ? <CombatTracker />
-                : <EncounterGenerator partyCharacters={partyCharacters} />}
+                : <EncounterGenerator
+                    partyCharacters={new Map(Array.from(partyCharacters.entries()).map(([id, c]) => [id, {
+                      hpCurrent: (c as any).hpCurrent ?? c.hp?.current ?? 0,
+                      hpMax: (c as any).hpMax ?? c.hp?.max ?? 0,
+                      keySkills: (c as any).keySkills ?? [],
+                      topFeatures: (c as any).topFeatures ?? [],
+                      ...c,
+                    }]))}
+                    onCombatStarted={() => setActiveTab('combat')}
+                  />}
             </div>
           )}
 
